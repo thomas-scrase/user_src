@@ -44,7 +44,7 @@ fill_in_generic_residual_contribution_storage_enrichment(Vector<double> &residua
     const unsigned n_time = time_stepper_pt->ntstorage();
 
     //loop over the vectors and their components
-    for(unsigned index = vect_min_index_storage_enrichment(); index < vect_max_index_storage_enrichment(); index++){
+    for(unsigned index = min_index_storage_enrichment(); index < max_index_storage_enrichment(); index++){
       //get the local equation number
       local_eqn = nodal_local_eqn(l, index);
 

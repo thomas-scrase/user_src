@@ -48,8 +48,8 @@ namespace oomph
 
 		
 		//identify the indexes of the diffusion matrix data
-		virtual inline unsigned vect_min_index_storage_enrichment() const {return 0;}
-		virtual inline unsigned vect_max_index_storage_enrichment() const {return NUM;}
+		virtual inline unsigned min_index_storage_enrichment() const {return 0;}
+		virtual inline unsigned max_index_storage_enrichment() const {return NUM;}
 
   /// Output with default number of plot points
    void output(std::ostream &outfile) 
@@ -131,7 +131,7 @@ namespace oomph
 
     /// \short Shape/test functions and derivs w.r.t. to global coords at 
    /// local coord. s; return  Jacobian of mapping
-   virtual double dshape_and_dtest_eulerian_anisotropic_solid_vector_expansion(const Vector<double> &s, 
+   virtual double dshape_and_dtest_eulerian_storage_enrichment(const Vector<double> &s, 
                                                      Shape &psi, 
                                                      DShape &dpsidx, 
                                                      Shape &test, 
@@ -139,7 +139,7 @@ namespace oomph
 
    /// \short Shape/test functions and derivs w.r.t. to global coords at 
    /// integration point ipt; return  Jacobian of mapping
-   virtual double dshape_and_dtest_eulerian_at_knot_anisotropic_solid_vector_expansion(
+   virtual double dshape_and_dtest_eulerian_at_knot_storage_enrichment(
     const unsigned &ipt, 
     Shape &psi, 
     DShape &dpsidx,
@@ -244,7 +244,7 @@ private:
 protected:
 
  /// Shape, test functions & derivs. w.r.t. to global coords. Return Jacobian.
- inline double dshape_and_dtest_eulerian_anisotropic_solid_vector_expansion(
+ inline double dshape_and_dtest_eulerian_storage_enrichment(
   const Vector<double> &s, 
   Shape &psi, 
   DShape &dpsidx, 
@@ -253,7 +253,7 @@ protected:
  
  /// \short Shape, test functions & derivs. w.r.t. to global coords. at
  /// integration point ipt. Return Jacobian.
- inline double dshape_and_dtest_eulerian_at_knot_anisotropic_solid_vector_expansion(
+ inline double dshape_and_dtest_eulerian_at_knot_storage_enrichment(
   const unsigned& ipt,
   Shape &psi, 
   DShape &dpsidx, 
@@ -274,7 +274,7 @@ protected:
 //======================================================================
 template<unsigned DIM, unsigned NUM, unsigned NNODE_1D>
 double QStorageEnrichmentElement<DIM, NUM,NNODE_1D>::
- dshape_and_dtest_eulerian_anisotropic_solid_vector_expansion(const Vector<double> &s,
+ dshape_and_dtest_eulerian_storage_enrichment(const Vector<double> &s,
                                          Shape &psi, 
                                          DShape &dpsidx,
                                          Shape &test, 
@@ -308,7 +308,7 @@ double QStorageEnrichmentElement<DIM, NUM,NNODE_1D>::
 //======================================================================
 template<unsigned DIM, unsigned NUM, unsigned NNODE_1D>
 double QStorageEnrichmentElement<DIM, NUM,NNODE_1D>::
- dshape_and_dtest_eulerian_at_knot_anisotropic_solid_vector_expansion(
+ dshape_and_dtest_eulerian_at_knot_storage_enrichment(
  const unsigned &ipt,
  Shape &psi, 
  DShape &dpsidx,
@@ -480,7 +480,7 @@ private:
 protected:
 
  /// Shape, test functions & derivs. w.r.t. to global coords. Return Jacobian.
- inline double dshape_and_dtest_eulerian_anisotropic_solid_vector_expansion(
+ inline double dshape_and_dtest_eulerian_storage_enrichment(
   const Vector<double> &s, 
   Shape &psi, 
   DShape &dpsidx, 
@@ -489,7 +489,7 @@ protected:
  
  /// \short Shape, test functions & derivs. w.r.t. to global coords. at
  /// integration point ipt. Return Jacobian.
- inline double dshape_and_dtest_eulerian_at_knot_anisotropic_solid_vector_expansion(
+ inline double dshape_and_dtest_eulerian_at_knot_storage_enrichment(
   const unsigned& ipt,
   Shape &psi, 
   DShape &dpsidx, 
@@ -510,7 +510,7 @@ protected:
 //======================================================================
 template<unsigned DIM, unsigned NUM, unsigned NNODE_1D>
 double TStorageEnrichmentElement<DIM, NUM,NNODE_1D>::
- dshape_and_dtest_eulerian_anisotropic_solid_vector_expansion(const Vector<double> &s,
+ dshape_and_dtest_eulerian_storage_enrichment(const Vector<double> &s,
                                          Shape &psi, 
                                          DShape &dpsidx,
                                          Shape &test, 
@@ -544,7 +544,7 @@ double TStorageEnrichmentElement<DIM, NUM,NNODE_1D>::
 //======================================================================
 template<unsigned DIM, unsigned NUM, unsigned NNODE_1D>
 double TStorageEnrichmentElement<DIM, NUM,NNODE_1D>::
- dshape_and_dtest_eulerian_at_knot_anisotropic_solid_vector_expansion(
+ dshape_and_dtest_eulerian_at_knot_storage_enrichment(
  const unsigned &ipt,
  Shape &psi, 
  DShape &dpsidx,

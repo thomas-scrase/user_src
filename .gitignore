@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+# .libs and .deps
+.deps/
+.libs/
