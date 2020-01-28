@@ -4,16 +4,10 @@
 
 # Define the sources
 sources = \
-diffusion_coefficient_expansion_elements.cc \
-anisotropic_solid_with_vector_and_monodomain_elements.cc \
 cardiac_tissue_mono_elements.cc
 
 # Define the headers
 headers = \
-anisotropic_solid_with_vector_and_monodomain_elements.h \
-diffusion_coefficient_expansion_elements.h \
-full_monodomain_with_cell.h \
-monodomain_with_cell_elements.h \
 cardiac_tissue_mono_elements.h
 
 

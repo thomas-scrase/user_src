@@ -99,7 +99,7 @@ namespace oomph
     {
      //Call the generic residuals function with flag set to 0 and using
      //a dummy matrix
-     fill_in_generic_residual_contribution_anisotropic_solid_vector_expansion(
+     fill_in_generic_residual_contribution_storage_enrichment(
       residuals,GeneralisedElement::Dummy_matrix,
       GeneralisedElement::Dummy_matrix,0);
     }
@@ -111,7 +111,7 @@ namespace oomph
                                      DenseMatrix<double> &jacobian)
     {
      //Call the generic routine with the flag set to 1
-     fill_in_generic_residual_contribution_anisotropic_solid_vector_expansion(
+     fill_in_generic_residual_contribution_storage_enrichment(
       residuals,jacobian,GeneralisedElement::Dummy_matrix,1);
     }
    
@@ -123,7 +123,7 @@ namespace oomph
     DenseMatrix<double> &mass_matrix)
     {
      //Call the generic routine with the flag set to 2
-     fill_in_generic_residual_contribution_anisotropic_solid_vector_expansion(residuals,
+     fill_in_generic_residual_contribution_storage_enrichment(residuals,
                                                     jacobian,mass_matrix,2);
     }
 
@@ -149,7 +149,7 @@ namespace oomph
 
    /// \short Add the element's contribution to its residual vector only 
    /// (if flag=and/or element  Jacobian matrix 
-   virtual void fill_in_generic_residual_contribution_anisotropic_solid_vector_expansion(
+   virtual void fill_in_generic_residual_contribution_storage_enrichment(
     Vector<double> &residuals, DenseMatrix<double> &jacobian, 
     DenseMatrix<double> &mass_matrix, unsigned flag); 
 	};

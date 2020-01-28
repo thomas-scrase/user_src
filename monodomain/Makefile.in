@@ -137,8 +137,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includedir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libmonodomain_la_LIBADD =
 am__objects_1 =
-am__objects_2 = monodomain_elements.lo \
-	monodomain_d_expansion_elements.lo
+am__objects_2 = monodomain_elements.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libmonodomain_la_OBJECTS = $(am__objects_3)
 libmonodomain_la_OBJECTS = $(am_libmonodomain_la_OBJECTS)
@@ -400,16 +399,12 @@ top_srcdir = @top_srcdir@
 
 # Define the sources
 sources = \
-monodomain_elements.cc \
-monodomain_d_expansion_elements.cc
-
+monodomain_elements.cc
 
 # Define the headers
 headers = \
 monodomain_elements.h \
-monodomain_d_expansion_elements.h \
-monodomain_flux_elements.h \
-monodomain_with_d_elements.h
+monodomain_flux_elements.h
 
 
 # Define name of library
@@ -516,7 +511,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/monodomain_d_expansion_elements.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/monodomain_elements.Plo@am__quote@
 
 .cc.o:
