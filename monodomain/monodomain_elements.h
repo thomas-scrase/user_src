@@ -71,7 +71,7 @@ public:
  
  /// Broken copy constructor
  MonodomainEquations(
-  const MonodomainEquations& dummy) 
+  const MonodomainEquations<DIM>& dummy) 
   { 
    BrokenCopy::broken_copy("MonodomainEquations");
   } 

@@ -3,10 +3,13 @@
 
 # Define the sources
 sources =  \
-monodomain_elements.cc
+monodomain_elements.cc \
+refineable_monodomain_elements.cc
+
 # Define the headers
 headers =  \
 monodomain_elements.h \
+refineable_monodomain_elements.h \
 monodomain_flux_elements.h
 
 # Define name of library
