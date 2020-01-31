@@ -137,9 +137,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includedir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libcardiac_multiphysics_la_LIBADD =
 am__objects_1 =
-am__objects_2 = diffusion_coefficient_expansion_elements.lo \
-	anisotropic_solid_with_vector_and_monodomain_elements.lo \
-	cardiac_tissue_mono_elements.lo
+am__objects_2 = cardiac_tissue_mono_elements.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libcardiac_multiphysics_la_OBJECTS = $(am__objects_3)
 libcardiac_multiphysics_la_OBJECTS =  \
@@ -338,8 +336,8 @@ SHELL = /bin/bash
 STRIP = strip
 TRILINOS_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include
 TRILINOS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib
-USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ monodomain_with_cell_test/ tissuedeformation/
-USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ monodomain/
+USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ single_cell_analysis/ tissuedeformation/
+USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ monodomain/ multiphysics_tests/ toms_utilities/
 VERSION = 1.0.0000
 abs_builddir = /home/thomas/oomph-lib-1.0.1306/user_src/cardiac_multiphysics
 abs_srcdir = /home/thomas/oomph-lib-1.0.1306/user_src/cardiac_multiphysics
@@ -406,17 +404,11 @@ top_srcdir = ../..
 
 # Define the sources
 sources = \
-diffusion_coefficient_expansion_elements.cc \
-anisotropic_solid_with_vector_and_monodomain_elements.cc \
 cardiac_tissue_mono_elements.cc
 
 
 # Define the headers
 headers = \
-anisotropic_solid_with_vector_and_monodomain_elements.h \
-diffusion_coefficient_expansion_elements.h \
-full_monodomain_with_cell.h \
-monodomain_with_cell_elements.h \
 cardiac_tissue_mono_elements.h
 
 
@@ -524,9 +516,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/anisotropic_solid_with_vector_and_monodomain_elements.Plo
 include ./$(DEPDIR)/cardiac_tissue_mono_elements.Plo
-include ./$(DEPDIR)/diffusion_coefficient_expansion_elements.Plo
 
 .cc.o:
 	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

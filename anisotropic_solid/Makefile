@@ -139,9 +139,7 @@ libanisotropic_solid_la_LIBADD =
 am__objects_1 =
 am__objects_2 = anisotropic_solid_elements.lo \
 	refineable_anisotropic_solid_elements.lo \
-	anisotropic_solid_preconditioners.lo \
-	anisotropic_solid_vector_expansion_elements.lo \
-	anisotropic_solid_with_vector_storage_elements.lo
+	anisotropic_solid_preconditioners.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libanisotropic_solid_la_OBJECTS = $(am__objects_3)
 libanisotropic_solid_la_OBJECTS =  \
@@ -337,8 +335,8 @@ SHELL = /bin/bash
 STRIP = strip
 TRILINOS_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include
 TRILINOS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib
-USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ monodomain_with_cell_test/ tissuedeformation/
-USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ monodomain/
+USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ single_cell_analysis/ tissuedeformation/
+USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ monodomain/ multiphysics_tests/ toms_utilities/
 VERSION = 1.0.0000
 abs_builddir = /home/thomas/oomph-lib-1.0.1306/user_src/anisotropic_solid
 abs_srcdir = /home/thomas/oomph-lib-1.0.1306/user_src/anisotropic_solid
@@ -407,17 +405,13 @@ top_srcdir = ../..
 sources = \
 anisotropic_solid_elements.cc \
 refineable_anisotropic_solid_elements.cc \
-anisotropic_solid_preconditioners.cc \
-anisotropic_solid_vector_expansion_elements.cc \
-anisotropic_solid_with_vector_storage_elements.cc
+anisotropic_solid_preconditioners.cc
 
 
 # Define the headers
 headers = \
 anisotropic_solid_elements.h \
-refineable_anisotropic_solid_elements.h \
-anisotropic_solid_vector_expansion_elements.h \
-anisotropic_solid_with_vector_storage_elements.h
+refineable_anisotropic_solid_elements.h 
 
 
 # Define name of library
@@ -526,8 +520,6 @@ distclean-compile:
 
 include ./$(DEPDIR)/anisotropic_solid_elements.Plo
 include ./$(DEPDIR)/anisotropic_solid_preconditioners.Plo
-include ./$(DEPDIR)/anisotropic_solid_vector_expansion_elements.Plo
-include ./$(DEPDIR)/anisotropic_solid_with_vector_storage_elements.Plo
 include ./$(DEPDIR)/refineable_anisotropic_solid_elements.Plo
 
 .cc.o:

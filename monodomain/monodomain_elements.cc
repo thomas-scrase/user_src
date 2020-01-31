@@ -24,8 +24,6 @@ namespace oomph
 /// Default value for Peclet number
 template<unsigned DIM>
 double MonodomainEquations<DIM>::Default_peclet_number=1.0;
-double CrankNicolsonTheta = 1.0;          //CRANK NICOLSON SOLUTION DIFFERS SUBSTANTIALLY FROM THE NON-CRANK NICOLSON SOLUTION //1.0 Fully explicit
-                                                                                                                               //0.5 Crank Nicolson
 
 //======================================================================
 /// \short Compute element residual Vector and/or element Jacobian matrix 
@@ -91,30 +89,20 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
    Vector<double> interpolated_dudx(DIM,0.0);
    Vector<double> mesh_velocity(DIM,0.0);
 
-   Vector<double> interpolated_dudx_CN(DIM,0.0); //dudx required to perform Crank-Nicolson
-
-
    //Calculate function value and derivatives:
    //-----------------------------------------
    // Loop over nodes
    for(unsigned l=0;l<n_node;l++) 
     {
-      // std::cout << "node " << l << std::endl;
      //Get the value at the node
      double u_value = raw_nodal_value(l,u_nodal_index);
-     // std::cout << "CN start" << std::endl;
-     double u_value_CN = raw_nodal_value(1, l, u_nodal_index); //previous u_value for Crank-Nicolson
-     // std::cout << "CN end" << std::endl;
      interpolated_u += u_value*psi(l);
      dudt += du_dt_monodomain(l)*psi(l);
      // Loop over directions
      for(unsigned j=0;j<DIM;j++)
       {
-       // std::cout << "j " << j << std::endl;
        interpolated_x[j] = raw_nodal_position(l,j)*psi(l);
        interpolated_dudx[j] += u_value*dpsidx(l,j);
-
-       interpolated_dudx_CN[j] = u_value_CN*dpsidx(l,j);
       }
     }
    
@@ -172,7 +160,7 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
            //Now the diuffusive term
            for(unsigned j=0;j<DIM;j++)
             {
-             tmp2 += ( CrankNicolsonTheta*interpolated_dudx[j] + (1-CrankNicolsonTheta)*interpolated_dudx_CN[j] )*D(k,j);
+             tmp2 += interpolated_dudx[j]*D(k,j);
             }
            //Now construct the contribution to the residuals
            residuals[local_eqn] -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
@@ -204,8 +192,7 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
                 }
 
               //Add contribution to Elemental Matrix
-              for(unsigned k=0;k<DIM;k++)
-                {
+              for(unsigned k=0;k<DIM;k++){
                 //Temporary term used in assembly
                 double tmp = 0.0;
                 if(!ALE_is_disabled)
@@ -216,7 +203,7 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
                 //Now the diffusive term
                 for(unsigned j=0;j<DIM;j++)
                   {
-                  tmp2 += CrankNicolsonTheta*D(k,j)*dpsidx(l2,j);
+                  tmp2 += D(k,j)*dpsidx(l2,j);
                   }
                
                 //Now assemble Jacobian term

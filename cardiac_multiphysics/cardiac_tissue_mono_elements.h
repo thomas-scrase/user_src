@@ -25,131 +25,131 @@
 //Monodomain with cell elements
 #include "monodomain_with_cell_elements.h"
 
-namespace oomph
-{
-	//Assume that the number of vectors is the dimension
-	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
-	class QCardiacTissueMonodomain	:	public virtual QAnisotropicWithVectPVDElement<DIM, DIM, NNODE_1D>,
-										public virtual QDiffusionCoefficientExpansionElement<DIM, DIM, NNODE_1D>,
-										public virtual QMonodomainWithCellElement<DIM, NUM_VARS, NNODE_1D>
-	{
-	public:
-		QCardiacTissueMonodomain()	:	QAnisotropicWithVectPVDElement<DIM, DIM, NNODE_1D>(),
-										QDiffusionCoefficientExpansionElement<DIM, DIM, NNODE_1D>(),
-										QMonodomainWithCellElement<DIM, NUM_VARS, NNODE_1D>()
-										{	}
+// namespace oomph
+// {
+// 	//Assume that the number of vectors is the dimension
+// 	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
+// 	class QCardiacTissueMonodomain	:	public virtual QAnisotropicWithVectPVDElement<DIM, DIM, NNODE_1D>,
+// 										public virtual QDiffusionCoefficientExpansionElement<DIM, DIM, NNODE_1D>,
+// 										public virtual QMonodomainWithCellElement<DIM, NUM_VARS, NNODE_1D>
+// 	{
+// 	public:
+// 		QCardiacTissueMonodomain()	:	QAnisotropicWithVectPVDElement<DIM, DIM, NNODE_1D>(),
+// 										QDiffusionCoefficientExpansionElement<DIM, DIM, NNODE_1D>(),
+// 										QMonodomainWithCellElement<DIM, NUM_VARS, NNODE_1D>()
+// 										{	}
 
-		//Tell the element where the data is stored
-		unsigned u_index_monodomain() const {return 0;}
-		unsigned vect_min_index_anisotropic_solid_vector_expansion() const {return 1;}
-		unsigned vect_max_index_anisotropic_solid_vector_expansion() const {return 1 + DIM*DIM;}
-		unsigned diffusion_coefficient_min_index_expansion() const {return 1 + DIM*DIM;}
-		unsigned diffusion_coefficient_max_index_expansion() const {return 1 + (DIM+1)*DIM;}
-		unsigned min_index_CellInterfaceEquations() const {return 1 + (DIM+1)*DIM;}
-		unsigned max_index_CellInterfaceEquations() const {return 1 + (DIM+1)*DIM + NUM_VARS;}
+// 		//Tell the element where the data is stored
+// 		unsigned u_index_monodomain() const {return 0;}
+// 		unsigned vect_min_index_anisotropic_solid_vector_expansion() const {return 1;}
+// 		unsigned vect_max_index_anisotropic_solid_vector_expansion() const {return 1 + DIM*DIM;}
+// 		unsigned diffusion_coefficient_min_index_expansion() const {return 1 + DIM*DIM;}
+// 		unsigned diffusion_coefficient_max_index_expansion() const {return 1 + (DIM+1)*DIM;}
+// 		unsigned min_index_CellInterfaceEquations() const {return 1 + (DIM+1)*DIM;}
+// 		unsigned max_index_CellInterfaceEquations() const {return 1 + (DIM+1)*DIM + NUM_VARS;}
 
-		//How much data does the element need to store
-		unsigned required_nvalue(const unsigned &n) const
-		{return (	QAnisotropicWithVectPVDElement<DIM, DIM, NNODE_1D>::required_nvalue(n) +
-					QDiffusionCoefficientExpansionElement<DIM, DIM, NNODE_1D>::required_nvalue(n) +
-					QMonodomainWithCellElement<DIM, NUM_VARS, NNODE_1D>::required_nvalue(n));}
+// 		//How much data does the element need to store
+// 		unsigned required_nvalue(const unsigned &n) const
+// 		{return (	QAnisotropicWithVectPVDElement<DIM, DIM, NNODE_1D>::required_nvalue(n) +
+// 					QDiffusionCoefficientExpansionElement<DIM, DIM, NNODE_1D>::required_nvalue(n) +
+// 					QMonodomainWithCellElement<DIM, NUM_VARS, NNODE_1D>::required_nvalue(n));}
 
-		//Redefine the get_diff_monodomain to calculate D from vects and diffusion coefficients
-		void get_diff_monodomain(const unsigned& ipt,
-                            	const Vector<double> &s,
-                                const Vector<double>& x,
-                                DenseMatrix<double>& D) const
-		{
-			//setup the shape functions and their derivatives
-			unsigned n_node = this->nnode();
-			const unsigned n_position_type = this->nnodal_position_type();
-			Shape psi(n_node, n_position_type);
-			DShape dpsidxi(n_node,n_position_type,DIM);
-			(void) this->dshape_lagrangian(s,psi,dpsidxi);
+// 		//Redefine the get_diff_monodomain to calculate D from vects and diffusion coefficients
+// 		void get_diff_monodomain(const unsigned& ipt,
+//                             	const Vector<double> &s,
+//                                 const Vector<double>& x,
+//                                 DenseMatrix<double>& D) const
+// 		{
+// 			//setup the shape functions and their derivatives
+// 			unsigned n_node = this->nnode();
+// 			const unsigned n_position_type = this->nnodal_position_type();
+// 			Shape psi(n_node, n_position_type);
+// 			DShape dpsidxi(n_node,n_position_type,DIM);
+// 			(void) this->dshape_lagrangian(s,psi,dpsidxi);
 
-			Vector<double> vect(DIM);
-			double dcoeff;
+// 			Vector<double> vect(DIM);
+// 			double dcoeff;
 
-			//zero D first
-			for(unsigned i=0; i<DIM; i++){
-					for(unsigned j=0; j<DIM; j++){
-						D(i,j) = 0.0;
-				}
-			}
+// 			//zero D first
+// 			for(unsigned i=0; i<DIM; i++){
+// 					for(unsigned j=0; j<DIM; j++){
+// 						D(i,j) = 0.0;
+// 				}
+// 			}
 
-			for(unsigned v=0; v<DIM; v++){
-				this->interpolated_vector_anisotropic_solid_vector_expansion(ipt, s, x, v, vect);
-				this->interpolated_diffusion_coefficient(ipt, s, x, v, dcoeff);
+// 			for(unsigned v=0; v<DIM; v++){
+// 				this->interpolated_vector_anisotropic_solid_vector_expansion(ipt, s, x, v, vect);
+// 				this->interpolated_diffusion_coefficient(ipt, s, x, v, dcoeff);
 
-				for(unsigned i=0; i<DIM; i++){
-					for(unsigned j=0; j<DIM; j++){
-						D(i,j) += vect[i]*vect[j]*dcoeff;
-					}
-				}
-			}
-		}
+// 				for(unsigned i=0; i<DIM; i++){
+// 					for(unsigned j=0; j<DIM; j++){
+// 						D(i,j) += vect[i]*vect[j]*dcoeff;
+// 					}
+// 				}
+// 			}
+// 		}
 
-		//The output functions
-		void output(ostream &outfile){
-			FiniteElement::output(outfile);
-		}
-		void output(ostream &outfile, const unsigned &nplot){
-		}
-		void output(FILE* file_pt){
-			FiniteElement::output(file_pt);
-		}
-		void output(FILE* file_pt, const unsigned &n_plot){
-			FiniteElement::output(file_pt,n_plot);
-		}
-		void output_fct(ostream &outfile, const unsigned &Nplot,FiniteElement::SteadyExactSolutionFctPt exact_soln_pt){
-			FiniteElement::output_fct(outfile,Nplot,exact_soln_pt);
-		}
-		void output_fct(ostream &outfile, const unsigned &Nplot,const double& time,FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt){
-			FiniteElement::output_fct(outfile,Nplot,time,exact_soln_pt);
-		}
-		// void compute_norm(double& el_norm){QUnsteadyHeatElement<DIM,3>::compute_norm(el_norm);}
-		void compute_error(ostream &outfile,FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt,const double& time,double& error, double& norm){
-			FiniteElement::compute_error(outfile,exact_soln_pt,time,error,norm);
-		}
-		void compute_error(ostream &outfile,FiniteElement::SteadyExactSolutionFctPt exact_soln_pt,double& error, double& norm){
-			FiniteElement::compute_error(outfile,exact_soln_pt,error,norm);
-		}
+// 		//The output functions
+// 		void output(ostream &outfile){
+// 			FiniteElement::output(outfile);
+// 		}
+// 		void output(ostream &outfile, const unsigned &nplot){
+// 		}
+// 		void output(FILE* file_pt){
+// 			FiniteElement::output(file_pt);
+// 		}
+// 		void output(FILE* file_pt, const unsigned &n_plot){
+// 			FiniteElement::output(file_pt,n_plot);
+// 		}
+// 		void output_fct(ostream &outfile, const unsigned &Nplot,FiniteElement::SteadyExactSolutionFctPt exact_soln_pt){
+// 			FiniteElement::output_fct(outfile,Nplot,exact_soln_pt);
+// 		}
+// 		void output_fct(ostream &outfile, const unsigned &Nplot,const double& time,FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt){
+// 			FiniteElement::output_fct(outfile,Nplot,time,exact_soln_pt);
+// 		}
+// 		// void compute_norm(double& el_norm){QUnsteadyHeatElement<DIM,3>::compute_norm(el_norm);}
+// 		void compute_error(ostream &outfile,FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt,const double& time,double& error, double& norm){
+// 			FiniteElement::compute_error(outfile,exact_soln_pt,time,error,norm);
+// 		}
+// 		void compute_error(ostream &outfile,FiniteElement::SteadyExactSolutionFctPt exact_soln_pt,double& error, double& norm){
+// 			FiniteElement::compute_error(outfile,exact_soln_pt,error,norm);
+// 		}
 
-		//Residual, Jacobian, and mass matrix functions
-		void fill_in_contribution_to_residuals(Vector<double> &residuals)
-		{
-			AnisotropicPVDEquations<DIM>::fill_in_contribution_to_residuals(residuals);
-			AnisotropicSolidVectorExpansionEquations<DIM,DIM>::fill_in_contribution_to_residuals(residuals);
-			DiffusionCoefficientExpansionEquations<DIM,DIM>::fill_in_contribution_to_residuals(residuals);
-			MonodomainEquations<DIM>::fill_in_contribution_to_residuals(residuals);
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_residuals(residuals);
-		}
-		void fill_in_contribution_to_jacobian(Vector<double> &residuals,DenseMatrix<double> &jacobian)
-		{
-			FiniteElement::fill_in_contribution_to_jacobian(residuals,jacobian);
-		}
-		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals, DenseMatrix<double> &jacobian, DenseMatrix<double> &mass_matrix)
-  		{
-		   FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
-		}
-	};
+// 		//Residual, Jacobian, and mass matrix functions
+// 		void fill_in_contribution_to_residuals(Vector<double> &residuals)
+// 		{
+// 			AnisotropicPVDEquations<DIM>::fill_in_contribution_to_residuals(residuals);
+// 			AnisotropicSolidVectorExpansionEquations<DIM,DIM>::fill_in_contribution_to_residuals(residuals);
+// 			DiffusionCoefficientExpansionEquations<DIM,DIM>::fill_in_contribution_to_residuals(residuals);
+// 			MonodomainEquations<DIM>::fill_in_contribution_to_residuals(residuals);
+// 			CellInterfaceEquations<DIM>::fill_in_contribution_to_residuals(residuals);
+// 		}
+// 		void fill_in_contribution_to_jacobian(Vector<double> &residuals,DenseMatrix<double> &jacobian)
+// 		{
+// 			FiniteElement::fill_in_contribution_to_jacobian(residuals,jacobian);
+// 		}
+// 		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals, DenseMatrix<double> &jacobian, DenseMatrix<double> &mass_matrix)
+//   		{
+// 		   FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
+// 		}
+// 	};
 
-	//Face Geometries
-	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
-	class FaceGeometry<QCardiacTissueMonodomain<DIM, NUM_VARS, NNODE_1D> >:
-	public virtual SolidQElement<DIM-1,NNODE_1D>
-	{
-	public:
-		FaceGeometry() : SolidQElement<DIM-1,NNODE_1D>() {}
-	};
+// 	//Face Geometries
+// 	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
+// 	class FaceGeometry<QCardiacTissueMonodomain<DIM, NUM_VARS, NNODE_1D> >:
+// 	public virtual SolidQElement<DIM-1,NNODE_1D>
+// 	{
+// 	public:
+// 		FaceGeometry() : SolidQElement<DIM-1,NNODE_1D>() {}
+// 	};
 
-	template<unsigned NUM_VARS, unsigned NNODE_1D>
-	class FaceGeometry<QCardiacTissueMonodomain<1, NUM_VARS, NNODE_1D> >:
-	public virtual PointElement
-	{
-	public:
-		FaceGeometry() : PointElement() {}
-	};
-}
+// 	template<unsigned NUM_VARS, unsigned NNODE_1D>
+// 	class FaceGeometry<QCardiacTissueMonodomain<1, NUM_VARS, NNODE_1D> >:
+// 	public virtual PointElement
+// 	{
+// 	public:
+// 		FaceGeometry() : PointElement() {}
+// 	};
+// }
 
 #endif

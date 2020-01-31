@@ -6,16 +6,12 @@
 sources =  \
 anisotropic_solid_elements.cc \
 refineable_anisotropic_solid_elements.cc \
-anisotropic_solid_preconditioners.cc \
-anisotropic_solid_vector_expansion_elements.cc \
-anisotropic_solid_with_vector_storage_elements.cc
+anisotropic_solid_preconditioners.cc
 
 # Define the headers
 headers =  \
 anisotropic_solid_elements.h \
-refineable_anisotropic_solid_elements.h \
-anisotropic_solid_vector_expansion_elements.h \
-anisotropic_solid_with_vector_storage_elements.h
+refineable_anisotropic_solid_elements.h 
 
  #anisotropic_solid_traction_elements.h anisotropic_solid_preconditioners.h
 

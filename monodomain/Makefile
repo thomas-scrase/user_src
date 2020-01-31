@@ -138,7 +138,7 @@ LTLIBRARIES = $(lib_LTLIBRARIES)
 libmonodomain_la_LIBADD =
 am__objects_1 =
 am__objects_2 = monodomain_elements.lo \
-	monodomain_d_expansion_elements.lo
+	refineable_monodomain_elements.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libmonodomain_la_OBJECTS = $(am__objects_3)
 libmonodomain_la_OBJECTS = $(am_libmonodomain_la_OBJECTS)
@@ -332,8 +332,8 @@ SHELL = /bin/bash
 STRIP = strip
 TRILINOS_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include
 TRILINOS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib
-USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ monodomain_with_cell_test/ tissuedeformation/
-USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ monodomain/
+USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ single_cell_analysis/ tissuedeformation/
+USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ monodomain/ multiphysics_tests/ toms_utilities/
 VERSION = 1.0.0000
 abs_builddir = /home/thomas/oomph-lib-1.0.1306/user_src/monodomain
 abs_srcdir = /home/thomas/oomph-lib-1.0.1306/user_src/monodomain
@@ -401,15 +401,14 @@ top_srcdir = ../..
 # Define the sources
 sources = \
 monodomain_elements.cc \
-monodomain_d_expansion_elements.cc
+refineable_monodomain_elements.cc
 
 
 # Define the headers
 headers = \
 monodomain_elements.h \
-monodomain_d_expansion_elements.h \
-monodomain_flux_elements.h \
-monodomain_with_d_elements.h
+refineable_monodomain_elements.h \
+monodomain_flux_elements.h
 
 
 # Define name of library
@@ -516,8 +515,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/monodomain_d_expansion_elements.Plo
 include ./$(DEPDIR)/monodomain_elements.Plo
+include ./$(DEPDIR)/refineable_monodomain_elements.Plo
 
 .cc.o:
 	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
