@@ -112,15 +112,14 @@ namespace oomph
 		//(In the functional, multiphysics element this will be overwritten
 		//	to interpolate the potential from the other parent element)
 		//====================================================================
-		inline virtual void get_membrane_potential_CellInterface(const unsigned& ipt,
-														const Vector<double>& s,
-														const Vector<double>& x,
-														double& V) const
+		inline virtual void get_membrane_potential_CellInterface(	const unsigned& ipt,
+																	const Vector<double>& s,
+																	const Vector<double>& x,
+																	double& V) const
 		{
 			if(Membrane_potential_fct_pt_CellInterface!=0){
 				double time=node_pt(0)->time_stepper_pt()->time_pt()->time();
 				(*Membrane_potential_fct_pt_CellInterface)(time, ipt, s, x, V);
-				// std::cout << time << "\t" << V << std::endl;
 			}
 			else{
 				V=0.0;		//A default value

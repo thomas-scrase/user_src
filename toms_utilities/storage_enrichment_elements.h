@@ -34,7 +34,7 @@ namespace oomph
 		StorageEnrichmentEquations(){  }
 
     /// Broken copy constructor
-   StorageEnrichmentEquations(
+    StorageEnrichmentEquations(
     const StorageEnrichmentEquations& dummy) 
     { 
      BrokenCopy::broken_copy("StorageEnrichmentEquations");
@@ -47,7 +47,7 @@ namespace oomph
     }
 
 		
-		//identify the indexes of the diffusion matrix data
+		//identify the indexes of the data
 		virtual inline unsigned min_index_storage_enrichment() const {return 0;}
 		virtual inline unsigned max_index_storage_enrichment() const {return NUM;}
 

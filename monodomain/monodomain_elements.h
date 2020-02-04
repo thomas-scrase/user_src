@@ -257,9 +257,9 @@ public:
  /// the diff function might be determined by
  /// another system of equations 
  inline virtual void get_diff_monodomain(const unsigned& ipt,
-                                            const Vector<double> &s,
-                                            const Vector<double>& x,
-                                            DenseMatrix<double>& D) const
+                                          const Vector<double> &s,
+                                          const Vector<double>& x,
+                                          DenseMatrix<double>& D) const
   {
    //If no diff function has been set, return identity for the lols
     if(Diff_fct_pt==0){
