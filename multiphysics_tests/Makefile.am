@@ -5,12 +5,14 @@
 # Define the sources
 sources =  \
 anisotropic_solid_with_vector_storage_elements.cc \
-monodomain_with_d_elements.cc
+monodomain_with_d_elements.cc \
+monodomain_with_cell_elements.cc
 
 # Define the headers
 headers =  \
 anisotropic_solid_with_vector_storage_elements.h \
-monodomain_with_d_elements.h
+monodomain_with_d_elements.h \
+monodomain_with_cell_elements.h
 
 
 # Define name of library

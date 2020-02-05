@@ -235,10 +235,7 @@ AMTAR = $${TAR-tar}
 # in their respective source directories as they will not have been 
 # installed yet! 
 AM_CPPFLAGS = -isystem /home/thomas/oomph-lib-1.0.1306/external_distributions/hypre/hypre_default_installation/include -DOOMPH_HAS_HYPRE -isystem /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include -DOOMPH_HAS_TRILINOS -DOOMPH_HAS_STACKTRACE -DOOMPH_HAS_UNISTDH -DOOMPH_HAS_FPUCONTROLH -DOOMPH_HAS_MALLOCH -DOOMPH_HAS_MPI -DOOMPH_HAS_TRIANGLE_LIB -DOOMPH_HAS_TETGEN_LIB -DUSING_OOMPH_SUPERLU -DUSING_OOMPH_SUPERLU_DIST -I$(top_builddir)/src/generic \
-	-I$(top_builddir)/user_src/ \
-	#-I$(top_builddir)/user_src/monodomain \
-	-I$(top_builddir)/user_src/anisotropic_solid \
-	-I$(top_builddir)/user_src/anisotropic_constitutive
+	-I$(top_builddir)/user_src/
 AM_CXXFLAGS = -DgFortran
 AM_DEFAULT_VERBOSITY = 1
 AM_FFLAGS = 
@@ -336,8 +333,8 @@ SHELL = /bin/bash
 STRIP = strip
 TRILINOS_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include
 TRILINOS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib
-USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ single_cell_analysis/ tissuedeformation/
-USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ monodomain/ multiphysics_tests/ toms_utilities/
+USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ multiphysics_test/ single_cell_analysis/ tissuedeformation/
+USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ component_multiphysics/ monodomain/ multiphysics_tests/ toms_utilities/
 VERSION = 1.0.0000
 abs_builddir = /home/thomas/oomph-lib-1.0.1306/user_src/cardiac_multiphysics
 abs_srcdir = /home/thomas/oomph-lib-1.0.1306/user_src/cardiac_multiphysics

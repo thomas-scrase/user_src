@@ -235,10 +235,7 @@ AMTAR = @AMTAR@
 # in their respective source directories as they will not have been 
 # installed yet! 
 AM_CPPFLAGS = @AM_CPPFLAGS@ -I$(top_builddir)/src/generic \
-	-I$(top_builddir)/user_src/ \
-	#-I$(top_builddir)/user_src/monodomain \
-	-I$(top_builddir)/user_src/anisotropic_solid \
-	-I$(top_builddir)/user_src/anisotropic_constitutive
+	-I$(top_builddir)/user_src/
 AM_CXXFLAGS = @AM_CXXFLAGS@
 AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AM_FFLAGS = @AM_FFLAGS@

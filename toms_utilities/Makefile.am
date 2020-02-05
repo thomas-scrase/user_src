@@ -4,11 +4,13 @@
 
 # Define the sources
 sources =  \
-storage_enrichment_elements.cc
+storage_enrichment_elements.cc \
+vector_with_diffusion_storage_enrichment_elements.cc
 
 # Define the headers
 headers =  \
-storage_enrichment_elements.h
+storage_enrichment_elements.h \
+vector_with_diffusion_storage_enrichment_elements.h
 
 
 # Define name of library

@@ -137,7 +137,8 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includedir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libcomponent_multiphysics_la_LIBADD =
 am__objects_1 =
-am__objects_2 = storage_augmented_cell_elements.lo
+am__objects_2 = storage_augmented_cell_elements.lo \
+	multi_domain_cardiac_tissue_sub_elements.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libcomponent_multiphysics_la_OBJECTS = $(am__objects_3)
 libcomponent_multiphysics_la_OBJECTS =  \
@@ -401,11 +402,13 @@ top_srcdir = ../..
 
 # Define the sources
 sources = \
-	storage_augmented_cell_elements.cc
+	storage_augmented_cell_elements.cc \
+	multi_domain_cardiac_tissue_sub_elements.cc
 
 # Define the headers
 headers = \
-	storage_augmented_cell_elements.h
+	storage_augmented_cell_elements.h \
+	multi_domain_cardiac_tissue_sub_elements.h
 
 
 # Define name of library
@@ -512,6 +515,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+include ./$(DEPDIR)/multi_domain_cardiac_tissue_sub_elements.Plo
 include ./$(DEPDIR)/storage_augmented_cell_elements.Plo
 
 .cc.o:

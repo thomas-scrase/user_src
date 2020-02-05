@@ -15,13 +15,4 @@ namespace oomph{
 	template class TStorageAugmentedCellElement<2,40,3>;
 	template class TStorageAugmentedCellElement<3,40,2>;
 	template class TStorageAugmentedCellElement<3,40,3>;
-
-	
-
-	template class QStorageAugmentedCellElementWithExternalMonoAndSolidElements<1,40,2>;
-	template class QStorageAugmentedCellElementWithExternalMonoAndSolidElements<1,40,3>;
-	template class QStorageAugmentedCellElementWithExternalMonoAndSolidElements<2,40,2>;
-	template class QStorageAugmentedCellElementWithExternalMonoAndSolidElements<2,40,3>;
-	template class QStorageAugmentedCellElementWithExternalMonoAndSolidElements<3,40,2>;
-	template class QStorageAugmentedCellElementWithExternalMonoAndSolidElements<3,40,3>;
 }

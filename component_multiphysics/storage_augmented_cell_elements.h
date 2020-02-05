@@ -8,10 +8,6 @@
 //LIC//	Since it doesn't make physical sense to refine the cell mesh it suffices
 //LIC// that these elements are non-refineable.
 //LIC//
-//LIC// This file also contains the multi domain expansion for this element
-//LIC// which allows for it to be used in multi-domain discretisation problems
-//LIC// along with anisotropic_solid element and monodomain_element each in
-//LIC// their own distinctly discretised domains
 //LIC// ====================================================================
 
 #ifndef OOMPH_STORAGE_AUGMENTED_CELL
@@ -21,9 +17,6 @@
 #ifdef HAVE_CONFIG_H
   #include <oomph-lib-config.h>
 #endif
-
-//Generic for the element with external element
-#include "generic.h"
 
 //Cell interface elements (includes cell models)
 #include "../cell_interface/cell_interface_elements.h"
@@ -167,76 +160,6 @@ namespace oomph{
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 		}
 	};
-
-
-
-
-
-
-
-
-
-
-
-
-
-	//Storage augmented cell elements with external mono and solid elements
-	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
-	class QStorageAugmentedCellElementWithExternalMonoAndSolidElements	:
-	public virtual QStorageAugmentedCellElement<DIM, NUM_VARS, NNODE_1D>,
-	public virtual ElementWithExternalElement
-	{
-	public:
-		QStorageAugmentedCellElementWithExternalMonoAndSolidElements()	:
-		QStorageAugmentedCellElement<DIM, NUM_VARS, NNODE_1D>(),
-		ElementWithExternalElement()
-		{
-			this->set_ninteraction(2);
-		}
-
-		void get_membrane_potential_CellInterface(const unsigned& ipt,
-													const Vector<double>& s,
-													const Vector<double>& x,
-													double& V) const
-		{
-			const unsigned mono_interaction = 0;
-			const unsigned solid_interaction = 1;
-
-			const double interpolated_V = dynamic_cast<MonodomainEquations<DIM>*>
-				(external_element_pt(mono_interaction, ipt))->interpolated_u_monodomain(external_element_local_coord(mono_interaction, ipt));
-
-			V = interpolated_V;
-		}
-
-		//!!!!!HOW TO ADD EXTERNAL GEOMETRIC DATA FROM ANIS_SOLID ELEMENT
-
-
-		///\short Compute the element's residual vector and the Jacobian matrix.
-		/// Jacobian is computed by finite-differencing
-		void fill_in_contribution_to_jacobian(Vector<double> &residuals, 
-												DenseMatrix<double> &jacobian)
-		{
-			ElementWithExternalElement::fill_in_contribution_to_jacobian(residuals,jacobian);
-		}
-
-		/// Add the element's contribution to its residuals vector,
-		/// jacobian matrix and mass matrix
-		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals,
-																DenseMatrix<double> &jacobian,
-																DenseMatrix<double> &mass_matrix)
-		{
-			//Call the standard (Broken) function
-			//which will prevent these elements from being used
-			//in eigenproblems until replaced.
-			FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
-		}
-
-
-
-	};
-
-
-
 }
 
 #endif

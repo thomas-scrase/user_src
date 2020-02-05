@@ -138,7 +138,7 @@ LTLIBRARIES = $(lib_LTLIBRARIES)
 libmultiphysics_tests_la_LIBADD =
 am__objects_1 =
 am__objects_2 = anisotropic_solid_with_vector_storage_elements.lo \
-	monodomain_with_d_elements.lo
+	monodomain_with_d_elements.lo monodomain_with_cell_elements.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libmultiphysics_tests_la_OBJECTS = $(am__objects_3)
 libmultiphysics_tests_la_OBJECTS =  \
@@ -403,13 +403,15 @@ top_srcdir = @top_srcdir@
 # Define the sources
 sources = \
 anisotropic_solid_with_vector_storage_elements.cc \
-monodomain_with_d_elements.cc
+monodomain_with_d_elements.cc \
+monodomain_with_cell_elements.cc
 
 
 # Define the headers
 headers = \
 anisotropic_solid_with_vector_storage_elements.h \
-monodomain_with_d_elements.h
+monodomain_with_d_elements.h \
+monodomain_with_cell_elements.h
 
 
 # Define name of library
@@ -517,6 +519,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/anisotropic_solid_with_vector_storage_elements.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/monodomain_with_cell_elements.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/monodomain_with_d_elements.Plo@am__quote@
 
 .cc.o:

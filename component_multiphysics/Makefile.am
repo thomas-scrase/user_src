@@ -4,10 +4,12 @@
 
 # Define the sources
 sources = \
-	storage_augmented_cell_elements.cc
+	storage_augmented_cell_elements.cc \
+	multi_domain_cardiac_tissue_sub_elements.cc
 # Define the headers
 headers = \
-	storage_augmented_cell_elements.h
+	storage_augmented_cell_elements.h \
+	multi_domain_cardiac_tissue_sub_elements.h
 
 # Define name of library
 libname = component_multiphysics

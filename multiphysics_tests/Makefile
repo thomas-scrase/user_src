@@ -138,7 +138,7 @@ LTLIBRARIES = $(lib_LTLIBRARIES)
 libmultiphysics_tests_la_LIBADD =
 am__objects_1 =
 am__objects_2 = anisotropic_solid_with_vector_storage_elements.lo \
-	monodomain_with_d_elements.lo
+	monodomain_with_d_elements.lo monodomain_with_cell_elements.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libmultiphysics_tests_la_OBJECTS = $(am__objects_3)
 libmultiphysics_tests_la_OBJECTS =  \
@@ -334,8 +334,8 @@ SHELL = /bin/bash
 STRIP = strip
 TRILINOS_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include
 TRILINOS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib
-USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ single_cell_analysis/ tissuedeformation/
-USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ monodomain/ multiphysics_tests/ toms_utilities/
+USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ multiphysics_test/ single_cell_analysis/ tissuedeformation/
+USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ component_multiphysics/ monodomain/ multiphysics_tests/ toms_utilities/
 VERSION = 1.0.0000
 abs_builddir = /home/thomas/oomph-lib-1.0.1306/user_src/multiphysics_tests
 abs_srcdir = /home/thomas/oomph-lib-1.0.1306/user_src/multiphysics_tests
@@ -403,13 +403,15 @@ top_srcdir = ../..
 # Define the sources
 sources = \
 anisotropic_solid_with_vector_storage_elements.cc \
-monodomain_with_d_elements.cc
+monodomain_with_d_elements.cc \
+monodomain_with_cell_elements.cc
 
 
 # Define the headers
 headers = \
 anisotropic_solid_with_vector_storage_elements.h \
-monodomain_with_d_elements.h
+monodomain_with_d_elements.h \
+monodomain_with_cell_elements.h
 
 
 # Define name of library
@@ -517,6 +519,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/anisotropic_solid_with_vector_storage_elements.Plo
+include ./$(DEPDIR)/monodomain_with_cell_elements.Plo
 include ./$(DEPDIR)/monodomain_with_d_elements.Plo
 
 .cc.o:
