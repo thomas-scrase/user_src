@@ -71,9 +71,32 @@ namespace oomph
 
 		//Return the cell model pt
 		CellModelBase* &cell_model_pt()
-			{return Cell_model_pt;}
+			{
+				// std::cout << "in cell_model_pt()" << std::endl;
+			#ifdef PARANOID
+				if(Cell_model_pt == 0){
+					//throw an error			    
+					throw OomphLibError("No Cell model assigned to element Cell_interface_element",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+				}
+			#endif
+				return Cell_model_pt;
+			}
+
 		CellModelBase* const & cell_model_pt() const
-			{return Cell_model_pt;}
+			{
+				// std::cout << "in const cell_model_pt()" << std::endl;
+			#ifdef PARANOID
+				if(Cell_model_pt == 0){
+					//throw an error			    
+					throw OomphLibError("No Cell model assigned to element Cell_interface_element",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+				}
+			#endif
+				return Cell_model_pt;
+			}
 
 
 		//====================================================================
@@ -267,7 +290,7 @@ namespace oomph
 		/// Add the element's contribution to its residuals vector,
 		/// jacobian matrix and mass matrix
 		void fill_in_contribution_to_jacobian_and_mass_matrix(
-											Vector<double> &residuals, DenseMatrix<double> &jacobian, 
+											Vector<double> &residuals, DenseMatrix<double> &jacobian,
 											DenseMatrix<double> &mass_matrix)
 		{
 			//Call the generic routine with the flag set to 2
@@ -292,14 +315,14 @@ namespace oomph
 			//running total of the interpolated active strain
 			double interpolated_active_strain = 0.0;
 			// The local locations of the cell variables
-			Vector<unsigned> local_ind(Cell_model_pt->Required_storage());
+			Vector<unsigned> local_ind(cell_model_pt()->Required_storage());
 
 			//loop over nodes in the element and add their contributions
 			for(unsigned n=0;n<n_node;n++){
 				//Compile the local locations of the cell variables
-				for(unsigned var=0; var<Cell_model_pt->Required_storage(); var++){local_ind[var] = min_index_CellInterfaceEquations() + var;}
+				for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){local_ind[var] = min_index_CellInterfaceEquations() + var;}
 
-				interpolated_active_strain += Cell_model_pt->active_strain(this->node_pt(n),local_ind)
+				interpolated_active_strain += cell_model_pt()->active_strain(this->node_pt(n),local_ind)
 															*psi[n];
 			}
 
@@ -350,12 +373,13 @@ namespace oomph
 				Ext_conc[2] = get_external_K_conc_CellInterface(0, s, x_node);
 
 				//Compile the local locations of the cell variables
-				Vector<unsigned> local_ind(Cell_model_pt->Required_storage());
-				for(unsigned var=0; var<Cell_model_pt->Required_storage(); var++){local_ind[var] = min_index_CellInterfaceEquations() + var;}
+				Vector<unsigned> local_ind(cell_model_pt()->Required_storage());
+				for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
+					local_ind[var] = min_index_CellInterfaceEquations() + var;
+				}
 
-				// std::cout << "got to Cell_model_pt->membrane_current(...)" << std::endl;
 				//Add nodal contribution to interpolated current
-				interpolated_membrane_current += Cell_model_pt->membrane_current(	this->node_pt(n),		
+				interpolated_membrane_current += cell_model_pt()->membrane_current(	this->node_pt(n),		
 																					Vm,
 																					strain,
 																					Ext_conc,
@@ -363,6 +387,11 @@ namespace oomph
 																					get_cell_type_at_node_CellInterface(n),
 																					mutation_CellInterface(),
 																					get_fibrosis_type_at_node_CellInterface(n)	)*psi[n];
+			}
+			if(interpolated_membrane_current==0.0){
+				throw OomphLibError("did not get interpolated_membrane_current",
+									OOMPH_CURRENT_FUNCTION,
+									OOMPH_EXCEPTION_LOCATION);
 			}
 			return interpolated_membrane_current;
 		}

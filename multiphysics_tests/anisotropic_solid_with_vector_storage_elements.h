@@ -37,7 +37,7 @@ namespace oomph
 		
 		unsigned required_nvalue(const unsigned &n) const
 		{return (QAnisotropicPVDElement<DIM, NNODE_1D>::required_nvalue(n) +
-				QStorageEnrichmentElement<DIM, DIM*DIM, NNODE_1D>::required_nvalue(n));}
+				StorageEnrichmentEquations<DIM*DIM>::required_nvalue(n));}
 
 		void anisotropic_matrix(const unsigned& ipt,
                                const Vector<double> &s,
@@ -59,6 +59,9 @@ namespace oomph
 			for(unsigned vec = 0; vec < DIM; vec++){
 				//loop over dims
 				for(unsigned d = 0; d < DIM; d++){
+
+					A(d,vec) = 0.0;
+
 					//loop over nodes
 					for(unsigned l = 0; l < n_node; l++){
 						//add the nodal contribution, data is at Min_position + DIM*(number of vectors already added) + dim_of_this_vector_value
@@ -159,7 +162,7 @@ namespace oomph
 		// ~QAnisotropicWithVectPVDElementWithPressure();
 		
 		unsigned required_nvalue(const unsigned &n) const
-		{return (QStorageEnrichmentElement<DIM, DIM*DIM, 3>::required_nvalue(n) +
+		{return (StorageEnrichmentEquations<DIM*DIM>::required_nvalue(n) +
 				 QAnisotropicPVDElementWithPressure<DIM>::required_nvalue(n));} 
 
 		void anisotropic_matrix(const unsigned& ipt,
@@ -182,6 +185,9 @@ namespace oomph
 			for(unsigned vec = 0; vec < DIM; vec++){
 				//loop over dims
 				for(unsigned d = 0; d < DIM; d++){
+
+					A(d,vec) = 0.0;
+					
 					//loop over nodes
 					for(unsigned l = 0; l < n_node; l++){
 						//add the nodal contribution, data is at Min_position + DIM*(number of vectors already added) + dim_of_this_vector_value
@@ -283,7 +289,7 @@ namespace oomph
 		// ~QAnisotropicWithVectPVDElementWithContinuousPressure();
 		
 		unsigned required_nvalue(const unsigned &n) const
-		{return (QStorageEnrichmentElement<DIM, DIM*DIM, 3>::required_nvalue(n) +
+		{return (StorageEnrichmentEquations<DIM*DIM>::required_nvalue(n) +
 				 QAnisotropicPVDElementWithContinuousPressure<DIM>::required_nvalue(n));} 
 
 		//!!!!!!!!!!!!!!!!!!!!!!11
@@ -309,6 +315,9 @@ namespace oomph
 			for(unsigned vec = 0; vec < DIM; vec++){
 				//loop over dims
 				for(unsigned d = 0; d < DIM; d++){
+
+					A(d,vec) = 0.0;
+					
 					//loop over nodes
 					for(unsigned l = 0; l < n_node; l++){
 						//add the nodal contribution, data is at Min_position + DIM*(number of vectors already added) + dim_of_this_vector_value
@@ -454,7 +463,7 @@ namespace oomph
 		// ~TAnisotropicWithVectPVDElement();
 		
 		unsigned required_nvalue(const unsigned &n) const
-		{return (TStorageEnrichmentElement<DIM, DIM*DIM, NNODE_1D>::required_nvalue(n) +
+		{return (StorageEnrichmentEquations<DIM*DIM>::required_nvalue(n) +
 				 TAnisotropicPVDElement<DIM, NNODE_1D>::required_nvalue(n));}
 
 
@@ -478,6 +487,9 @@ namespace oomph
 			for(unsigned vec = 0; vec < DIM; vec++){
 				//loop over dims
 				for(unsigned d = 0; d < DIM; d++){
+
+					A(d,vec) = 0.0;
+					
 					//loop over nodes
 					for(unsigned l = 0; l < n_node; l++){
 						//add the nodal contribution, data is at Min_position + DIM*(number of vectors already added) + dim_of_this_vector_value
@@ -579,7 +591,7 @@ namespace oomph
 		// ~TAnisotropicWithVectPVDElementWithContinuousPressure();
 		
 		unsigned required_nvalue(const unsigned &n) const
-		{return (TStorageEnrichmentElement<DIM, DIM*DIM, 3>::required_nvalue(n) +
+		{return (StorageEnrichmentEquations<DIM*DIM>::required_nvalue(n) +
 				 TAnisotropicPVDElementWithContinuousPressure<DIM>::required_nvalue(n));} 
 
 		//!!!!!!!!!!!!!!!!!!!!!!11
@@ -605,6 +617,9 @@ namespace oomph
 			for(unsigned vec = 0; vec < DIM; vec++){
 				//loop over dims
 				for(unsigned d = 0; d < DIM; d++){
+					
+					A(d,vec) = 0.0;
+					
 					//loop over nodes
 					for(unsigned l = 0; l < n_node; l++){
 						//add the nodal contribution, data is at Min_position + DIM*(number of vectors already added) + dim_of_this_vector_value

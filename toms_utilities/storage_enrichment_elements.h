@@ -29,6 +29,12 @@ namespace oomph
 	template<unsigned NUM>
 	class StorageEnrichmentEquations : public virtual FiniteElement
 	{
+  private:
+
+    /// \short Static array of ints to hold number of variables at 
+    /// nodes: Initial_Nvalue[n]
+    static const unsigned Initial_Nvalue;
+
 	public:
 
 		StorageEnrichmentEquations(){  }
@@ -45,6 +51,9 @@ namespace oomph
     {
      BrokenCopy::broken_assign("StorageEnrichmentEquations");
     }
+
+    inline unsigned required_nvalue(const unsigned &n) const 
+      {return Initial_Nvalue;}
 
 		
 		//identify the indexes of the data
@@ -173,12 +182,6 @@ template <unsigned DIM, unsigned NUM, unsigned NNODE_1D>
  public virtual StorageEnrichmentEquations<NUM>
  {
 
-private:
-
- /// \short Static array of ints to hold number of variables at 
- /// nodes: Initial_Nvalue[n]
- static const unsigned Initial_Nvalue;
- 
   public:
 
 
@@ -196,11 +199,6 @@ private:
  /// Broken assignment operator
  void operator=(const QStorageEnrichmentElement<DIM, NUM,NNODE_1D>&) 
   {BrokenCopy::broken_assign("QStorageEnrichmentElement");}
-
- /// \short  Required  # of `values' (pinned or dofs) 
- /// at node n
- inline unsigned required_nvalue(const unsigned &n) const 
-  {return Initial_Nvalue;}
 
  /// \short Output function:  
  ///  x,y,u   or    x,y,z,u
@@ -397,13 +395,6 @@ template <unsigned DIM, unsigned NUM, unsigned NNODE_1D>
  public virtual TElement<DIM,NNODE_1D>,
  public virtual StorageEnrichmentEquations<NUM>
 {
-
-private:
-
- /// \short Static array of ints to hold number of variables at 
- /// nodes: Initial_Nvalue[n]
- static const unsigned Initial_Nvalue;
- 
   public:
 
 
@@ -425,11 +416,6 @@ private:
   {
    BrokenCopy::broken_assign("TStorageEnrichmentElement");
   }
-
- /// \short  Required  # of `values' (pinned or dofs) 
- /// at node n
- inline unsigned required_nvalue(const unsigned &n) const 
-  {return Initial_Nvalue;}
 
  /// \short Output function:  
  ///  x,y,u   or    x,y,z,u

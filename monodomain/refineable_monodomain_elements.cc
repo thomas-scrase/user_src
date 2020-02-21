@@ -244,6 +244,15 @@ namespace oomph
 //====================================================================
 // Force build of templates
 //====================================================================
+
+template class RefineableMonodomainEquations<1>;
+template class RefineableMonodomainEquations<2>;
+template class RefineableMonodomainEquations<3>;
+
+template class RefineableQMonodomainElement<1,2>;
+template class RefineableQMonodomainElement<1,3>;
+template class RefineableQMonodomainElement<1,4>;
+
 template class RefineableQMonodomainElement<2,2>;
 template class RefineableQMonodomainElement<2,3>;
 template class RefineableQMonodomainElement<2,4>;

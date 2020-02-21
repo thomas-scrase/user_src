@@ -42,12 +42,12 @@ namespace oomph{
 											QVectorWithDiffusionStorageEnrichmentElement<DIM, NNODE_1D>()
 		{
 			//Pin the storage_enrichment_element dofs
-			unsigned n_node = this->nnode();
-			for(unsigned l=0; l < n_node; l++){
-				for(unsigned var = min_index_storage_enrichment(); var < max_index_storage_enrichment(); var++){
-					this->node_pt(l)->pin(var);
-				}
-			}
+			// unsigned n_node = this->nnode();
+			// for(unsigned l=0; l < n_node; l++){
+			// 	for(unsigned var = min_index_storage_enrichment(); var < max_index_storage_enrichment(); var++){
+			// 		this->node_pt(l)->pin(var);
+			// 	}
+			// }
 		}
 
 		//Min and max variable indexes for output function and for ease of multiphysics elements
@@ -65,9 +65,7 @@ namespace oomph{
 
 		//The output functions
 		void output(std::ostream &outfile) {FiniteElement::output(outfile);}
-		void output(std::ostream &outfile, const unsigned &nplot){
-
-		}
+		void output(std::ostream &outfile, const unsigned &nplot);	//Defined in .cc
 		void output(FILE* file_pt){FiniteElement::output(file_pt);}
 		void output(FILE* file_pt, const unsigned &n_plot){FiniteElement::output(file_pt,n_plot);}
 		void output_fct(std::ostream &outfile, const unsigned &Nplot,FiniteElement::SteadyExactSolutionFctPt exact_soln_pt){FiniteElement::output_fct(outfile,Nplot,exact_soln_pt);}
@@ -76,13 +74,14 @@ namespace oomph{
 		void compute_error(std::ostream &outfile,FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt,const double& time,double& error, double& norm){FiniteElement::compute_error(outfile,exact_soln_pt,time,error,norm);}
 		void compute_error(std::ostream &outfile,FiniteElement::SteadyExactSolutionFctPt exact_soln_pt,double& error, double& norm){FiniteElement::compute_error(outfile,exact_soln_pt,error,norm);}
 
-		//Residual and Jacobian functions: No need to finite difference since there is no coupling between these elements
+		//Residual and Jacobian functions
 		void fill_in_contribution_to_residuals(Vector<double> &residuals)
 		{
 			CellInterfaceEquations<DIM>::fill_in_contribution_to_residuals(residuals);
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_residuals(residuals);
 		}
 
+		//No need to finite difference since there is no coupling between these elements
 		void fill_in_contribution_to_jacobian(Vector<double> &residuals,DenseMatrix<double> &jacobian)
 		{
 			CellInterfaceEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
@@ -107,12 +106,12 @@ namespace oomph{
 											TVectorWithDiffusionStorageEnrichmentElement<DIM, NNODE_1D>()
 		{
 			//Pin the storage_enrichment_element dofs
-			unsigned n_node = this->nnode();
-			for(unsigned l=0; l < n_node; l++){
-				for(unsigned var = min_index_storage_enrichment(); var < max_index_storage_enrichment(); var++){
-					this->node_pt(l)->pin(var);
-				}
-			}
+			// unsigned n_node = this->nnode();
+			// for(unsigned l=0; l < n_node; l++){
+			// 	for(unsigned var = min_index_storage_enrichment(); var < max_index_storage_enrichment(); var++){
+			// 		this->node_pt(l)->pin(var);
+			// 	}
+			// }
 		}
 
 		//Min and max variable indexes for output function and for ease of multiphysics elements
@@ -129,9 +128,7 @@ namespace oomph{
 
 		//The output functions
 		void output(std::ostream &outfile) {FiniteElement::output(outfile);}
-		void output(std::ostream &outfile, const unsigned &nplot){
-
-		}
+		void output(std::ostream &outfile, const unsigned &nplot); //Defined in .cc
 		void output(FILE* file_pt){FiniteElement::output(file_pt);}
 		void output(FILE* file_pt, const unsigned &n_plot){FiniteElement::output(file_pt,n_plot);}
 		void output_fct(std::ostream &outfile, const unsigned &Nplot,FiniteElement::SteadyExactSolutionFctPt exact_soln_pt){FiniteElement::output_fct(outfile,Nplot,exact_soln_pt);}

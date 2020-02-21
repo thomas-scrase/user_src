@@ -41,9 +41,18 @@ namespace oomph
 			//	that there should be DIM*(DIM+1) data values, if NUM is not a sensible value
 			//	then return an error because something horrible has happened.
 			switch(NUM){
-				case 2:		dimfromnum = 1;
-				case 6:		dimfromnum = 2;
-				case 12:	dimfromnum = 3;
+				case 2:		{
+					dimfromnum = 1;
+					break;
+				}
+				case 6:		{
+					dimfromnum = 2;
+					break;
+				}
+				case 12:	{
+					dimfromnum = 3;
+					break;
+				}
 				default:	{
 					std::string error_message =
 					"The value of NUM = ";
@@ -70,10 +79,11 @@ namespace oomph
 			Shape psi(n_node);
 			this->shape(s, psi);
 
-			DenseMatrix<double> fibre_orientations(dimfromnum,0.0);
+			DenseMatrix<double> fibre_orientations(dimfromnum);
 
 			for(unsigned v = 0; v < dimfromnum; v++){
 				for(unsigned d = 0; d < dimfromnum; d++){
+					fibre_orientations(d,v) = 0.0;
 					for(unsigned l = 0; l < n_node; l++){
 						fibre_orientations(d,v) += this->nodal_value(l, min_fibre_index_storage_enrichment() + v*dimfromnum + d)*psi[l];
 					}
@@ -89,9 +99,10 @@ namespace oomph
 			Shape psi(n_node);
 			this->shape(s, psi);
 
-			Vector<double> diffusion_coefficients(dimfromnum,0.0);
+			Vector<double> diffusion_coefficients(dimfromnum);
 
 			for(unsigned v = 0; v < dimfromnum; v++){
+				diffusion_coefficients[v] = 0.0;
 				for(unsigned l = 0; l < n_node; l++){
 					diffusion_coefficients[v] += this->nodal_value(l, min_diffusion_index_storage_enrichment() + v)*psi[l];
 				}
@@ -101,25 +112,36 @@ namespace oomph
 
 
 		inline DenseMatrix<double> get_interpolated_diffusion_matrix_augmented_cell(const Vector<double> &s){
-			
-			unsigned n_node = this->nnode();
+
+			const unsigned n_node = this->nnode();
+			// std::cout << "n_node " << std::endl;
+			// std::cout << "\t" << n_node << std::endl;
 			Shape psi(n_node);
 			this->shape(s, psi);
-
-			DenseMatrix<double> diffusion_matrix(dimfromnum, 0.0);
-
+			// std::cout << "dim " << dimfromnum << std::endl;
+			DenseMatrix<double> diffusion_matrix(dimfromnum);
+			//zero the diffusion matrix
+			for(unsigned i = 0; i < dimfromnum; i++){
+				for(unsigned j = 0; j < dimfromnum; j++){
+					diffusion_matrix(i,j) = 0.0;
+				}
+			}
+			//preallocate memory for the preferential vector and diffusion coefficient
 			Vector<double> vect(dimfromnum);
 			double dcoeff;
-
 			//Loop over the vectors
 			for(unsigned v = 0; v < dimfromnum; v++){
 				//Zero the vector
 				for(unsigned d = 0; d < dimfromnum; d++){vect[d] = 0.0;}
-				//And the diffusion coefficient
+				//Zero the diffusion coefficient
 				dcoeff = 0.0;
-
+				// std::cout << "Attempting to index: " << min_diffusion_index_storage_enrichment() + v <<
+				// 										"\t:\t" <<
+				// 										min_fibre_index_storage_enrichment() + v*dimfromnum + dimfromnum <<
+				// 										std::endl;
 				//Loop over the nodes
 				for(unsigned l = 0; l < n_node; l++){
+					// std::cout << "node: " << l << "\t:\t" << this->required_nvalue(l) << std::endl;
 					//Calculate the diff coeff for this vector
 					dcoeff += this->nodal_value(l, min_diffusion_index_storage_enrichment() + v)*psi[l];
 					//Loop over the components of the vector
@@ -134,6 +156,29 @@ namespace oomph
 					}
 				}
 			}
+
+
+
+			// DenseMatrix<double> vects(dimfromnum);
+			// Vector<double> coeffs(dimfromnum);
+			// vects = get_interpolated_fibre_orientation_augmented_cell(s);
+			// std::cout << "survived fibre" << std::endl;
+			// coeffs = get_interpolated_diffusion_coefficient_augmented_cell(s);
+			// std::cout << "survived coeff" << std::endl;
+			// DenseMatrix<double> diffusion_matrix(dimfromnum);
+			// for(unsigned i = 0; i < dimfromnum; i++){
+			// 	std::cout << i << "\t\t";
+			// 	for(unsigned j = 0; j < dimfromnum; j++){
+			// 		std::cout << j << "\t";
+			// 		diffusion_matrix(i,j) = 0.0;
+			// 		for(unsigned vec = 0; vec < dimfromnum; vec++){
+			// 			diffusion_matrix(i,j) += vects(i,vec)*vects(j,vec)*coeffs[vec];
+			// 		}
+			// 	}
+			// 	std::cout << std::endl;
+			// }
+
+
 
 			return diffusion_matrix;
 		}
@@ -158,13 +203,6 @@ namespace oomph
 	public virtual QElement<DIM,NNODE_1D>,
 	public virtual VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>
 	{
-
-	private:
-
-	/// \short Static array of ints to hold number of variables at 
-	/// nodes: Initial_Nvalue[n]
-	static const unsigned Initial_Nvalue;
-
 	public:
 
 
@@ -172,7 +210,7 @@ namespace oomph
 	/// Advection Diffusion equations
 	QVectorWithDiffusionStorageEnrichmentElement() : 
 	QElement<DIM,NNODE_1D>(), 
-	StorageEnrichmentEquations<DIM*(DIM+1)>()
+	VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>()
 	{ }
 
 	/// Broken copy constructor
@@ -187,35 +225,35 @@ namespace oomph
 	/// \short  Required  # of `values' (pinned or dofs) 
 	/// at node n
 	inline unsigned required_nvalue(const unsigned &n) const 
-	{return Initial_Nvalue;}
+	{return DIM*(DIM+1);}
 
 	/// \short Output function:  
 	///  x,y,u   or    x,y,z,u
 	void output(std::ostream &outfile)
-	{StorageEnrichmentEquations<DIM*(DIM+1)>::output(outfile);}
+	{VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output(outfile);}
 
 	/// \short Output function:  
 	///  x,y,u   or    x,y,z,u at n_plot^DIM plot points
 	void output(std::ostream &outfile, const unsigned &n_plot)
-	{StorageEnrichmentEquations<DIM*(DIM+1)>::output(outfile,n_plot);}
+	{VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output(outfile,n_plot);}
 
 
 	/// \short C-style output function:  
 	///  x,y,u   or    x,y,z,u
 	void output(FILE* file_pt)
-	{StorageEnrichmentEquations<DIM*(DIM+1)>::output(file_pt);}
+	{VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output(file_pt);}
 
 	///  \short C-style output function:  
 	///   x,y,u   or    x,y,z,u at n_plot^DIM plot points
 	void output(FILE* file_pt, const unsigned &n_plot)
-	{StorageEnrichmentEquations<DIM*(DIM+1)>::output(file_pt,n_plot);}
+	{VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output(file_pt,n_plot);}
 
 	/// \short Output function for an exact solution:
 	///  x,y,u_exact   or    x,y,z,u_exact at n_plot^DIM plot points
 	void output_fct(std::ostream &outfile, const unsigned &n_plot,
 	FiniteElement::SteadyExactSolutionFctPt 
 	exact_soln_pt)
-	{StorageEnrichmentEquations<DIM*(DIM+1)>::output_fct(outfile,n_plot,exact_soln_pt);}
+	{VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output_fct(outfile,n_plot,exact_soln_pt);}
 
 
 	/// \short Output function for a time-dependent exact solution.
@@ -225,7 +263,7 @@ namespace oomph
 	const double& time,
 	FiniteElement::UnsteadyExactSolutionFctPt 
 	exact_soln_pt)
-	{StorageEnrichmentEquations<DIM*(DIM+1)>::output_fct(outfile,n_plot,time,exact_soln_pt);}
+	{VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output_fct(outfile,n_plot,time,exact_soln_pt);}
 
 
 	protected:
@@ -384,13 +422,6 @@ namespace oomph
 	public virtual TElement<DIM,NNODE_1D>,
 	public virtual VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>
 	{
-
-	private:
-
-	/// \short Static array of ints to hold number of variables at 
-	/// nodes: Initial_Nvalue[n]
-	static const unsigned Initial_Nvalue;
-
 	public:
 
 
@@ -416,7 +447,7 @@ namespace oomph
 	/// \short  Required  # of `values' (pinned or dofs) 
 	/// at node n
 	inline unsigned required_nvalue(const unsigned &n) const 
-	{return Initial_Nvalue;}
+	{return DIM*(DIM+1);}
 
 	/// \short Output function:  
 	///  x,y,u   or    x,y,z,u

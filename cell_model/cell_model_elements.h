@@ -18,6 +18,7 @@
 #include "../generic/Qelements.h"
 #include "../generic/Telements.h"
 
+//define a sign and heaviside function for use in rice model
 #define rice_sign(a) ((a) < (0.) ? (-1.0) : (1.0))
 #define rice_heav(a) ((a) < (0.) ? (0.0) : (1.0))
 
@@ -168,6 +169,7 @@ namespace oomph{
 		}
 
 		const unsigned Required_storage() const {
+			// std::cout << "in CellModelBase Required_storage(): " << Required_Storage << std::endl;
 			return Required_Storage;
 		}
 
@@ -228,7 +230,7 @@ namespace oomph{
 										const unsigned &fibrosis) const
 		{
 			//zero to not affect the monodomain solution
-			return 0.0;
+			return 1.0;
 		}
 
 		void residual(	Node* node,

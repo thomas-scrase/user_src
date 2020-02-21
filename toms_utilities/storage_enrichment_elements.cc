@@ -151,28 +151,8 @@ void StorageEnrichmentEquations<NUM>::output_fct(std::ostream &outfile,
 
 
 
-
-
-
-
-
-//======================================================================
-// Set the data for the number of Variables at each node
-//======================================================================
-template<unsigned DIM, unsigned NUM, unsigned NNODE_1D>
-const unsigned QStorageEnrichmentElement<DIM, NUM,NNODE_1D>::Initial_Nvalue = NUM;
-                                                                                              //dim*number of vectors
-
-
-
-
-//======================================================================
-// Set the data for the number of Variables at each node
-//======================================================================
-template<unsigned DIM, unsigned NUM, unsigned NNODE_1D>
-const unsigned TStorageEnrichmentElement<DIM, NUM,NNODE_1D>::Initial_Nvalue = NUM;
-                                                                  //dim*number of vectors
-
+template<unsigned NUM>
+const unsigned StorageEnrichmentEquations<NUM>::Initial_Nvalue = NUM;
 
 
 //Do the force build for

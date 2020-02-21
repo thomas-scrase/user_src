@@ -259,75 +259,67 @@ unsigned  MonodomainEquations<DIM>::self_test()
 template <unsigned DIM>
 void  MonodomainEquations<DIM>::output(std::ostream &outfile, 
                                                const unsigned &nplot)
-{ 
-  // std::cout << "I am plotting with this plot" << std::endl;
- //Vector of local coordinates
- Vector<double> s(DIM);
+{
+  // std::cout << "BOOM" << std::endl;
+  //Vector of local coordinates
+  Vector<double> s(DIM);
 
- 
- // Tecplot header info
- outfile << tecplot_zone_string(nplot);
- 
- const unsigned n_node = this->nnode();
- Shape psi(n_node);
- DShape dpsidx(n_node,DIM);
+  // Tecplot header info
+  outfile << tecplot_zone_string(nplot);
 
- // Loop over plot points
- unsigned num_plot_points=nplot_points(nplot);
- for (unsigned iplot=0;iplot<num_plot_points;iplot++)
+  const unsigned n_node = this->nnode();
+  // std::cout << "n_node " << n_node << std::endl;
+  Shape psi(n_node);
+  DShape dpsidx(n_node,DIM);
+
+  // Loop over plot points
+  unsigned num_plot_points=nplot_points(nplot);
+  // std::cout << "Begin loop over ipt" << std::endl;
+  for (unsigned iplot=0;iplot<num_plot_points;iplot++)
   {
-   // Get local coordinates of plot point
-   get_s_plot(iplot,nplot,s);
-   
-   // Get Eulerian coordinate of plot point
-   Vector<double> x(DIM);
-   interpolated_x(s,x);
-   
-   for(unsigned i=0;i<DIM;i++) 
-    {
-     outfile << x[i] << " ";
-    }
-   outfile << interpolated_u_monodomain(s) << " ";
-   
-   //Get the gradients
-   (void)this->dshape_eulerian(s,psi,dpsidx);
-   Vector<double> interpolated_dudx(DIM,0.0);
-   double dudt = 0.0;
-   for(unsigned n=0;n<n_node;n++)
-    {
-     const double u_ = this->nodal_value(n,0);
+    // Get local coordinates of plot point
+    get_s_plot(iplot,nplot,s);
 
-     dudt += du_dt_monodomain(n)*psi(n);
+    // Get Eulerian coordinate of plot point
+    Vector<double> x(DIM);
+    interpolated_x(s,x);
 
-     for(unsigned i=0;i<DIM;i++)
-      {
-       interpolated_dudx[i] += u_*dpsidx(n,i);
-      }
+    for(unsigned i=0;i<DIM;i++) {outfile << x[i] << " ";}
+    // std::cout << "outputting interpolated_u_monodomain" << std::endl;
+    outfile << interpolated_u_monodomain(s) << " ";
+
+    //Get the gradients
+    (void)this->dshape_eulerian(s,psi,dpsidx);
+    Vector<double> interpolated_dudx(DIM,0.0);
+    double dudt = 0.0;
+    // std::cout << "begin loop over nodes for values" << std::endl;
+    for(unsigned n=0;n<n_node;n++){
+      const double u_ = this->nodal_value(n,0);
+      dudt += du_dt_monodomain(n)*psi(n);
+      for(unsigned i=0;i<DIM;i++){interpolated_dudx[i] += u_*dpsidx(n,i);}
     }
 
-   outfile << dudt << " ";
+    outfile << dudt << " ";
 
-   for(unsigned i=0;i<DIM;i++)
-    {
-     outfile << interpolated_dudx[i]  << " ";
-    }
+    for(unsigned i=0;i<DIM;i++){outfile << interpolated_dudx[i]  << " ";}
 
+    // std::cout << "begin output diff" << std::endl;
     DenseMatrix<double> PrintD(DIM, DIM);
+    // std::cout << "getting diff" << std::endl;
     get_diff_monodomain(0, s, x, PrintD);
-
+    // std::cout << "doing loop" << std::endl;
     for(unsigned i=0; i<DIM; i++){
+      // std::cout << "\ti: " << i << std::endl;
       for(unsigned j=0; j<DIM; j++){
+        // std::cout << "\t\tj: " << j << "\t:\t" << PrintD(i,j) << std::endl;
         outfile << PrintD(i,j) << " ";
       }
     }
-
     outfile  << std::endl;
-   
   }
-
- // Write tecplot footer (e.g. FE connectivity lists)
- write_tecplot_zone_footer(outfile,nplot);
-
+  // Write tecplot footer (e.g. FE connectivity lists)
+  write_tecplot_zone_footer(outfile,nplot);
+  // std::cout << "ENDBOOM" << std::endl;
 }
 
 
