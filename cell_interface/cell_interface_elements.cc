@@ -180,14 +180,53 @@ namespace oomph
 					residuals[local_eqn[var]] += residual_sub[var];
 
 					if(flag){
-						for(unsigned var1=0; var1<cell_model_pt()->Required_storage(); var1++){
-							jacobian(local_eqn[var], local_eqn[var1]) += jacobian_sub(var, var1);
-						}
+						// for(unsigned var1=0; var1<cell_model_pt()->Required_storage(); var1++){
+						// 	jacobian(local_eqn[var], local_eqn[var1]) += jacobian_sub(var, var1);
+						// }
+						jacobian(local_eqn[var], local_eqn[var]) += jacobian_sub(var, var);
 					}
 				}
 			}
 		}
 	}
+
+
+
+
+
+	// template <unsigned DIM, unsigned NUM_VARS>
+	// void PointCellInterfaceElement<DIM, NUM_VARS>::output(std::ostream &outfile, const unsigned &nplot){
+
+	// 	//Tecplot header info
+ // 		outfile << tecplot_zone_string(1);
+
+
+	// 	//output the Eulerian coordinate
+	// 	outfile << 0.0 << " ";
+
+	// 	outfile << interpolated_membrane_current_CellInterface(0.0) << " ";
+
+	// 	//Loop over the variables
+	// 	for(unsigned var=min_index_CellInterfaceEquations();var<max_index_CellInterfaceEquations();var++){
+	// 		//output the variable
+	// 		outfile << nodal_value(0,var) << " ";
+	// 	}
+
+	// 	//output active strain
+	// 	outfile << get_interpolated_cell_active_strain(0.0) << " ";
+
+	// 	outfile << std::endl;
+
+ // 		write_tecplot_zone_footer(outfile,nplot);
+	// }
+
+	// template <unsigned DIM, unsigned NUM_VARS>
+	// void PointCellInterfaceElement<DIM, NUM_VARS>::output(FILE* file_pt, const unsigned &n_plot){	}
+
+
+
+
+
 
 
 

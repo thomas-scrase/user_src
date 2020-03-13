@@ -101,7 +101,7 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
      // Loop over directions
      for(unsigned j=0;j<DIM;j++)
       {
-       interpolated_x[j] = raw_nodal_position(l,j)*psi(l);
+       interpolated_x[j] += raw_nodal_position(l,j)*psi(l);
        interpolated_dudx[j] += u_value*dpsidx(l,j);
       }
     }
@@ -650,5 +650,24 @@ template class TMonodomainElement<2,4>;
 template class TMonodomainElement<3,2>;
 template class TMonodomainElement<3,3>;
 
+
+
+/////////////////////////////////////////////////////////////////////////
+// PointMonodomainElement
+/////////////////////////////////////////////////////////////////////////
+
+//======================================================================
+// Set the data for the number of Variables at each node, always 1
+//======================================================================
+template<unsigned DIM>
+const unsigned PointMonodomainElement<DIM>::Initial_Nvalue = 1;
+                                                                  //u
+
+//====================================================================
+// Force build of templates
+//====================================================================
+template class PointMonodomainElement<1>;
+template class PointMonodomainElement<2>;
+template class PointMonodomainElement<3>;
 
 }

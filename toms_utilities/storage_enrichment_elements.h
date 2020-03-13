@@ -597,6 +597,228 @@ class FaceGeometry<TStorageEnrichmentElement<1,NUM,NNODE_1D> >:
 
 };
 
+
+
+
+
+
+
+
+
+
+
+
+/////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////
+// PointStorageEnrichmentElement
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
+//======================================================================
+/// \short PointStorageEnrichmentElement elements are isoparametric triangular 
+/// DIM-dimensional General Advection Diffusion Equations with  long each.
+/// Inherits from TElement and AnisotropicSolidVectorExpansionEquations
+//======================================================================
+template <unsigned DIM, unsigned NUM>
+ class PointStorageEnrichmentElement : 
+ public virtual PointElement,
+ public virtual StorageEnrichmentEquations<NUM>
+{
+  public:
+
+
+ ///\short  Constructor: Call constructors for TElement and 
+ /// Advection Diffusion equations
+ PointStorageEnrichmentElement() : PointElement(), 
+  StorageEnrichmentEquations<NUM>()
+  { }
+
+ /// Broken copy constructor
+ PointStorageEnrichmentElement(
+  const PointStorageEnrichmentElement<DIM, NUM>&  dummy) 
+  { 
+   BrokenCopy::broken_copy("PointStorageEnrichmentElement");
+  } 
+ 
+ /// Broken assignment operator
+ void operator=(const PointStorageEnrichmentElement<DIM, NUM>&) 
+  {
+   BrokenCopy::broken_assign("PointStorageEnrichmentElement");
+  }
+
+ /// \short Output function:  
+ ///  x,y,u   or    x,y,z,u
+ void output(std::ostream &outfile)
+  {StorageEnrichmentEquations<NUM>::output(outfile);}
+
+ /// \short Output function:  
+ ///  x,y,u   or    x,y,z,u at n_plot^DIM plot points
+ void output(std::ostream &outfile, const unsigned &n_plot)
+  {StorageEnrichmentEquations<NUM>::output(outfile,n_plot);}
+
+
+ /// \short C-style output function:  
+ ///  x,y,u   or    x,y,z,u
+ void output(FILE* file_pt)
+  {
+   StorageEnrichmentEquations<NUM>::output(file_pt);
+  }
+
+ ///  \short C-style output function:  
+ ///   x,y,u   or    x,y,z,u at n_plot^DIM plot points
+ void output(FILE* file_pt, const unsigned &n_plot)
+  {
+   StorageEnrichmentEquations<NUM>::output(file_pt,n_plot);
+  }
+
+ /// \short Output function for an exact solution:
+ ///  x,y,u_exact   or    x,y,z,u_exact at n_plot^DIM plot points
+ void output_fct(std::ostream &outfile, const unsigned &n_plot,
+                 FiniteElement::SteadyExactSolutionFctPt 
+                 exact_soln_pt)
+  {StorageEnrichmentEquations<NUM>::output_fct(outfile,n_plot,exact_soln_pt);}
+
+
+ /// \short Output function for a time-dependent exact solution.
+ ///  x,y,u_exact   or    x,y,z,u_exact at n_plot^DIM plot points
+ /// (Calls the steady version)
+ void output_fct(std::ostream &outfile, const unsigned &n_plot,
+                 const double& time,
+                 FiniteElement::UnsteadyExactSolutionFctPt 
+                 exact_soln_pt)
+  {
+   StorageEnrichmentEquations<NUM>::
+    output_fct(outfile,n_plot,time,exact_soln_pt);
+  }
+
+
+protected:
+
+ /// Shape, test functions & derivs. w.r.t. to global coords. Return Jacobian.
+ inline double dshape_and_dtest_eulerian_storage_enrichment(
+  const Vector<double> &s, 
+  Shape &psi, 
+  DShape &dpsidx, 
+  Shape &test, 
+  DShape &dtestdx) const;
+ 
+ /// \short Shape, test functions & derivs. w.r.t. to global coords. at
+ /// integration point ipt. Return Jacobian.
+ inline double dshape_and_dtest_eulerian_at_knot_storage_enrichment(
+  const unsigned& ipt,
+  Shape &psi, 
+  DShape &dpsidx, 
+  Shape &test,
+  DShape &dtestdx) 
+  const;
+
+};
+
+//Inline functions:
+
+
+//======================================================================
+/// \short Define the shape functions and test functions and derivatives
+/// w.r.t. global coordinates and return Jacobian of mapping.
+///
+/// Galerkin: Test functions = shape functions
+//======================================================================
+template<unsigned DIM, unsigned NUM>
+double PointStorageEnrichmentElement<DIM, NUM>::
+ dshape_and_dtest_eulerian_storage_enrichment(const Vector<double> &s,
+                                         Shape &psi, 
+                                         DShape &dpsidx,
+                                         Shape &test, 
+                                         DShape &dtestdx) const
+{
+ //Call the geometrical shape functions and derivatives  
+ double J = this->dshape_eulerian(s,psi,dpsidx);
+
+  test[0] = 1.0;
+
+  dtestdx(0,0) = 0.0;
+ 
+ //Return the jacobian
+ return J;
+}
+
+
+
+//======================================================================
+/// Define the shape functions and test functions and derivatives
+/// w.r.t. global coordinates and return Jacobian of mapping.
+///
+/// Galerkin: Test functions = shape functions
+//======================================================================
+template<unsigned DIM, unsigned NUM>
+double PointStorageEnrichmentElement<DIM, NUM>::
+ dshape_and_dtest_eulerian_at_knot_storage_enrichment(
+ const unsigned &ipt,
+ Shape &psi, 
+ DShape &dpsidx,
+ Shape &test, 
+ DShape &dtestdx) const
+{
+ //Call the geometrical shape functions and derivatives  
+ double J = this->dshape_eulerian_at_knot(ipt,psi,dpsidx);
+
+ //Set the test functions equal to the shape functions (pointer copy)
+ test = psi;
+ dtestdx = dpsidx;
+
+ //Return the jacobian
+ return J;
+}
+
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
+
+
+//=======================================================================
+/// \short Face geometry for the PointStorageEnrichmentElement elements: 
+/// The spatial dimension of the face elements is one lower than that 
+/// of the bulk element but they have the same number of points along 
+/// their 1D edges.
+//=======================================================================
+template<unsigned DIM, unsigned NUM>
+class FaceGeometry<PointStorageEnrichmentElement<DIM, NUM> >: 
+ public virtual PointElement
+{
+
+  public:
+ 
+ /// \short Constructor: Call the constructor for the
+ /// appropriate lower-dimensional TElement
+ FaceGeometry() : PointElement() {}
+
+};
+
+
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
+
+//=======================================================================
+/// Face geometry for the 1D PointStorageEnrichmentElement: Point elements
+//=======================================================================
+template<unsigned NUM>
+class FaceGeometry<PointStorageEnrichmentElement<1,NUM> >: 
+ public virtual PointElement
+{
+
+  public:
+ 
+ /// \short Constructor: Call the constructor for the
+ /// appropriate lower-dimensional TElement
+ FaceGeometry() : PointElement() {}
+
+};
+
 }	//end namespace
 
 #endif

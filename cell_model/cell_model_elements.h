@@ -91,7 +91,9 @@ namespace oomph{
 								const unsigned &cell_type,
 								const unsigned &mut_type,
 								const unsigned &fibrosis,
-								Vector<double> &residual_sub)
+								Vector<double> &residual_sub,
+								DenseMatrix<double> &jacobian_sub,
+								unsigned flag)
 		{
 			std::string error_message =
 		    "Residual has not been implemented for this cell model yet.";
@@ -99,52 +101,6 @@ namespace oomph{
 		   	throw OomphLibError(error_message,
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
-		}
-
-		//default to use the finite difference method
-		virtual void residual_derivatives(	Node* node,
-											const double& Vm,
-											const double& strain,
-											const Vector<double> &Ext_conc,
-											const Vector<unsigned> &local_ind,
-											const unsigned &cell_type,
-											const unsigned &mut_type,
-											const unsigned &fibrosis,
-											const Vector<double> &residual_sub,
-											DenseMatrix<double> &jacobian_sub)
-		{
-			double FD_Jstep = 1.0e-8;
-
-			for(unsigned var=0; var<Required_Storage; var++){
-
-				//remember the true value at the node
-				double var_prev = node_var(node, var, local_ind);
-
-				//increment that value
-				node->set_value(local_ind[var], var_prev+FD_Jstep);
-
-				//Calculate the residual for the incremented value
-				Vector<double> residual_new(Required_Storage, 0.0);
-				residual(node, Vm, strain, Ext_conc, local_ind, cell_type, mut_type, fibrosis, residual_new);
-
-				//calculate the derivative
-				Vector<double> temp_jac_col(Required_Storage);
-				for(unsigned i=0; i<Required_Storage;i++){
-					temp_jac_col[i] = (residual_new[i] - residual_sub[i]) / FD_Jstep;
-				}
-
-				if(residual_new[var] == 0.0 && residual_sub[var] == 0.0){
-					temp_jac_col[var] = 1.0;
-				}
-
-				//populate the sub jacobian matrix accordingly
-				for(unsigned test=0; test<Required_Storage; test++){
-					jacobian_sub(test, var) = temp_jac_col[test];
-				}
-
-				//return the nodal value
-				node->set_value(local_ind[var], var_prev);
-			}
 		}
 
 		// Calculate the sub residual and sub jacobian objects
@@ -160,12 +116,7 @@ namespace oomph{
 																			DenseMatrix<double> &jacobian_sub,
 																			unsigned flag)
 		{
-			residual(node, Vm, strain, Ext_conc, local_ind, cell_type, mut_type, fibrosis, residual_sub);
-
-			if(flag)
-			{
-				residual_derivatives(node, Vm, strain, Ext_conc, local_ind, cell_type, mut_type, fibrosis, residual_sub, jacobian_sub);
-			}
+			residual(node, Vm, strain, Ext_conc, local_ind, cell_type, mut_type, fibrosis, residual_sub, jacobian_sub, flag);
 		}
 
 		const unsigned Required_storage() const {
@@ -241,11 +192,16 @@ namespace oomph{
 						const unsigned &cell_type,
 						const unsigned &mut_type,
 						const unsigned &fibrosis,
-						Vector<double> &residual_sub)
+						Vector<double> &residual_sub,
+						DenseMatrix<double> &jacobian_sub,
+						unsigned flag)
 		{
 			//some function which behaves
 			int var_ind = 0;
 			residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(node_var(node,var_ind,local_ind)+1.0);
+			if(flag){
+				jacobian_sub(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + 2*node_var(node,var_ind,local_ind)+1.0;
+			}
 		}
 
 		double const cm() const {return 1.0;}
@@ -364,7 +320,9 @@ namespace oomph{
 						const unsigned &cell_type,
 						const unsigned &mut_type,
 						const unsigned &fibrosis,
-						Vector<double> &residual_sub);
+						Vector<double> &residual_sub,
+						DenseMatrix<double> &jacobian_sub,
+						unsigned flag);
 
 		double const cm() const {return Cm;}
 	

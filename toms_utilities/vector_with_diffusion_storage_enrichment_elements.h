@@ -630,6 +630,239 @@ namespace oomph
 	};
 
 
+
+
+
+
+	/////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////
+	// PointVectorWithDiffusionStorageEnrichmentElement
+	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////
+
+
+
+	//======================================================================
+	/// \short PointVectorWithDiffusionStorageEnrichmentElement elements are isoparametric triangular 
+	/// DIM-dimensional General Advection Diffusion Equations. Inherits from
+	/// PointElement and AnisotropicSolidVectorExpansionEquations
+	//======================================================================
+	template <unsigned DIM>
+	class PointVectorWithDiffusionStorageEnrichmentElement : 
+	public virtual PointElement,
+	public virtual VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>
+	{
+	public:
+
+
+	///\short  Constructor: Call constructors for PointElement and 
+	/// Advection Diffusion equations
+	PointVectorWithDiffusionStorageEnrichmentElement() : PointElement(), 
+	VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>()
+	{ }
+
+	/// Broken copy constructor
+	PointVectorWithDiffusionStorageEnrichmentElement(
+	const PointVectorWithDiffusionStorageEnrichmentElement<DIM>&  dummy) 
+	{ 
+	BrokenCopy::broken_copy("PointVectorWithDiffusionStorageEnrichmentElement");
+	} 
+
+	/// Broken assignment operator
+	void operator=(const PointVectorWithDiffusionStorageEnrichmentElement<DIM>&) 
+	{
+	BrokenCopy::broken_assign("PointVectorWithDiffusionStorageEnrichmentElement");
+	}
+
+	/// \short  Required  # of `values' (pinned or dofs) 
+	/// at node n
+	inline unsigned required_nvalue(const unsigned &n) const 
+	{return DIM*(DIM+1);}
+
+	/// \short Output function:  
+	///  x,y,u   or    x,y,z,u
+	void output(std::ostream &outfile)
+	{VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output(outfile);}
+
+	/// \short Output function:  
+	///  x,y,u   or    x,y,z,u at n_plot^DIM plot points
+	void output(std::ostream &outfile, const unsigned &n_plot)
+	{VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output(outfile,n_plot);}
+
+
+	/// \short C-style output function:  
+	///  x,y,u   or    x,y,z,u
+	void output(FILE* file_pt)
+	{
+	VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output(file_pt);
+	}
+
+	///  \short C-style output function:  
+	///   x,y,u   or    x,y,z,u at n_plot^DIM plot points
+	void output(FILE* file_pt, const unsigned &n_plot)
+	{
+	VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output(file_pt,n_plot);
+	}
+
+	/// \short Output function for an exact solution:
+	///  x,y,u_exact   or    x,y,z,u_exact at n_plot^DIM plot points
+	void output_fct(std::ostream &outfile, const unsigned &n_plot,
+	FiniteElement::SteadyExactSolutionFctPt 
+	exact_soln_pt)
+	{VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::output_fct(outfile,n_plot,exact_soln_pt);}
+
+
+	/// \short Output function for a time-dependent exact solution.
+	///  x,y,u_exact   or    x,y,z,u_exact at n_plot^DIM plot points
+	/// (Calls the steady version)
+	void output_fct(std::ostream &outfile, const unsigned &n_plot,
+	const double& time,
+	FiniteElement::UnsteadyExactSolutionFctPt 
+	exact_soln_pt)
+	{
+	VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::
+	output_fct(outfile,n_plot,time,exact_soln_pt);
+	}
+
+
+	protected:
+
+	/// Shape, test functions & derivs. w.r.t. to global coords. Return Jacobian.
+	inline double dshape_and_dtest_eulerian_storage_enrichment(
+	const Vector<double> &s, 
+	Shape &psi, 
+	DShape &dpsidx, 
+	Shape &test, 
+	DShape &dtestdx) const;
+
+	/// \short Shape, test functions & derivs. w.r.t. to global coords. at
+	/// integration point ipt. Return Jacobian.
+	inline double dshape_and_dtest_eulerian_at_knot_storage_enrichment(
+	const unsigned& ipt,
+	Shape &psi, 
+	DShape &dpsidx, 
+	Shape &test,
+	DShape &dtestdx) 
+	const;
+
+	};
+
+	//Inline functions:
+
+
+	//======================================================================
+	/// \short Define the shape functions and test functions and derivatives
+	/// w.r.t. global coordinates and return Jacobian of mapping.
+	///
+	/// Galerkin: Test functions = shape functions
+	//======================================================================
+	template<unsigned DIM>
+	double PointVectorWithDiffusionStorageEnrichmentElement<DIM>::
+	dshape_and_dtest_eulerian_storage_enrichment(const Vector<double> &s,
+	Shape &psi, 
+	DShape &dpsidx,
+	Shape &test, 
+	DShape &dtestdx) const
+	{
+	//Call the geometrical shape functions and derivatives  
+	double J = this->dshape_eulerian(s,psi,dpsidx);
+
+	//Loop over the test functions and derivatives and set them equal to the
+	//shape functions
+	// for(unsigned i=0;i<NNODE_1D;i++)
+	// {
+	// test[i] = psi[i]; 
+	// for(unsigned j=0;j<DIM;j++)
+	// {
+	// dtestdx(i,j) = dpsidx(i,j);
+	// }
+	// }
+	test[0] = 1.0;
+	dtestdx(0,0) = 0.0;
+
+	//Return the jacobian
+	return J;
+	}
+
+
+
+	//======================================================================
+	/// Define the shape functions and test functions and derivatives
+	/// w.r.t. global coordinates and return Jacobian of mapping.
+	///
+	/// Galerkin: Test functions = shape functions
+	//======================================================================
+	template<unsigned DIM>
+	double PointVectorWithDiffusionStorageEnrichmentElement<DIM>::
+	dshape_and_dtest_eulerian_at_knot_storage_enrichment(
+	const unsigned &ipt,
+	Shape &psi, 
+	DShape &dpsidx,
+	Shape &test, 
+	DShape &dtestdx) const
+	{
+	//Call the geometrical shape functions and derivatives  
+	double J = this->dshape_eulerian_at_knot(ipt,psi,dpsidx);
+
+	//Set the test functions equal to the shape functions (pointer copy)
+	test = psi;
+	dtestdx = dpsidx;
+
+	//Return the jacobian
+	return J;
+	}
+
+
+	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////
+
+
+
+	//=======================================================================
+	/// \short Face geometry for the PointVectorWithDiffusionStorageEnrichmentElement elements: 
+	/// The spatial dimension of the face elements is one lower than that 
+	/// of the bulk element but they have the same number of points along 
+	/// their 1D edges.
+	//=======================================================================
+	template<unsigned DIM>
+	class FaceGeometry<PointVectorWithDiffusionStorageEnrichmentElement<DIM> >: 
+	public virtual PointElement
+	{
+
+	public:
+
+	/// \short Constructor: Call the constructor for the
+	/// appropriate lower-dimensional PointElement
+	FaceGeometry() : PointElement() {}
+
+	};
+
+
+
+	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////
+
+
+	//=======================================================================
+	/// Face geometry for the 1D PointVectorWithDiffusionStorageEnrichmentElement: Point elements
+	//=======================================================================
+	template<>
+	class FaceGeometry<PointVectorWithDiffusionStorageEnrichmentElement<1> >: 
+	public virtual PointElement
+	{
+
+	public:
+
+	/// \short Constructor: Call the constructor for the
+	/// appropriate lower-dimensional PointElement
+	FaceGeometry() : PointElement() {}
+
+	};
+
+
+
 }
 
 #endif

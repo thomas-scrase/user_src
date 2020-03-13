@@ -19,4 +19,8 @@ namespace oomph
 	template class TVectorWithDiffusionStorageEnrichmentElement<2,3>;
 	template class TVectorWithDiffusionStorageEnrichmentElement<3,2>;
 	template class TVectorWithDiffusionStorageEnrichmentElement<3,3>;
+
+	template class PointVectorWithDiffusionStorageEnrichmentElement<1>;
+	template class PointVectorWithDiffusionStorageEnrichmentElement<2>;
+	template class PointVectorWithDiffusionStorageEnrichmentElement<3>;
 }

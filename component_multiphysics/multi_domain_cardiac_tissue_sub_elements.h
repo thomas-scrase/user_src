@@ -82,7 +82,7 @@ namespace oomph{
 		ElementWithExternalElement()
 		{
 			std::cout << "setting ninteraction" << std::endl;
-			this->set_ninteraction(1);	//CHANGE TO 2
+			this->set_ninteraction(2);	//CHANGE TO 2
 			std::cout << "set" << std::endl;
 		}
 
@@ -140,7 +140,7 @@ namespace oomph{
 		ElementWithExternalElement()
 		{
 			std::cout << "setting ninteraction" << std::endl;
-			this->set_ninteraction(1);	//CHANGE TO 2
+			this->set_ninteraction(2);	//CHANGE TO 2
 			std::cout << "set" << std::endl;
 		}
 
@@ -187,7 +187,63 @@ namespace oomph{
 		}
 	};
 
+	//Point - only has external monodomain
+	template<unsigned DIM, unsigned NUM_VARS>
+	class PointStorageAugmentedCellElementWithExternalMonoElement	:
+	public virtual PointStorageAugmentedCellElement<DIM, NUM_VARS>,
+	public virtual ElementWithExternalElement
+	{
+	public:
+		PointStorageAugmentedCellElementWithExternalMonoElement()	:
+		PointStorageAugmentedCellElement<DIM, NUM_VARS>(),
+		ElementWithExternalElement()
+		{
+			std::cout << "setting ninteraction" << std::endl;
+			this->set_ninteraction(2);	//CHANGE TO 2
+			std::cout << "set" << std::endl;
+		}
 
+		void get_membrane_potential_CellInterface(const unsigned& ipt,
+													const Vector<double>& s,
+													const Vector<double>& x,
+													double& V) const
+		{
+			const unsigned mono_interaction = 0;
+
+			const double interpolated_V = dynamic_cast<MonodomainEquations<DIM>*>
+				(external_element_pt(mono_interaction, ipt))->
+					interpolated_u_monodomain(
+						external_element_local_coord(mono_interaction, ipt));
+
+			V = interpolated_V;
+		}
+
+		//!!!!!HOW TO ADD EXTERNAL GEOMETRIC DATA FROM ANIS_SOLID ELEMENT
+
+
+		///\short Compute the element's residual vector and the Jacobian matrix.
+		/// Jacobian is computed by finite-differencing
+		void fill_in_contribution_to_jacobian(Vector<double> &residuals, 
+												DenseMatrix<double> &jacobian)
+		{	
+			// ElementWithExternalElement::fill_in_contribution_to_jacobian(residuals,jacobian);
+			PointStorageAugmentedCellElement<DIM,NUM_VARS>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			// Fill in contribution from external elements
+			this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
+		}
+
+		/// Add the element's contribution to its residuals vector,
+		/// jacobian matrix and mass matrix
+		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals,
+																DenseMatrix<double> &jacobian,
+																DenseMatrix<double> &mass_matrix)
+		{
+			//Call the standard (Broken) function
+			//which will prevent these elements from being used
+			//in eigenproblems until replaced.
+			FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
+		}
+	};
 
 
 
@@ -232,7 +288,7 @@ namespace oomph{
 		QMonodomainElement<DIM, NNODE_1D>(),
 		ElementWithExternalElement()
 		{
-			this->set_ninteraction(1); //CHANGE TO 2
+			this->set_ninteraction(2); //CHANGE TO 2
 		}
 
 		void get_source_monodomain(const unsigned& ipt,
@@ -317,7 +373,7 @@ namespace oomph{
 		TMonodomainElement<DIM, NNODE_1D>(),
 		ElementWithExternalElement()
 		{
-			this->set_ninteraction(1); //CHANGE TO 2
+			this->set_ninteraction(2); //CHANGE TO 2
 		}
 
 		void get_source_monodomain(const unsigned& ipt,
@@ -392,6 +448,92 @@ namespace oomph{
 		}
 	};
 
+	//Point - only has external cell
+	template<unsigned DIM>
+	class PointMonodomainElementWithExternalCellElement	:
+	public virtual PointMonodomainElement<DIM>,
+	public virtual ElementWithExternalElement
+	{
+	public:
+		PointMonodomainElementWithExternalCellElement()	:
+		PointMonodomainElement<DIM>(),
+		ElementWithExternalElement()
+		{
+			this->set_ninteraction(2); //CHANGE TO 2
+		}
+
+		void get_source_monodomain(const unsigned& ipt,
+									const Vector<double>& x,
+									double& source) const
+		{
+			// std::cout<< "SOURCE ";
+			//Get the interaction numbers
+			const unsigned cell_interaction = 0;
+
+			//Zero the source
+			source = 0.0;
+			//Set the Vector to hold local coordinates
+			Vector<double> s(DIM,0.0);
+			//Assign values of s
+			for(unsigned i=0;i<DIM;i++) s[i] = this->integral_pt()->knot(ipt,i);
+			//If a source function has been set, use it
+			if(PointMonodomainElement<DIM>::Source_fct_pt!=0){
+				//Get source strength
+				(*PointMonodomainElement<DIM>::Source_fct_pt)(x,source);
+			}
+
+			//Add the membrane current from the external cell interface element
+			source += dynamic_cast<CellInterfaceEquations<DIM>*> //cast the external element
+			(external_element_pt(cell_interaction, ipt))->			//get the external element pointer
+				interpolated_membrane_current_CellInterface(
+					external_element_local_coord(cell_interaction,ipt)); //call the membrane current function at the correct local coord
+			// std::cout << source << std::endl;
+		}
+
+		void get_diff_monodomain(const unsigned& ipt,
+									const Vector<double> &s,
+									const Vector<double>& x,
+									DenseMatrix<double>& D) const
+		{
+			// std::cout<< "DIFF ";
+			//Get the interaction numbers
+			const unsigned cell_interaction = 0;
+			const unsigned solid_interaction = 1;
+
+			// std::cout << "getting diff from ext element" << std::endl;
+			D = dynamic_cast<VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>*>
+			(external_element_pt(cell_interaction, ipt))->
+				get_interpolated_diffusion_matrix_augmented_cell(external_element_local_coord(cell_interaction,ipt));
+			// std::cout << "GOT diff from ext element" << std::endl;
+		}
+
+		//!!!!!HOW TO ADD EXTERNAL GEOMETRIC DATA FROM ANIS_SOLID ELEMENT
+
+
+		///\short Compute the element's residual vector and the Jacobian matrix.
+		/// Jacobian is computed by finite-differencing
+		void fill_in_contribution_to_jacobian(Vector<double> &residuals, 
+												DenseMatrix<double> &jacobian)
+		{
+			// ElementWithExternalElement::fill_in_contribution_to_jacobian(residuals,jacobian);
+			MonodomainEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
+		}
+
+		/// Add the element's contribution to its residuals vector,
+		/// jacobian matrix and mass matrix
+		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals,
+																DenseMatrix<double> &jacobian,
+																DenseMatrix<double> &mass_matrix)
+		{
+			//Call the standard (Broken) function
+			//which will prevent these elements from being used
+			//in eigenproblems until replaced.
+			FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
+		}
+	};
+
+
 
 	//Refineable Q
 	template<unsigned DIM, unsigned NNODE_1D>
@@ -454,7 +596,8 @@ namespace oomph{
 		void fill_in_contribution_to_jacobian(Vector<double> &residuals, 
 												DenseMatrix<double> &jacobian)
 		{
-			ElementWithExternalElement::fill_in_contribution_to_jacobian(residuals,jacobian);
+			RefineableMonodomainEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
 		}
 
 		/// Add the element's contribution to its residuals vector,
@@ -506,7 +649,7 @@ namespace oomph{
 		QAnisotropicPVDElement<DIM, NNODE_1D>(),
 		ElementWithExternalElement()
 		{
-			this->set_ninteraction(1);
+			this->set_ninteraction(2);
 		}
 
 		void describe_local_dofs(std::ostream &out, const std::string &current_string) const
@@ -545,7 +688,8 @@ namespace oomph{
 		void fill_in_contribution_to_jacobian(Vector<double> &residuals, 
 												DenseMatrix<double> &jacobian)
 		{
-			ElementWithExternalElement::fill_in_contribution_to_jacobian(residuals,jacobian);
+			AnisotropicPVDEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
 		}
 
 		/// Add the element's contribution to its residuals vector,
@@ -561,6 +705,75 @@ namespace oomph{
 		}
 	};
 
+	template<unsigned DIM>
+	class QAnisotropicSolidElementWithPressureWithExternalAugmentedCellElement	:
+	public virtual QAnisotropicPVDElementWithPressure<DIM>,
+	public virtual ElementWithExternalElement
+	{
+	public:
+		QAnisotropicSolidElementWithPressureWithExternalAugmentedCellElement()	:
+		QAnisotropicPVDElementWithPressure<DIM>(),
+		ElementWithExternalElement()
+		{
+			this->set_ninteraction(2);
+		}
+
+		void describe_local_dofs(std::ostream &out, const std::string &current_string) const
+		{
+			QAnisotropicPVDElementWithPressure<DIM>::describe_local_dofs(out, current_string);
+		}
+
+		void anisotropic_matrix(const unsigned& ipt,
+								const Vector<double> &s,
+								const Vector<double>& xi,
+								const DenseMatrix<double> &g,
+								const DenseMatrix<double> &G,
+								DenseMatrix<double>& A)
+		{
+			unsigned cell_interaction = 0;
+			A.resize(g.nrow());
+			A = dynamic_cast<VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>*>
+				(external_element_pt(cell_interaction, ipt))->get_interpolated_fibre_orientation_augmented_cell(external_element_local_coord(cell_interaction, ipt));
+		}
+
+		void anisotropic_vector(const unsigned& ipt,
+								const Vector<double> &s,
+								const Vector<double>& xi,
+								const DenseMatrix<double> &g, 
+								const DenseMatrix<double> &G,
+								Vector<double>& lambda) const
+		{
+			unsigned cell_interaction = 0;
+			lambda.resize(1);
+			lambda[0] = dynamic_cast<CellInterfaceEquations<DIM>*>
+			(external_element_pt(cell_interaction, ipt))->get_interpolated_cell_active_strain(external_element_local_coord(cell_interaction, ipt));
+		}
+
+
+		///\short Compute the element's residual vector and the Jacobian matrix.
+		/// Jacobian is computed by finite-differencing
+		void fill_in_contribution_to_jacobian(Vector<double> &residuals, 
+												DenseMatrix<double> &jacobian)
+		{
+			AnisotropicPVDEquationsWithPressure<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
+		}
+
+		/// Add the element's contribution to its residuals vector,
+		/// jacobian matrix and mass matrix
+		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals,
+																DenseMatrix<double> &jacobian,
+																DenseMatrix<double> &mass_matrix)
+		{
+			//Call the standard (Broken) function
+			//which will prevent these elements from being used
+			//in eigenproblems until replaced.
+			FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
+		}
+	};
+
+
+
 	template<unsigned DIM, unsigned NNODE_1D>
 	class TAnisotropicSolidElementWithExternalAugmentedCellElement	:
 	public virtual TAnisotropicPVDElement<DIM, NNODE_1D>,
@@ -571,7 +784,7 @@ namespace oomph{
 		TAnisotropicPVDElement<DIM, NNODE_1D>(),
 		ElementWithExternalElement()
 		{
-			this->set_ninteraction(1);
+			this->set_ninteraction(2);
 		}
 
 		void describe_local_dofs(std::ostream &out, const std::string &current_string) const
@@ -610,7 +823,8 @@ namespace oomph{
 		void fill_in_contribution_to_jacobian(Vector<double> &residuals, 
 												DenseMatrix<double> &jacobian)
 		{
-			ElementWithExternalElement::fill_in_contribution_to_jacobian(residuals,jacobian);
+			AnisotropicPVDEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
 		}
 
 		/// Add the element's contribution to its residuals vector,
@@ -637,7 +851,7 @@ namespace oomph{
 		RefineableQAnisotropicPVDElement<DIM, NNODE_1D>(),
 		ElementWithExternalElement()
 		{
-			this->set_ninteraction(1);
+			this->set_ninteraction(2);
 		}
 
 		void describe_local_dofs(std::ostream &out, const std::string &current_string) const
@@ -676,7 +890,8 @@ namespace oomph{
 		void fill_in_contribution_to_jacobian(Vector<double> &residuals, 
 												DenseMatrix<double> &jacobian)
 		{
-			ElementWithExternalElement::fill_in_contribution_to_jacobian(residuals,jacobian);
+			RefineableAnisotropicPVDEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
 		}
 
 		/// Add the element's contribution to its residuals vector,
@@ -691,6 +906,12 @@ namespace oomph{
 			FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 		}
 	};
+
+
+
+
+
+
 
 
 } //end of namespace

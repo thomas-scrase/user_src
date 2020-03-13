@@ -284,6 +284,20 @@ namespace oomph
 		{
 			//Call the generic routine with the flag set to 1
 			// fill_in_generic_residual_contribution_cell_interface(residuals,jacobian,GeneralisedElement::Dummy_matrix,1);
+			// DenseMatrix<double> temp_jacobian(jacobian.nrow());
+			// FiniteElement::fill_in_contribution_to_jacobian(residuals,temp_jacobian);
+
+			// const unsigned n_node = nnode();
+			// for(unsigned l=0;l<n_node;l++){
+			// 	Vector<int> local_eqn(cell_model_pt()->Required_storage());
+			// 	for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
+			// 		local_eqn[var] = nodal_local_eqn(l, min_index_CellInterfaceEquations() + var);
+
+			// 		if(local_eqn[var]>=0){
+			// 			jacobian(local_eqn[var], local_eqn[var]) += temp_jacobian(local_eqn[var], local_eqn[var]);
+			// 		}
+			// 	}
+			// }
 			FiniteElement::fill_in_contribution_to_jacobian(residuals,jacobian);
 		}
 
@@ -719,7 +733,7 @@ namespace oomph
 		//Constructors
 		//====================================================================
 		PointCellInterfaceElement()	:	PointElement(),
-										CellInterfaceEquations<1>()
+										CellInterfaceEquations<DIM>()
 		{
 			//Create data for cell type and fibrosis type and pin them immediately
 			Cell_type_internal_index = this->add_internal_data(new Data(1), false);
@@ -740,7 +754,22 @@ namespace oomph
 		//====================================================================
 		//Output functions
 		//====================================================================
-		/// Output with default number of plot points
+		// /// Output with default number of plot points
+		// void output(std::ostream &outfile){
+		// 	PointCellInterfaceElement<DIM, NUM_VARS>::output(outfile, 0);
+		// }
+		// /// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
+		// /// nplot^DIM plot points
+		// void output(std::ostream &outfile, const unsigned &nplot);
+		// /// C_style output with default number of plot points
+		// void output(FILE* file_pt){
+		// 	PointCellInterfaceElement<DIM, NUM_VARS>::output(file_pt, 0);
+		// }
+		//  /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
+		//  /// n_plot^DIM plot points
+		//  void output(FILE* file_pt, const unsigned &n_plot);
+
+		 /// Output with default number of plot points
 		void output(std::ostream &outfile){
 			CellInterfaceEquations<DIM>::output(outfile);
 		}
