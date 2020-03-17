@@ -295,6 +295,7 @@ namespace oomph{
 									const Vector<double>& x,
 									double& source) const
 		{
+			// std::cout << "BOOM" << std::endl;
 			// std::cout<< "SOURCE ";
 			//Get the interaction numbers
 			const unsigned cell_interaction = 0;
@@ -306,11 +307,38 @@ namespace oomph{
 			Vector<double> s(DIM,0.0);
 			//Assign values of s
 			for(unsigned i=0;i<DIM;i++) s[i] = this->integral_pt()->knot(ipt,i);
+
+
+			// Vector<double> interp_x(DIM);
+			// this->interpolated_x(s,interp_x);
+			// double total_diff = 0.0;
+			// for(unsigned i=0; i<DIM; i++){total_diff += x[i] - interp_x[i];}
+			// if(abs(total_diff)>1e-12){
+			// 	throw OomphLibError(
+			// 		"QMonodomainElementWithExternalCellAndSolidElements::get_source_monodomain\npassed x is not equal to interpolated_x",
+			// 		OOMPH_CURRENT_FUNCTION,
+			// 		OOMPH_EXCEPTION_LOCATION);
+			// }
+
+
 			//If a source function has been set, use it
 			if(QMonodomainElement<DIM, NNODE_1D>::Source_fct_pt!=0){
 				//Get source strength
 				(*QMonodomainElement<DIM, NNODE_1D>::Source_fct_pt)(x,source);
+
+
+				// double dummysource;
+				// (*QMonodomainElement<DIM, NNODE_1D>::Source_fct_pt)(interp_x,dummysource);
+				// if(source!=dummysource){
+				// 	throw OomphLibError(
+				// 		"QMonodomainElementWithExternalCellAndSolidElements::get_source_monodomain\nreturned different values for passed x and interpolated_x",
+				// 		OOMPH_CURRENT_FUNCTION,
+				// 		OOMPH_EXCEPTION_LOCATION);		
+				// }
+				
 			}
+
+
 
 			//Add the membrane current from the external cell interface element
 			source += dynamic_cast<CellInterfaceEquations<DIM>*> //cast the external element

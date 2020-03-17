@@ -120,6 +120,7 @@ namespace oomph
 
 			//Set the values of the pointers from the father
 			this->Source_fct_pt = cast_father_element_pt->source_fct_pt();
+			this->Boundary_source_fct_pt = cast_father_element_pt->boundary_source_fct_pt();
 			this->Diff_fct_pt = cast_father_element_pt->diff_fct_pt();
 			this->Pe_pt = cast_father_element_pt->pe_pt();
 			this->PeSt_pt = cast_father_element_pt->pe_st_pt();

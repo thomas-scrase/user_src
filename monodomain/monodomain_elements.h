@@ -54,6 +54,11 @@ public:
  typedef void (*MonodomainSourceFctPt)
   (const Vector<double>& x, double& f);
 
+  // \short function pointer to boundary source function fct(bounds, f(bounds)) --
+  // bounds_of_node is a vector of the bounds the node exists on
+  typedef void (*MonodomainBoundarySourceFctPt)
+  (std::set<unsigned>* &boundaries_pt, double& bound_source);
+
   //change this to take s instead of x? (no functional change, just notation)
  /// \short Funciton pointer to a diffusivity function
  typedef void (*MonodomainDiffFctPt)
@@ -61,7 +66,7 @@ public:
 
  /// \short Constructor: Initialise the Source_fct_pt and Wind_fct_pt 
  /// to null and set (pointer to) Peclet number to default
- MonodomainEquations() : Source_fct_pt(0), Diff_fct_pt(0), ALE_is_disabled(false)
+ MonodomainEquations() : Source_fct_pt(0), Boundary_source_fct_pt(0), Diff_fct_pt(0), ALE_is_disabled(false)
   {
    //Set Peclet number to default
    Pe_pt = &Default_peclet_number;
@@ -206,10 +211,19 @@ public:
  MonodomainSourceFctPt& source_fct_pt() 
   {return Source_fct_pt;}
  
-
  /// Access function: Pointer to source function. Const version
  MonodomainSourceFctPt source_fct_pt() const 
   {return Source_fct_pt;}
+
+
+
+  /// Access function: Pointer to boundary source function
+  MonodomainBoundarySourceFctPt& boundary_source_fct_pt() 
+    {return Boundary_source_fct_pt;}
+
+  /// Access function: Pointer to boundary source function
+  MonodomainBoundarySourceFctPt boundary_source_fct_pt() const
+    {return Boundary_source_fct_pt;}
 
 
  /// Access function: Pointer to diffusion  function
@@ -465,6 +479,8 @@ protected:
 
  /// Pointer to source function:
  MonodomainSourceFctPt Source_fct_pt;
+
+ MonodomainBoundarySourceFctPt Boundary_source_fct_pt;
  
  /// Pointer to diffusivity funciton
  MonodomainDiffFctPt Diff_fct_pt;

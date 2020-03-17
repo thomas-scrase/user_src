@@ -85,6 +85,8 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
    double interpolated_u=0.0;
    double dudt=0.0;
 
+   double interpolated_boundary_source=0.0;
+
    Vector<double> interpolated_x(DIM,0.0);
    Vector<double> interpolated_dudx(DIM,0.0);
    Vector<double> mesh_velocity(DIM,0.0);
@@ -104,6 +106,23 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
        interpolated_x[j] += raw_nodal_position(l,j)*psi(l);
        interpolated_dudx[j] += u_value*dpsidx(l,j);
       }
+
+      //If Boundary_source_fct_pt has been set, get the contribution from the node
+      //  This check prevents bulk non boundary elements from contributing
+      //  unnecessary overhead
+     if(Boundary_source_fct_pt){
+      // Preallocate boundaries the node is on
+      std::set<unsigned>* boundaries_pt;
+      // Get the pointer to set of boundaries node lies on
+      node_pt(l)->get_boundaries_pt(boundaries_pt);
+      // If the set is non-zero, get a contribution to interpolated_boundary_source
+      if(boundaries_pt!=0){
+        double bound_source = 0.0;
+        Boundary_source_fct_pt(boundaries_pt, bound_source);
+        interpolated_boundary_source += bound_source*psi(l);
+      }
+     }
+
     }
    
    // Mesh velocity?
@@ -117,12 +136,17 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
         }
       }
     }
-   
+  
 
    //Get source function
    //-------------------
    double source;
    get_source_monodomain(ipt,interpolated_x,source);
+
+   //add the boundary source
+   // if(Boundary_source_fct_pt){
+    source += interpolated_boundary_source;
+   // }
 
 
    //Get diffusivity tensor
