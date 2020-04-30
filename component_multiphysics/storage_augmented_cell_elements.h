@@ -78,17 +78,23 @@ namespace oomph{
 		void fill_in_contribution_to_residuals(Vector<double> &residuals)
 		{
 			CellInterfaceEquations<DIM>::fill_in_contribution_to_residuals(residuals);
+
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_residuals(residuals);
+
 		}
 
 		//No need to finite difference since there is no coupling between these elements
-		void fill_in_contribution_to_jacobian(Vector<double> &residuals,DenseMatrix<double> &jacobian)
+		void fill_in_contribution_to_jacobian(Vector<double> &residuals,
+											DenseMatrix<double> &jacobian)
 		{
 			CellInterfaceEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_jacobian(residuals,jacobian);
 		}
 
-		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals, DenseMatrix<double> &jacobian, DenseMatrix<double> &mass_matrix)
+		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals,
+															DenseMatrix<double> &jacobian,
+															DenseMatrix<double> &mass_matrix)
   		{
 			CellInterfaceEquations<DIM>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);

@@ -47,6 +47,8 @@ namespace oomph
 
 			//Get the integral weight
 			double w = integral_pt()->weight(ipt);
+		
+			if(w==0.0){continue;}
 
 			//Call the derivatives of the shape and test functions
 			double J = this->dshape_and_dtest_eulerian_at_knot_monodomain(ipt,psi,dpsidx,test,dtestdx);
@@ -58,9 +60,6 @@ namespace oomph
 			//Allocate
 			double interpolated_u=0.0;
 			double dudt=0.0;
-
-			//the source from boundary sources
-			double interpolated_boundary_source=0.0;
 
 			Vector<double> interpolated_x(DIM,0.0);
 			Vector<double> interpolated_dudx(DIM,0.0);
@@ -79,23 +78,6 @@ namespace oomph
 					interpolated_x[j] = this->nodal_position(l,j)*psi(l);
 					interpolated_dudx[j] += u_value*dpsidx(l,j);
 				}
-
-				//If Boundary_source_fct_pt has been set, get the contribution from the node
-				//  This check prevents bulk non boundary elements from contributing
-				//  unnecessary overhead
-				if(this->Boundary_source_fct_pt){
-					// Set of boundaries the node is on
-					std::set<unsigned>* boundaries_pt;
-					// Get the pointer to set of boundaries node lies on
-					this->node_pt(l)->get_boundaries_pt(boundaries_pt);
-					// If the set is non-zero, get a contribution to interpolated_boundary_source
-					// if(boundaries_pt!=0){
-					// 	double bound_source = 0.0;
-					// 	this->Boundary_source_fct_pt(boundaries_pt, bound_source);
-					// 	interpolated_boundary_source += bound_source*psi(l);
-					// }
-				}
-
 			}
 
 			// Mesh velocity?
@@ -112,11 +94,6 @@ namespace oomph
 			//-------------------
 			double source;
 			this->get_source_monodomain(ipt,interpolated_x,source);
-
-			//add the boundary source
-			// if(Boundary_source_fct_pt){
-			source += interpolated_boundary_source;
-			// }
 
 
 			//Get diffusivity tensor
@@ -269,11 +246,6 @@ namespace oomph
 //====================================================================
 // Force build of templates
 //====================================================================
-
-template class RefineableMonodomainEquations<1>;
-template class RefineableMonodomainEquations<2>;
-template class RefineableMonodomainEquations<3>;
-
 template class RefineableQMonodomainElement<1,2>;
 template class RefineableQMonodomainElement<1,3>;
 template class RefineableQMonodomainElement<1,4>;

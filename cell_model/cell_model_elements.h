@@ -83,26 +83,6 @@ namespace oomph{
 		   return 0.0;
 		}
 
-		virtual void residual(	Node* node,
-								const double& Vm,
-								const double& strain,
-								const Vector<double> &Ext_conc,
-								const Vector<unsigned> &local_ind,
-								const unsigned &cell_type,
-								const unsigned &mut_type,
-								const unsigned &fibrosis,
-								Vector<double> &residual_sub,
-								DenseMatrix<double> &jacobian_sub,
-								unsigned flag)
-		{
-			std::string error_message =
-		    "Residual has not been implemented for this cell model yet.";
-		    
-		   	throw OomphLibError(error_message,
-		                       OOMPH_CURRENT_FUNCTION,
-		                       OOMPH_EXCEPTION_LOCATION);
-		}
-
 		// Calculate the sub residual and sub jacobian objects
 		virtual inline void fill_in_generic_residual_contribution_cell_base(Node* node,
 																			const double& Vm,
@@ -112,11 +92,13 @@ namespace oomph{
 																			const unsigned &cell_type,
 																			const unsigned &mut_type,
 																			const unsigned &fibrosis,
-																			Vector<double> &residual_sub,
-																			DenseMatrix<double> &jacobian_sub,
+																			Vector<double> &residuals,
+																			DenseMatrix<double> &jacobian,
 																			unsigned flag)
 		{
-			residual(node, Vm, strain, Ext_conc, local_ind, cell_type, mut_type, fibrosis, residual_sub, jacobian_sub, flag);
+			throw OomphLibError("fill_in_generic_residual_contribution_cell_base has not been implemented for this cell model yet.",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
 		}
 
 		const unsigned Required_storage() const {
@@ -184,7 +166,7 @@ namespace oomph{
 			return 1.0;
 		}
 
-		void residual(	Node* node,
+		void fill_in_generic_residual_contribution_cell_base(	Node* node,
 						const double& Vm,
 						const double& strain,
 						const Vector<double> &Ext_conc,
@@ -192,15 +174,15 @@ namespace oomph{
 						const unsigned &cell_type,
 						const unsigned &mut_type,
 						const unsigned &fibrosis,
-						Vector<double> &residual_sub,
-						DenseMatrix<double> &jacobian_sub,
+						Vector<double> &residuals,
+						DenseMatrix<double> &jacobian,
 						unsigned flag)
 		{
 			//some function which behaves
 			int var_ind = 0;
-			residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(node_var(node,var_ind,local_ind)+1.0);
+			residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(node_var(node,var_ind,local_ind)+1.0);
 			if(flag){
-				jacobian_sub(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + 2*node_var(node,var_ind,local_ind)+1.0;
+				jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + 2*node_var(node,var_ind,local_ind)+1.0;
 			}
 		}
 
@@ -213,6 +195,77 @@ namespace oomph{
 
 
 
+
+
+
+
+
+	//====================================================================
+	//====================================================================
+	//Begin the Zero Cell model:
+	// an empty cell class for testing if linking between the
+	// monodomain elements and cell model interface elements
+	// is working correctly.
+	//====================================================================
+	//====================================================================
+	class FitzHughNagumo	:	public CellModelBase
+	{
+	public:
+		FitzHughNagumo(){
+			this->Required_Storage = 1;
+		}
+
+		virtual ~FitzHughNagumo()	{}
+
+		virtual double active_strain(	Node* node,
+										const Vector<unsigned> &local_ind) const
+		{
+			return 0.0;
+		}
+
+		inline virtual double potential_forcing_function(const double& Vm) const{
+			return Vm*(1-Vm*Vm/3.0);
+		}
+
+		inline virtual double variable_forcing_function(const double& Vm, const double& var) const{
+			return 0.08*(Vm + 0.7 - 0.8*var);
+		}
+
+		// The membrane current at the node
+		inline double membrane_current(	Node* node,
+										const double& Vm,
+										const double& strain,
+										const Vector<double> &Ext_conc,
+										const Vector<unsigned> &local_ind,
+										const unsigned &cell_type,
+										const unsigned &mut_type,
+										const unsigned &fibrosis) const
+		{
+			return potential_forcing_function(Vm) + node_var(node,0,local_ind);
+		}
+
+		void fill_in_generic_residual_contribution_cell_base(	Node* node,
+						const double& Vm,
+						const double& strain,
+						const Vector<double> &Ext_conc,
+						const Vector<unsigned> &local_ind,
+						const unsigned &cell_type,
+						const unsigned &mut_type,
+						const unsigned &fibrosis,
+						Vector<double> &residuals,
+						DenseMatrix<double> &jacobian,
+						unsigned flag)
+		{
+			//some function which behaves
+			int var_ind = 0;
+			residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - variable_forcing_function(Vm, node_var(node, var_ind, local_ind));
+			if(flag){
+				jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + 2*node_var(node,var_ind,local_ind)+1.0;
+			}
+		}
+
+		double const cm() const {return 1.0;}
+	};
 
 
 
@@ -312,18 +365,21 @@ namespace oomph{
 			return total_membrane_current;
 		}
 
-		void residual(	Node* node,
-						const double& Vm,
-						const double& strain,
-						const Vector<double> &Ext_conc,
-						const Vector<unsigned> &local_ind,
-						const unsigned &cell_type,
-						const unsigned &mut_type,
-						const unsigned &fibrosis,
-						Vector<double> &residual_sub,
-						DenseMatrix<double> &jacobian_sub,
-						unsigned flag);
+		//Fill in the generic residual and jacobian contribution for the cell variables associated with the node passed
+		//	Defined in .cc
+		void fill_in_generic_residual_contribution_cell_base(Node* node,
+															const double& Vm,
+															const double& strain,
+															const Vector<double> &Ext_conc,
+															const Vector<unsigned> &local_ind,
+															const unsigned &cell_type,
+															const unsigned &mut_type,
+															const unsigned &fibrosis,
+															Vector<double> &residuals,
+															DenseMatrix<double> &jacobian,
+															unsigned flag);
 
+		//The membrane capacitance
 		double const cm() const {return Cm;}
 	
 	protected:
@@ -365,7 +421,7 @@ namespace oomph{
 		//	Implemented as virtual to allow overloading for testing new channel models
 		//		with minimal effort
 		//====================================================================
-		double INa_current_CNZCell(	Node* node,
+		inline double INa_current_CNZCell(	Node* node,
 													const Vector<double> &Ext_conc,
                             						const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -373,7 +429,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-		double IKr_current_CNZCell(	Node* node,
+		inline double IKr_current_CNZCell(	Node* node,
 													const Vector<double> &Ext_conc,
 													const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -381,7 +437,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-		double IKs_current_CNZCell(	Node* node,
+		inline double IKs_current_CNZCell(	Node* node,
 													const Vector<double> &Ext_conc,
 													const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -389,7 +445,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-		double ICaL_current_CNZCell(	Node* node,
+		inline double ICaL_current_CNZCell(	Node* node,
 													const Vector<double> &Ext_conc,
 													const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -397,7 +453,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-		double IK1_current_CNZCell(	Node* node,
+		inline double IK1_current_CNZCell(	Node* node,
 													const Vector<double> &Ext_conc,
 													const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -405,7 +461,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-		double Iab_current_CNZCell(	Node* node,
+		inline double Iab_current_CNZCell(	Node* node,
 													const Vector<double> &Ext_conc,
 													const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -413,7 +469,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-		double IbK_current_CNZCell(	Node* node,
+		inline double IbK_current_CNZCell(	Node* node,
 													const Vector<double> &Ext_conc,
 													const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -421,7 +477,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-		double IbCa_current_CNZCell(	Node* node,
+		inline double IbCa_current_CNZCell(	Node* node,
 													const Vector<double> &Ext_conc,
 													const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -429,7 +485,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-    	double IbNa_current_CNZCell(	Node* node,
+    	inline double IbNa_current_CNZCell(	Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -437,7 +493,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-    	double ICap_current_CNZCell(	Node* node,
+    	inline double ICap_current_CNZCell(	Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -445,7 +501,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-    	double INaCa_current_CNZCell(Node* node,
+    	inline double INaCa_current_CNZCell(Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -453,7 +509,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-    	double INaK_current_CNZCell(	Node* node,
+    	inline double INaK_current_CNZCell(	Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -461,7 +517,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-    	double Ito_current_CNZCell(	Node* node,
+    	inline double Ito_current_CNZCell(	Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -469,7 +525,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-    	double IKur_current_CNZCell(	Node* node,
+    	inline double IKur_current_CNZCell(	Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -477,7 +533,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-    	double If_current_CNZCell(	Node* node,
+    	inline double If_current_CNZCell(	Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -485,7 +541,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &Rev_Pot) const ;
-    	double ICaT_current_CNZCell(	Node* node,
+    	inline double ICaT_current_CNZCell(	Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -494,7 +550,7 @@ namespace oomph{
 													const double &Vm,
 													const double &Rev_Pot) const ;
     	
-    	double IGap_current_CNZCell(	Node* node,
+    	inline double IGap_current_CNZCell(	Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -503,7 +559,7 @@ namespace oomph{
 													const double &Vm,
 													const double &Rev_Pot) const ;
     	
-    	double ISAC_ISAC_CNZCell(	Node* node,
+    	inline double ISAC_ISAC_CNZCell(	Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -511,7 +567,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &strain) const ;
-    	double ISAC_Na_current_CNZCell(Node* node,
+    	inline double ISAC_Na_current_CNZCell(Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -519,7 +575,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &ISAC_) const ;
-    	double ISAC_K_current_CNZCell(Node* node,
+    	inline double ISAC_K_current_CNZCell(Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -527,7 +583,7 @@ namespace oomph{
 													const unsigned &fibrosis,
 													const double &Vm,
 													const double &ISAC_) const ;
-    	double ISAC_Ca_current_CNZCell(Node* node,
+    	inline double ISAC_Ca_current_CNZCell(Node* node,
     												const Vector<double> &Ext_conc,
     												const Vector<unsigned> &local_ind,
 													const unsigned &cell_type,
@@ -807,7 +863,7 @@ namespace oomph{
 		// Conductances
 		//====================================================================
 		//GNa
-		double get_GNa(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GNa(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 3:		return 1.3;
 				case 4:		return 1.3;
@@ -818,7 +874,7 @@ namespace oomph{
 		}
 
 		//GKr
-		double get_GKr(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GKr(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 5:		return 1.63;
 				case 7:		return 1.6;
@@ -831,7 +887,7 @@ namespace oomph{
 		}
 
 		//GKs
-		double get_GKs(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GKs(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 9:		return 1.5;
 				case 10:	return 0.69;
@@ -841,7 +897,7 @@ namespace oomph{
 		}
 
 		//GCaL
-		double get_GCaL(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GCaL(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 1:		return 0.94;
 				case 2:		return 1.68;
@@ -856,7 +912,7 @@ namespace oomph{
 		}
 
 		//GK1
-		double get_GK1(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GK1(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 6:		return 0.85;
 				case 9:		return 0.62;
@@ -867,17 +923,17 @@ namespace oomph{
 		}
 
 		//Gbca
-		double get_Gbca(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_Gbca(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.0;
 		}
 
 		//GCap
-		double get_GCap(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GCap(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.0;
 		}
 
 		//GNaCa
-		double get_GNaCa(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GNaCa(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 10:	return 0.5;
 				case 11:	return 0.5;
@@ -886,7 +942,7 @@ namespace oomph{
 		}
 
 		//Gto
-		double get_Gto(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_Gto(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 2:		return 1.35;
 				case 3:		return 0.53;
@@ -902,7 +958,7 @@ namespace oomph{
 		}
 
 		//GKur
-		double get_GKur(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GKur(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			double GKur_ = 1.0;
 			switch(cell_type){
 				case 4:		GKur_ = 0.667;
@@ -922,7 +978,7 @@ namespace oomph{
 		}
 
 		//Gf
-		double get_Gf(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_Gf(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 7:		return 1.0;
 				case 8:		return 1.0;
@@ -933,7 +989,7 @@ namespace oomph{
 		}
 
 		//GCaT
-		double get_GCaT(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GCaT(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 10:	return 76.5;
 				case 11:	return 76.5;
@@ -944,21 +1000,21 @@ namespace oomph{
 		//====================================================================
 		//Miscellaneous channel parameters
 		//====================================================================
-		double get_IKur_c(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_c(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(mut_type){
 				case 1:		return 3.6887;
 			}
 			return 4.5128;
 		}
 
-		double get_IKur_x0(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_x0(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(mut_type){
 				case 1:		return 2.84400335;
 			}
 			return 1.899769;
 		}
 
-		double get_Ikur_y0(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_Ikur_y0(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(mut_type){
 				case 1:		return 15.2672201;
 			}
@@ -970,7 +1026,7 @@ namespace oomph{
 		//====================================================================
 
 		//IK1_v_shift
-		double get_IK1_v_shift(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IK1_v_shift(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 4:		return -6.0;
 			}
@@ -978,7 +1034,7 @@ namespace oomph{
 		}
 
 		//IKr_ac_shift
-		double get_IKr_ac_shift(unsigned cell_type = 0, unsigned mut_type = 0){
+		inline double get_IKr_ac_shift(unsigned cell_type = 0, unsigned mut_type = 0){
 			switch(cell_type){
 				default:	return 0.0;
 			}
@@ -986,7 +1042,7 @@ namespace oomph{
 		}
 
 		//IKr_ac_grad
-		double get_IKr_ac_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKr_ac_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				default:	return 1.0;
 			}
@@ -994,14 +1050,14 @@ namespace oomph{
 		}
 
 		//IKs_shift
-		double get_IKs_shift(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKs_shift(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				default:	return 0.0;
 			}
 			return 0.0;
 		}
 
-		double get_IKs_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKs_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				default:	return 1.0;
 			}
@@ -1009,7 +1065,7 @@ namespace oomph{
 		}
 
 		// Ikur
-		double get_IKur_ac_shift(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_ac_shift(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 8:		{
 					if(IKur_type_CNZ==0){
@@ -1020,7 +1076,7 @@ namespace oomph{
 			return 0.0;
 		}
 
-		double get_IKur_ac_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_ac_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 8:		{
 					if(IKur_type_CNZ==0){
@@ -1031,7 +1087,7 @@ namespace oomph{
 			return 1.0;
 		}
 
-		double get_IKur_inac_shift(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_inac_shift(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			double IKur_inac_shift = 0.0;
 			switch(cell_type){
 				case 8:		{if(IKur_type_CNZ==0){IKur_inac_shift = 25.0;}}
@@ -1047,7 +1103,7 @@ namespace oomph{
 			}
 		}
 
-		double get_IKur_inac_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_inac_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			double IKur_inac_grad = 1.0;
 			switch(cell_type){
 				case 8:		{if(IKur_type_CNZ==0){IKur_inac_grad = 1.769;}}
@@ -1063,7 +1119,7 @@ namespace oomph{
 			}
 		}
 
-		double get_IKur_inac_mult(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_inac_mult(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(mut_type){
 				case 0:		return 1.0;
 				case 1:		return 0.87254304449870279;
@@ -1075,7 +1131,7 @@ namespace oomph{
 			}
 		}
 
-		double get_IKur_inac_add(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_inac_add(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(mut_type){
 				case 0:		return 0.0;
 				case 1:		return 0.073931087206000057;
@@ -1087,28 +1143,28 @@ namespace oomph{
 			}
 		}
 
-		double get_IKur_Vhchange(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_Vhchange(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 0.0;
 		}
 
-		double get_IKur_slope(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_slope(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.0;
 		}
 
-		double get_IKur_timeconstants(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_timeconstants(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.0;
 		}
 
-		double get_IKur_cond(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_IKur_cond(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.0;
 		}
 
 		//If
-		double get_If_vshift(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_If_vshift(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 0.0;
 		}
 
-		double get_If_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_If_grad(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 0:		return 1.0;
 				case 10:	return 1.1;
@@ -1121,20 +1177,20 @@ namespace oomph{
 		// Calcium Handling
 		//====================================================================
 		//fRyR
-		double get_fRyR(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_fRyR(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 0.0;
 		}
 		//fIRel
-		double get_fIRel(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_fIRel(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.0;
 		}
 		//GSR_leak
-		double get_GSR_leak(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_GSR_leak(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.0;
 		}
 
 		//BULK_CONST
-		double get_BULK_CONST(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_BULK_CONST(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			switch(cell_type){
 				case 1:		return 1.20;
 				case 3:		return 1.5;
@@ -1147,17 +1203,17 @@ namespace oomph{
 		}
 
 		//RyR
-		double get_RyR(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_RyR(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.0;
 		}
 
 		//====================================================================
 		//Force model
 		//====================================================================
-		double get_SLrest(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_SLrest(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.9;
 		}
-		double get_SLset(unsigned cell_type = 0, unsigned mut_type = 0) const {
+		inline double get_SLset(unsigned cell_type = 0, unsigned mut_type = 0) const {
 			return 1.9;
 		}
 

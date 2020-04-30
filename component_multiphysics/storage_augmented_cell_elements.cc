@@ -34,12 +34,26 @@ namespace oomph{
 			outfile << this->interpolated_membrane_current_CellInterface(s) << " ";
 
 
-			DenseMatrix<double> diffusion_matrix = this->get_interpolated_diffusion_matrix_augmented_cell(s);
+			// DenseMatrix<double> diffusion_matrix = this->get_interpolated_diffusion_matrix_augmented_cell(s);
 
-			for(unsigned i = 0; i < DIM; i++){
-				for(unsigned j = i; j < DIM; j++){
-					outfile << diffusion_matrix(i,j) << " ";
+			// for(unsigned i = 0; i < DIM; i++){
+			// 	for(unsigned j = i; j < DIM; j++){
+			// 		outfile << diffusion_matrix(i,j) << " ";
+			// 	}
+			// }
+
+			//Loop over the variables
+			for(unsigned var=this->min_index_CellInterfaceEquations();var<this->max_index_CellInterfaceEquations();var++){
+		// unsigned var = 8;
+				// std::cout << "\t\tvar " << var << std::endl;
+				//loop over the nodes
+				double interp_var = 0.0;
+				for(unsigned n=0;n<n_node;n++){
+					//interpolate
+					interp_var += this->nodal_value(n,var)*psi(n);
 				}
+				//output the variable
+				outfile << interp_var << " ";
 			}
 
 			outfile << std::endl;

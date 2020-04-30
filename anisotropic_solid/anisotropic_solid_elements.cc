@@ -234,6 +234,8 @@ fill_in_generic_contribution_to_residuals_pvd(Vector<double> &residuals,
 
    //Get the integral weight
    double w = this->integral_pt()->weight(ipt);
+ 
+    if(w==0.0){continue;}
 
    //Call the derivatives of the shape functions (and get Jacobian)
    double J = this->dshape_lagrangian_at_knot(ipt,psi,dpsidxi);

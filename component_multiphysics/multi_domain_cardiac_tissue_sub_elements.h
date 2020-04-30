@@ -61,7 +61,6 @@
 
 
 
-
 namespace oomph{
 
 	//========================================================================================================================================
@@ -94,12 +93,12 @@ namespace oomph{
 			const unsigned mono_interaction = 0;
 			const unsigned solid_interaction = 1;
 
-			const double interpolated_V = dynamic_cast<MonodomainEquations<DIM>*>
-				(external_element_pt(mono_interaction, ipt))->
-					interpolated_u_monodomain(
-						external_element_local_coord(mono_interaction, ipt));
-
-			V = interpolated_V;
+			if(external_element_pt(mono_interaction,ipt)){
+				V = dynamic_cast<MonodomainEquations<DIM>*>
+					(external_element_pt(mono_interaction, ipt))->
+						interpolated_u_monodomain(
+							external_element_local_coord(mono_interaction, ipt));
+			}
 		}
 
 		//!!!!!HOW TO ADD EXTERNAL GEOMETRIC DATA FROM ANIS_SOLID ELEMENT
@@ -152,12 +151,12 @@ namespace oomph{
 			const unsigned mono_interaction = 0;
 			const unsigned solid_interaction = 1;
 
-			const double interpolated_V = dynamic_cast<MonodomainEquations<DIM>*>
-				(external_element_pt(mono_interaction, ipt))->
-					interpolated_u_monodomain(
-						external_element_local_coord(mono_interaction, ipt));
-
-			V = interpolated_V;
+			if(external_element_pt(mono_interaction,ipt)){
+				V = dynamic_cast<MonodomainEquations<DIM>*>
+					(external_element_pt(mono_interaction, ipt))->
+						interpolated_u_monodomain(
+							external_element_local_coord(mono_interaction, ipt));
+			}
 		}
 
 		//!!!!!HOW TO ADD EXTERNAL GEOMETRIC DATA FROM ANIS_SOLID ELEMENT
@@ -597,10 +596,13 @@ namespace oomph{
 				(*RefineableQMonodomainElement<DIM, NNODE_1D>::Source_fct_pt)(x,source);
 			}
 
-			//Add the membrane current from the external cell interface element
-			source += dynamic_cast<CellInterfaceEquations<DIM>*> //cast the external element
-			(external_element_pt(cell_interaction, ipt))->			//get the external element pointer
-				interpolated_membrane_current_CellInterface(external_element_local_coord(cell_interaction,ipt)); //call the membrane current function at the correct local coord
+			if(external_element_pt(cell_interaction, ipt)){
+				//Add the membrane current from the external cell interface element
+				source += dynamic_cast<CellInterfaceEquations<DIM>*> //cast the external element
+				(external_element_pt(cell_interaction, ipt))->			//get the external element pointer
+					interpolated_membrane_current_CellInterface(external_element_local_coord(cell_interaction,ipt)); //call the membrane current function at the correct local coord
+			}
+
 		}
 
 		void get_diff_monodomain(const unsigned& ipt,
@@ -611,9 +613,11 @@ namespace oomph{
 			//Get the interaction numbers
 			const unsigned cell_interaction = 0;
 			const unsigned solid_interaction = 1;
-			D = dynamic_cast<VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>*>
-			(external_element_pt(cell_interaction, ipt))->
-				get_interpolated_diffusion_matrix_augmented_cell(external_element_local_coord(cell_interaction,ipt));
+			if(external_element_pt(cell_interaction, ipt)){
+				D = dynamic_cast<VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>*>
+				(external_element_pt(cell_interaction, ipt))->
+					get_interpolated_diffusion_matrix_augmented_cell(external_element_local_coord(cell_interaction,ipt));
+			}
 		}
 
 		//!!!!!HOW TO ADD EXTERNAL GEOMETRIC DATA FROM ANIS_SOLID ELEMENT

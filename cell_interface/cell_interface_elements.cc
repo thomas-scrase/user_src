@@ -174,10 +174,11 @@ namespace oomph
 																			jacobian_sub,
 																			flag);
 
-			//Loop over the entries in the residual and jacobian
+			// Loop over the entries in the residual and jacobian
 			for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
 				if(local_eqn[var]>=0){
 					residuals[local_eqn[var]] += residual_sub[var];
+
 
 					if(flag){
 						// for(unsigned var1=0; var1<cell_model_pt()->Required_storage(); var1++){
@@ -187,6 +188,18 @@ namespace oomph
 					}
 				}
 			}
+
+			// cell_model_pt()->fill_in_generic_residual_contribution_cell_base(node_pt(l),
+			// 																Vm,
+			// 																strain,
+			// 																Ext_conc,
+			// 																local_ind,
+			// 																cell_type,
+			// 																mutation_CellInterface(),
+			// 																fibrosis,
+			// 																residuals,
+			// 																jacobian,
+			// 																flag);
 		}
 	}
 

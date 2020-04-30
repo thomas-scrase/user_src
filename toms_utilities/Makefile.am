@@ -5,11 +5,14 @@
 # Define the sources
 sources =  \
 storage_enrichment_elements.cc \
-vector_with_diffusion_storage_enrichment_elements.cc
+vector_with_diffusion_storage_enrichment_elements.cc \
+toms_integral.cc
 # Define the headers
 headers =  \
 storage_enrichment_elements.h \
-vector_with_diffusion_storage_enrichment_elements.h
+vector_with_diffusion_storage_enrichment_elements.h \
+toms_integral.h
+
 
 # Define name of library
 libname = toms_utilities

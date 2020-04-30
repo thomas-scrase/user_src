@@ -73,6 +73,8 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
    //Get the integral weight
    double w = integral_pt()->weight(ipt);
 
+    if(w==0.0){continue;}
+    
    //Call the derivatives of the shape and test functions
    double J = 
     dshape_and_dtest_eulerian_at_knot_monodomain(ipt,psi,dpsidx,test,dtestdx);
@@ -144,9 +146,10 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
    get_source_monodomain(ipt,interpolated_x,source);
 
    //add the boundary source
-   // if(Boundary_source_fct_pt){
+   if(Boundary_source_fct_pt!=0){
+    // std::cout << "Source from bound " << interpolated_boundary_source << std::endl;
     source += interpolated_boundary_source;
-   // }
+   }
 
 
    //Get diffusivity tensor
