@@ -311,13 +311,12 @@ namespace oomph
 
     //changes made to add anisotropy
     virtual inline void anisotropic_matrix(const unsigned& ipt,
-                                   const Vector<double> &s,
-                                   const Vector<double>& xi,
-                                   const DenseMatrix<double> &g, 
-                                   const DenseMatrix<double> &G,
-                                   DenseMatrix<double>& A)
+                                           const Vector<double> &s,
+                                           const Vector<double>& xi,
+                                           const DenseMatrix<double> &g, 
+                                           const DenseMatrix<double> &G,
+                                           DenseMatrix<double>& A)
     {
-      // std::cout << "using non-overrided version of anisotropy" << std::endl;
       if(Anisotropic_matrix_fct_pt==0)
       {
         A.resize(dim(),dim());
@@ -334,11 +333,11 @@ namespace oomph
     }
 
     virtual inline void anisotropic_vector(const unsigned& ipt,
-                                   const Vector<double> &s,
-                                   const Vector<double>& xi,
-                                   const DenseMatrix<double> &g, 
-                                   const DenseMatrix<double> &G,
-                                   Vector<double>& lambda) const
+                                           const Vector<double> &s,
+                                           const Vector<double>& xi,
+                                           const DenseMatrix<double> &g, 
+                                           const DenseMatrix<double> &G,
+                                           Vector<double>& lambda) const
     {
       if(Anisotropic_vector_fct_pt==0)
       {

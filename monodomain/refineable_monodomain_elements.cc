@@ -47,6 +47,8 @@ namespace oomph
 
 			//Get the integral weight
 			double w = integral_pt()->weight(ipt);
+		
+			if(w==0.0){continue;}
 
 			//Call the derivatives of the shape and test functions
 			double J = this->dshape_and_dtest_eulerian_at_knot_monodomain(ipt,psi,dpsidx,test,dtestdx);
@@ -244,6 +246,10 @@ namespace oomph
 //====================================================================
 // Force build of templates
 //====================================================================
+template class RefineableQMonodomainElement<1,2>;
+template class RefineableQMonodomainElement<1,3>;
+template class RefineableQMonodomainElement<1,4>;
+
 template class RefineableQMonodomainElement<2,2>;
 template class RefineableQMonodomainElement<2,3>;
 template class RefineableQMonodomainElement<2,4>;

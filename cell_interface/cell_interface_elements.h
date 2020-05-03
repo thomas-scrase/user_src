@@ -9,11 +9,9 @@
 
 //!!!!!
 //REQUIRED ALTERATIONS
-//	Add required_concs		-	the required number of concentrations, this might change if
-//								e.g. the conc of ATP is required by a channel formulation
-//
 //	Add no_repeated_cells	-	if the entries in the residual corresponding to the current
-//								nodes cell variables, don't run the cell code, just skip it
+//								nodes cell variables, don't run the cell code, just skip it.
+//								how will this be done though?
 
 //!!!!! PERHAPS IMPLEMENT THE DIFFUSION COEFFICIENTS IN THE CELL INTERFACE ELEMENTS
 
@@ -47,10 +45,16 @@ namespace oomph
 		typedef void (*CellInterfaceScalarFctPt)
 		(const double& t, const unsigned& ipt, const Vector<double>& s, const Vector<double>& x, double& Scal);
 
+		// \short function pointer to boundary source function fct(bounds, f(bounds)) --
+		// bounds_of_node is a vector of the bounds the node exists on
+		typedef void (* CellInterfaceBoundarySourceFctPt)
+		(std::set<unsigned>* &boundaries_pt, double& bound_source);
+
 		CellInterfaceEquations() : 	Mutation_pt(0),
 									Cell_model_pt(0),
 									Membrane_potential_fct_pt_CellInterface(0),
 									Strain_fct_pt(0),
+									Boundary_source_fct_pt(0),
 									External_Na_conc_fct_pt_CellInterface(0),
 									External_Ca_conc_fct_pt_CellInterface(0),
 									External_K_conc_fct_pt_CellInterface(0),
@@ -71,9 +75,32 @@ namespace oomph
 
 		//Return the cell model pt
 		CellModelBase* &cell_model_pt()
-			{return Cell_model_pt;}
+			{
+				// std::cout << "in cell_model_pt()" << std::endl;
+			#ifdef PARANOID
+				if(Cell_model_pt == 0){
+					//throw an error			    
+					throw OomphLibError("No Cell model assigned to element Cell_interface_element",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+				}
+			#endif
+				return Cell_model_pt;
+			}
+
 		CellModelBase* const & cell_model_pt() const
-			{return Cell_model_pt;}
+			{
+				// std::cout << "in const cell_model_pt()" << std::endl;
+			#ifdef PARANOID
+				if(Cell_model_pt == 0){
+					//throw an error			    
+					throw OomphLibError("No Cell model assigned to element Cell_interface_element",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+				}
+			#endif
+				return Cell_model_pt;
+			}
 
 
 		//====================================================================
@@ -106,21 +133,28 @@ namespace oomph
 		//====================================================================
 		//====================================================================
 
+		/// Access function: Pointer to boundary source function
+		CellInterfaceBoundarySourceFctPt& boundary_source_fct_pt() 
+			{return Boundary_source_fct_pt;}
+
+		/// Access function: Pointer to boundary source function
+		CellInterfaceBoundarySourceFctPt boundary_source_fct_pt() const
+			{return Boundary_source_fct_pt;}
+
 
 		//====================================================================
 		//Membrane Potential Access function
 		//(In the functional, multiphysics element this will be overwritten
 		//	to interpolate the potential from the other parent element)
 		//====================================================================
-		inline virtual void get_membrane_potential_CellInterface(const unsigned& ipt,
-														const Vector<double>& s,
-														const Vector<double>& x,
-														double& V) const
+		inline virtual void get_membrane_potential_CellInterface(	const unsigned& ipt,
+																	const Vector<double>& s,
+																	const Vector<double>& x,
+																	double& V) const
 		{
 			if(Membrane_potential_fct_pt_CellInterface!=0){
 				double time=node_pt(0)->time_stepper_pt()->time_pt()->time();
 				(*Membrane_potential_fct_pt_CellInterface)(time, ipt, s, x, V);
-				// std::cout << time << "\t" << V << std::endl;
 			}
 			else{
 				V=0.0;		//A default value
@@ -260,15 +294,31 @@ namespace oomph
 		void fill_in_contribution_to_jacobian(Vector<double> &residuals,
 		                                   DenseMatrix<double> &jacobian)
 		{
+
+			// this->fill_in_contribution_to_residuals(residuals);
 			//Call the generic routine with the flag set to 1
 			// fill_in_generic_residual_contribution_cell_interface(residuals,jacobian,GeneralisedElement::Dummy_matrix,1);
+			// DenseMatrix<double> temp_jacobian(jacobian.nrow());
+			// FiniteElement::fill_in_contribution_to_jacobian(residuals,temp_jacobian);
+
+			// const unsigned n_node = nnode();
+			// for(unsigned l=0;l<n_node;l++){
+			// 	Vector<int> local_eqn(cell_model_pt()->Required_storage());
+			// 	for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
+			// 		local_eqn[var] = nodal_local_eqn(l, min_index_CellInterfaceEquations() + var);
+
+			// 		if(local_eqn[var]>=0){
+			// 			jacobian(local_eqn[var], local_eqn[var]) += temp_jacobian(local_eqn[var], local_eqn[var]);
+			// 		}
+			// 	}
+			// }
 			FiniteElement::fill_in_contribution_to_jacobian(residuals,jacobian);
 		}
 
 		/// Add the element's contribution to its residuals vector,
 		/// jacobian matrix and mass matrix
 		void fill_in_contribution_to_jacobian_and_mass_matrix(
-											Vector<double> &residuals, DenseMatrix<double> &jacobian, 
+											Vector<double> &residuals, DenseMatrix<double> &jacobian,
 											DenseMatrix<double> &mass_matrix)
 		{
 			//Call the generic routine with the flag set to 2
@@ -293,18 +343,86 @@ namespace oomph
 			//running total of the interpolated active strain
 			double interpolated_active_strain = 0.0;
 			// The local locations of the cell variables
-			Vector<unsigned> local_ind(Cell_model_pt->Required_storage());
+			Vector<unsigned> local_ind(cell_model_pt()->Required_storage());
 
 			//loop over nodes in the element and add their contributions
 			for(unsigned n=0;n<n_node;n++){
 				//Compile the local locations of the cell variables
-				for(unsigned var=0; var<Cell_model_pt->Required_storage(); var++){local_ind[var] = min_index_CellInterfaceEquations() + var;}
+				for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){local_ind[var] = min_index_CellInterfaceEquations() + var;}
 
-				interpolated_active_strain += Cell_model_pt->active_strain(this->node_pt(n),local_ind)
+				interpolated_active_strain += cell_model_pt()->active_strain(this->node_pt(n),local_ind)
 															*psi[n];
 			}
 
 			return interpolated_active_strain;
+		}
+
+		//return the membrane current at the nth node
+		inline double membrane_current_at_node_CellInterface(const unsigned &n) const
+		{
+
+			double nodal_membrane_current = 0.0;
+			//The local and global coordinates of the node being considered
+			Vector<double> s_node(DIM);
+			Vector<double> x_node(DIM);
+
+			//Calculate the local and global coordinate of node n
+			local_coordinate_of_node(n,s_node);
+			for(unsigned j=0;j<DIM;j++){
+				x_node[j] = raw_nodal_position(n,j);
+			}
+
+			//Calculate membrane potential
+			double Vm;
+			get_membrane_potential_CellInterface(0, s_node, x_node, Vm);
+
+			//Calculate strain
+			double strain;
+			get_strain_CellInterface(0, s_node, x_node, strain);
+			//Calculate external concentrations
+			//Na, Ca, K
+			Vector<double> Ext_conc(3);
+			double temp_conc;
+			
+			Ext_conc[0] = get_external_Na_conc_CellInterface(0, s_node, x_node);
+			Ext_conc[1] = get_external_Ca_conc_CellInterface(0, s_node, x_node);
+			Ext_conc[2] = get_external_K_conc_CellInterface(0, s_node, x_node);
+
+
+			//Compile the local locations of the cell variables
+			Vector<unsigned> local_ind(cell_model_pt()->Required_storage());
+			for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
+				local_ind[var] = min_index_CellInterfaceEquations() + var;
+			}
+
+			//Add nodal contribution to interpolated current
+			nodal_membrane_current += cell_model_pt()->membrane_current(	this->node_pt(n),		
+																				Vm,
+																				strain,
+																				Ext_conc,
+																				local_ind,
+																				get_cell_type_at_node_CellInterface(n),
+																				mutation_CellInterface(),
+																				get_fibrosis_type_at_node_CellInterface(n)	);
+
+
+			//If Boundary_source_fct_pt has been set, get the contribution from the node
+			//  This check prevents bulk non boundary elements from contributing
+			//  unnecessary overhead
+			if(Boundary_source_fct_pt!=0){
+				// Preallocate boundaries the node is on
+				std::set<unsigned>* boundaries_pt;
+				// Get the pointer to set of boundaries node lies on
+				node_pt(n)->get_boundaries_pt(boundaries_pt);
+				// If the set is non-zero, get a contribution to nodal_membrane_current
+				if(boundaries_pt!=0){
+					double bound_source = 0.0;
+					Boundary_source_fct_pt(boundaries_pt, bound_source);
+					nodal_membrane_current += bound_source;
+				}
+			}
+
+			return nodal_membrane_current;
 		}
 
 		//====================================================================
@@ -312,11 +430,10 @@ namespace oomph
 		//====================================================================
 		inline double interpolated_membrane_current_CellInterface(const Vector<double> &s) const
 		{	
+			// std::cout << "boom" << std::endl;
 			//number of nodes in the element
 			unsigned n_node = nnode();
-			//The local and global coordinates of the node being considered
-			Vector<double> s_node(DIM);
-			Vector<double> x_node(DIM);
+			
 			//The values of the shape functions at the position interpolation is being calculated at
 			Shape psi(n_node);
 			shape(s,psi);
@@ -326,44 +443,12 @@ namespace oomph
 
 			//loop over the nodes and add up their contributions
 			for(unsigned n=0;n<n_node;n++){
-
-				//Calculate the local and global coordinate of node n
-				local_coordinate_of_node(n,s_node);
-				for(unsigned j=0;j<DIM;j++){
-					x_node[j] = raw_nodal_position(n,j);
-				}
-
-				//Calculate membrane potential
-				double Vm;
-				get_membrane_potential_CellInterface(0, s_node, x_node, Vm);
-				
-				//Calculate strain
-				double strain;
-				get_strain_CellInterface(0, s, x_node, strain);
-
-				//Calculate external concentrations
-				//Na, Ca, K
-				Vector<double> Ext_conc(3);
-				double temp_conc;
-				
-				Ext_conc[0] = get_external_Na_conc_CellInterface(0, s, x_node);
-				Ext_conc[1] = get_external_Ca_conc_CellInterface(0, s, x_node);
-				Ext_conc[2] = get_external_K_conc_CellInterface(0, s, x_node);
-
-				//Compile the local locations of the cell variables
-				Vector<unsigned> local_ind(Cell_model_pt->Required_storage());
-				for(unsigned var=0; var<Cell_model_pt->Required_storage(); var++){local_ind[var] = min_index_CellInterfaceEquations() + var;}
-
-				// std::cout << "got to Cell_model_pt->membrane_current(...)" << std::endl;
-				//Add nodal contribution to interpolated current
-				interpolated_membrane_current += Cell_model_pt->membrane_current(	this->node_pt(n),		
-																					Vm,
-																					strain,
-																					Ext_conc,
-																					local_ind,
-																					get_cell_type_at_node_CellInterface(n),
-																					mutation_CellInterface(),
-																					get_fibrosis_type_at_node_CellInterface(n)	)*psi[n];
+				interpolated_membrane_current += membrane_current_at_node_CellInterface(n)*psi[n];
+			}
+			if(interpolated_membrane_current==0.0){
+				throw OomphLibError("did not get interpolated_membrane_current",
+									OOMPH_CURRENT_FUNCTION,
+									OOMPH_EXCEPTION_LOCATION);
 			}
 			return interpolated_membrane_current;
 		}
@@ -384,6 +469,9 @@ namespace oomph
 		//====================================================================
 		//Definition of function pointers
 		//====================================================================
+
+ 		CellInterfaceBoundarySourceFctPt Boundary_source_fct_pt;
+
 		CellInterfaceScalarFctPt Membrane_potential_fct_pt_CellInterface;
 		CellInterfaceScalarFctPt Strain_fct_pt;
 
@@ -691,7 +779,7 @@ namespace oomph
 		//Constructors
 		//====================================================================
 		PointCellInterfaceElement()	:	PointElement(),
-										CellInterfaceEquations<1>()
+										CellInterfaceEquations<DIM>()
 		{
 			//Create data for cell type and fibrosis type and pin them immediately
 			Cell_type_internal_index = this->add_internal_data(new Data(1), false);
@@ -712,7 +800,22 @@ namespace oomph
 		//====================================================================
 		//Output functions
 		//====================================================================
-		/// Output with default number of plot points
+		// /// Output with default number of plot points
+		// void output(std::ostream &outfile){
+		// 	PointCellInterfaceElement<DIM, NUM_VARS>::output(outfile, 0);
+		// }
+		// /// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
+		// /// nplot^DIM plot points
+		// void output(std::ostream &outfile, const unsigned &nplot);
+		// /// C_style output with default number of plot points
+		// void output(FILE* file_pt){
+		// 	PointCellInterfaceElement<DIM, NUM_VARS>::output(file_pt, 0);
+		// }
+		//  /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
+		//  /// n_plot^DIM plot points
+		//  void output(FILE* file_pt, const unsigned &n_plot);
+
+		 /// Output with default number of plot points
 		void output(std::ostream &outfile){
 			CellInterfaceEquations<DIM>::output(outfile);
 		}

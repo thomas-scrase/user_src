@@ -137,7 +137,8 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includedir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libtoms_utilities_la_LIBADD =
 am__objects_1 =
-am__objects_2 = storage_enrichment_elements.lo
+am__objects_2 = storage_enrichment_elements.lo \
+	vector_with_diffusion_storage_enrichment_elements.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libtoms_utilities_la_OBJECTS = $(am__objects_3)
 libtoms_utilities_la_OBJECTS = $(am_libtoms_utilities_la_OBJECTS)
@@ -332,8 +333,8 @@ SHELL = /bin/bash
 STRIP = strip
 TRILINOS_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include
 TRILINOS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib
-USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ single_cell_analysis/ tissuedeformation/
-USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ monodomain/ multiphysics_tests/ toms_utilities/
+USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ multiphysics_test/ single_cell_analysis/ tissuedeformation/
+USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ component_multiphysics/ monodomain/ multiphysics_tests/ toms_utilities/
 VERSION = 1.0.0000
 abs_builddir = /home/thomas/oomph-lib-1.0.1306/user_src/toms_utilities
 abs_srcdir = /home/thomas/oomph-lib-1.0.1306/user_src/toms_utilities
@@ -400,12 +401,14 @@ top_srcdir = ../..
 
 # Define the sources
 sources = \
-storage_enrichment_elements.cc
+storage_enrichment_elements.cc \
+vector_with_diffusion_storage_enrichment_elements.cc
 
 
 # Define the headers
 headers = \
-storage_enrichment_elements.h
+storage_enrichment_elements.h \
+vector_with_diffusion_storage_enrichment_elements.h
 
 
 # Define name of library
@@ -513,6 +516,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/storage_enrichment_elements.Plo
+include ./$(DEPDIR)/vector_with_diffusion_storage_enrichment_elements.Plo
 
 .cc.o:
 	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

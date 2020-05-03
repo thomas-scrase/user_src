@@ -234,6 +234,8 @@ fill_in_generic_contribution_to_residuals_pvd(Vector<double> &residuals,
 
    //Get the integral weight
    double w = this->integral_pt()->weight(ipt);
+ 
+    if(w==0.0){continue;}
 
    //Call the derivatives of the shape functions (and get Jacobian)
    double J = this->dshape_lagrangian_at_knot(ipt,psi,dpsidxi);
@@ -2402,6 +2404,20 @@ void AnisotropicPVDEquationsWithPressure<DIM>::get_stress(const Vector<double> &
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
+// //====================================================================
+// /// Data for the number of Variables at each node
+// //====================================================================
+// template<>
+// const unsigned QAnisotropicPVDElementWithContinuousPressure<1>::Initial_Nvalue[9]=
+// {1,0,1,0,0,0,1,0,1};
+
+// //==========================================================================
+// /// Conversion from pressure dof to Node number at which pressure is stored
+// //==========================================================================
+// template<>
+// const unsigned QAnisotropicPVDElementWithContinuousPressure<1>::Pconv[4] =
+// {0,2,6,8};
+
 
 
 //====================================================================
@@ -2437,6 +2453,20 @@ const unsigned QAnisotropicPVDElementWithContinuousPressure<3>::Pconv[8] =
 ///////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
+// //=======================================================================
+// /// Data for the number of variables at each node
+// //=======================================================================
+// template<>
+// const unsigned TAnisotropicPVDElementWithContinuousPressure<1>::
+// Initial_Nvalue[6]={1,1,1,0,0,0};
+
+// //=======================================================================
+// /// Data for the pressure conversion array
+// //=======================================================================
+// template<>
+// const unsigned TAnisotropicPVDElementWithContinuousPressure<1>::Pconv[3]={0,1,2};
+
+
 //=======================================================================
 /// Data for the number of variables at each node
 //=======================================================================
@@ -2466,6 +2496,8 @@ const unsigned TAnisotropicPVDElementWithContinuousPressure<3>::Pconv[4]={0,1,2,
 
 
 //Instantiate the required elements
+
+//1D
 // template class QAnisotropicPVDElement<1,2>;
 // template class QAnisotropicPVDElement<1,3>;
 // template class TAnisotropicPVDElement<1,2>;
@@ -2480,7 +2512,7 @@ const unsigned TAnisotropicPVDElementWithContinuousPressure<3>::Pconv[4]={0,1,2,
 // template class TAnisotropicPVDElementWithContinuousPressure<1>;
 
 
-
+//2D
 template class QAnisotropicPVDElement<2,2>;
 template class QAnisotropicPVDElement<2,3>;
 template class TAnisotropicPVDElement<2,2>;
@@ -2495,7 +2527,7 @@ template class AnisotropicPVDEquationsWithPressure<2>;
 template class TAnisotropicPVDElementWithContinuousPressure<2>;
 
 
-
+//3D
 template class QAnisotropicPVDElement<3,2>;
 template class QAnisotropicPVDElement<3,3>;
 template class TAnisotropicPVDElement<3,2>;

@@ -73,6 +73,8 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
    //Get the integral weight
    double w = integral_pt()->weight(ipt);
 
+    if(w==0.0){continue;}
+    
    //Call the derivatives of the shape and test functions
    double J = 
     dshape_and_dtest_eulerian_at_knot_monodomain(ipt,psi,dpsidx,test,dtestdx);
@@ -84,6 +86,8 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
    //Allocate
    double interpolated_u=0.0;
    double dudt=0.0;
+
+   double interpolated_boundary_source=0.0;
 
    Vector<double> interpolated_x(DIM,0.0);
    Vector<double> interpolated_dudx(DIM,0.0);
@@ -101,9 +105,26 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
      // Loop over directions
      for(unsigned j=0;j<DIM;j++)
       {
-       interpolated_x[j] = raw_nodal_position(l,j)*psi(l);
+       interpolated_x[j] += raw_nodal_position(l,j)*psi(l);
        interpolated_dudx[j] += u_value*dpsidx(l,j);
       }
+
+      //If Boundary_source_fct_pt has been set, get the contribution from the node
+      //  This check prevents bulk non boundary elements from contributing
+      //  unnecessary overhead
+     if(Boundary_source_fct_pt){
+      // Preallocate boundaries the node is on
+      std::set<unsigned>* boundaries_pt;
+      // Get the pointer to set of boundaries node lies on
+      node_pt(l)->get_boundaries_pt(boundaries_pt);
+      // If the set is non-zero, get a contribution to interpolated_boundary_source
+      if(boundaries_pt!=0){
+        double bound_source = 0.0;
+        Boundary_source_fct_pt(boundaries_pt, bound_source);
+        interpolated_boundary_source += bound_source*psi(l);
+      }
+     }
+
     }
    
    // Mesh velocity?
@@ -117,12 +138,18 @@ void  MonodomainEquations<DIM>::fill_in_generic_residual_contribution_monodomain
         }
       }
     }
-   
+  
 
    //Get source function
    //-------------------
    double source;
    get_source_monodomain(ipt,interpolated_x,source);
+
+   //add the boundary source
+   if(Boundary_source_fct_pt!=0){
+    // std::cout << "Source from bound " << interpolated_boundary_source << std::endl;
+    source += interpolated_boundary_source;
+   }
 
 
    //Get diffusivity tensor
@@ -259,75 +286,67 @@ unsigned  MonodomainEquations<DIM>::self_test()
 template <unsigned DIM>
 void  MonodomainEquations<DIM>::output(std::ostream &outfile, 
                                                const unsigned &nplot)
-{ 
-  // std::cout << "I am plotting with this plot" << std::endl;
- //Vector of local coordinates
- Vector<double> s(DIM);
+{
+  // std::cout << "BOOM" << std::endl;
+  //Vector of local coordinates
+  Vector<double> s(DIM);
 
- 
- // Tecplot header info
- outfile << tecplot_zone_string(nplot);
- 
- const unsigned n_node = this->nnode();
- Shape psi(n_node);
- DShape dpsidx(n_node,DIM);
+  // Tecplot header info
+  outfile << tecplot_zone_string(nplot);
 
- // Loop over plot points
- unsigned num_plot_points=nplot_points(nplot);
- for (unsigned iplot=0;iplot<num_plot_points;iplot++)
+  const unsigned n_node = this->nnode();
+  // std::cout << "n_node " << n_node << std::endl;
+  Shape psi(n_node);
+  DShape dpsidx(n_node,DIM);
+
+  // Loop over plot points
+  unsigned num_plot_points=nplot_points(nplot);
+  // std::cout << "Begin loop over ipt" << std::endl;
+  for (unsigned iplot=0;iplot<num_plot_points;iplot++)
   {
-   // Get local coordinates of plot point
-   get_s_plot(iplot,nplot,s);
-   
-   // Get Eulerian coordinate of plot point
-   Vector<double> x(DIM);
-   interpolated_x(s,x);
-   
-   for(unsigned i=0;i<DIM;i++) 
-    {
-     outfile << x[i] << " ";
-    }
-   outfile << interpolated_u_monodomain(s) << " ";
-   
-   //Get the gradients
-   (void)this->dshape_eulerian(s,psi,dpsidx);
-   Vector<double> interpolated_dudx(DIM,0.0);
-   double dudt = 0.0;
-   for(unsigned n=0;n<n_node;n++)
-    {
-     const double u_ = this->nodal_value(n,0);
+    // Get local coordinates of plot point
+    get_s_plot(iplot,nplot,s);
 
-     dudt += du_dt_monodomain(n)*psi(n);
+    // Get Eulerian coordinate of plot point
+    Vector<double> x(DIM);
+    interpolated_x(s,x);
 
-     for(unsigned i=0;i<DIM;i++)
-      {
-       interpolated_dudx[i] += u_*dpsidx(n,i);
-      }
+    for(unsigned i=0;i<DIM;i++) {outfile << x[i] << " ";}
+    // std::cout << "outputting interpolated_u_monodomain" << std::endl;
+    outfile << interpolated_u_monodomain(s) << " ";
+
+    //Get the gradients
+    (void)this->dshape_eulerian(s,psi,dpsidx);
+    Vector<double> interpolated_dudx(DIM,0.0);
+    double dudt = 0.0;
+    // std::cout << "begin loop over nodes for values" << std::endl;
+    for(unsigned n=0;n<n_node;n++){
+      const double u_ = this->nodal_value(n,0);
+      dudt += du_dt_monodomain(n)*psi(n);
+      for(unsigned i=0;i<DIM;i++){interpolated_dudx[i] += u_*dpsidx(n,i);}
     }
 
-   outfile << dudt << " ";
+    outfile << dudt << " ";
 
-   for(unsigned i=0;i<DIM;i++)
-    {
-     outfile << interpolated_dudx[i]  << " ";
-    }
+    for(unsigned i=0;i<DIM;i++){outfile << interpolated_dudx[i]  << " ";}
 
+    // std::cout << "begin output diff" << std::endl;
     DenseMatrix<double> PrintD(DIM, DIM);
+    // std::cout << "getting diff" << std::endl;
     get_diff_monodomain(0, s, x, PrintD);
-
+    // std::cout << "doing loop" << std::endl;
     for(unsigned i=0; i<DIM; i++){
+      // std::cout << "\ti: " << i << std::endl;
       for(unsigned j=0; j<DIM; j++){
+        // std::cout << "\t\tj: " << j << "\t:\t" << PrintD(i,j) << std::endl;
         outfile << PrintD(i,j) << " ";
       }
     }
-
     outfile  << std::endl;
-   
   }
-
- // Write tecplot footer (e.g. FE connectivity lists)
- write_tecplot_zone_footer(outfile,nplot);
-
+  // Write tecplot footer (e.g. FE connectivity lists)
+  write_tecplot_zone_footer(outfile,nplot);
+  // std::cout << "ENDBOOM" << std::endl;
 }
 
 
@@ -658,5 +677,24 @@ template class TMonodomainElement<2,4>;
 template class TMonodomainElement<3,2>;
 template class TMonodomainElement<3,3>;
 
+
+
+/////////////////////////////////////////////////////////////////////////
+// PointMonodomainElement
+/////////////////////////////////////////////////////////////////////////
+
+//======================================================================
+// Set the data for the number of Variables at each node, always 1
+//======================================================================
+template<unsigned DIM>
+const unsigned PointMonodomainElement<DIM>::Initial_Nvalue = 1;
+                                                                  //u
+
+//====================================================================
+// Force build of templates
+//====================================================================
+template class PointMonodomainElement<1>;
+template class PointMonodomainElement<2>;
+template class PointMonodomainElement<3>;
 
 }

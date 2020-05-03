@@ -5,8 +5,6 @@ namespace oomph{
     CNZCell::CNZCell()   :   CellModelBase()
     {
         //The required storage
-        // this->Required_Storage = 36;
-
         //..without variables with zero residual
         this->Required_Storage = 40;
 
@@ -544,7 +542,7 @@ namespace oomph{
     // Calculate the sub residual for CNZCell
     //====================================================================
     //====================================================================
-    void CNZCell::residual( Node* node,
+    void CNZCell::fill_in_generic_residual_contribution_cell_base( Node* node,
                             const double& Vm,
                             const double& strain,
                             const Vector<double> &Ext_conc,
@@ -552,12 +550,14 @@ namespace oomph{
                             const unsigned &cell_type,
                             const unsigned &mut_type,
                             const unsigned &fibrosis,
-                            Vector<double> &residual_sub)
+                            Vector<double> &residuals,
+                            DenseMatrix<double> &jacobian,
+                            unsigned flag)
     {   
         // std::cout << "entered residual in cell_model" << std::endl;
         //====================================================================
         //====================================================================
-        // Calculate some variables before residual_sub is calculated
+        // Calculate some variables before residuals is calculated
         //====================================================================
         //====================================================================
         //Preallocate memory for the reversal potentials
@@ -570,8 +570,8 @@ namespace oomph{
         double alpha, beta;
         //Calculate reversal potentials
         get_reversal_Na(Ext_conc[0], node_var(node,nai_index_CNZCell(),local_ind), Ena);
-        get_reversal_Na(Ext_conc[1], node_var(node,cai_index_CNZCell(),local_ind), Eca);
-        get_reversal_Na(Ext_conc[2], node_var(node,ki_index_CNZCell(),local_ind), Ek);
+        get_reversal_Ca(Ext_conc[1], node_var(node,cai_index_CNZCell(),local_ind), Eca);
+        get_reversal_K(Ext_conc[2], node_var(node,ki_index_CNZCell(),local_ind), Ek);
 
         //Get the ISAC scale
         ISAC_ = ISAC_ISAC_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, strain);
@@ -616,11 +616,18 @@ namespace oomph{
         if(std::fabs(Vm + 47.13) > 1e-10){alpha = 0.32 * (Vm + 47.13) / (1.0 - exp(-0.1 * (Vm + 47.13)));}
         else{alpha = 3.2;}
         beta = 0.08 * exp(-Vm / 11.0);
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
-        //Populate jacobian
-        // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + alpha + beta;
+        //Populate residuals
+        // residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
 
+        // Populate residual with step from previous value to next one, to be used with identity jacobian
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
+        //Populate jacobian
+        if(flag){
+            // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + alpha + beta;
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0);
+        }
         //====================================================================
         //h
         //====================================================================
@@ -634,11 +641,20 @@ namespace oomph{
             alpha = 0.135 * exp((Vm + 80.0) / -6.8);
             beta = 3.56 * exp(0.079 * Vm) + 3.1e5 * exp(0.35 * Vm);
         }
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
-        //Populate jacobian
-        // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + alpha + beta;
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
 
+        // Populate residual with step from previous value to next one, to be used with identity jacobian
+        // residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha
+        //                         + ( 1 - node->time_stepper_pt()->weight(1,0) )*node->value(0,local_ind[var_ind]) - ( 1 + node->time_stepper_pt()->weight(1,1) )*node->value(1,local_ind[var_ind]);
+
+        //Populate jacobian
+        if(flag){
+            // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + alpha + beta;
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //j
         //====================================================================
@@ -654,40 +670,63 @@ namespace oomph{
             alpha = (-1.2714e5 * exp(0.2444 * Vm) - 3.474e-5 * exp(-0.04391 * Vm)) * (Vm + 37.78) / (1.0 + exp(0.311 * (Vm + 79.23)));
             beta = 0.1212 * exp(-0.01052 * Vm) / (1.0 + exp(-0.1378 * (Vm + 40.14)));
         }
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
-        //Populate jacobian
-        // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + alpha + beta;
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
 
+        // Populate residual with step from previous value to next one, to be used with identity jacobian
+        // residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha
+        //                         + ( 1 - node->time_stepper_pt()->weight(1,0) )*node->value(0,local_ind[var_ind]) - ( 1 + node->time_stepper_pt()->weight(1,1) )*node->value(1,local_ind[var_ind]);
+
+        //Populate jacobian
+        if(flag){
+            // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + alpha + beta;
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0);
+        }
         //====================================================================
         //d
         //====================================================================
         var_ind = d_index_CNZCell();
-        //Populate residual_sub and jacobian without rates         
+        //Populate residuals and jacobian without rates         
         if (std::fabs(Vm + 10.0) > 1e-10)
         {
-            //Populate residual_sub
-            residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - 0.035*(Vm + 10.0)*( (1.0+exp(-(Vm+10.0)/6.24)) / (1.0-exp(-(Vm+10.0)/6.24)) )*(1.0/(1.0+exp(-(Vm+10.0)/8.0)) - node_var(node,var_ind,local_ind));
+            //Populate residuals
+            residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - 0.035*(Vm + 10.0)*( (1.0+exp(-(Vm+10.0)/6.24)) / (1.0-exp(-(Vm+10.0)/6.24)) )*(1.0/(1.0+exp(-(Vm+10.0)/8.0)) - node_var(node,var_ind,local_ind));
             //Populate jacobian
-            // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + 0.035*(Vm+10.0)*(1.0+exp(-(Vm+10.0)/8.0))/(1.0-exp(-(Vm+10.0)/6.24));   
+            if(flag){
+               // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + 0.035*(Vm+10.0)*(1.0+exp(-(Vm+10.0)/8.0))/(1.0-exp(-(Vm+10.0)/6.24));   
+
+               // Jacobian is identity
+                jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+           }
         }
         else
         {   
-            //Populate residual_sub
-            residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - (1.0/4.579) * (1.0 + exp((Vm + 10.0) / -6.24)) * ( 1.0 / (1.0 + exp((Vm + 10.0) / -8.0)) - node_var(node,var_ind,local_ind));
+            //Populate residuals
+            residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - (1.0/4.579) * (1.0 + exp((Vm + 10.0) / -6.24)) * ( 1.0 / (1.0 + exp((Vm + 10.0) / -8.0)) - node_var(node,var_ind,local_ind));
             //Populate jacobian
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 5.60897e-3;
+            if(flag){
+                // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 5.60897e-3;
+
+                // Jacobian is identity
+                jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+            }
         }
 
         //====================================================================
         //f
         //====================================================================
         var_ind = f_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( exp(-(Vm+28.0)/6.9)/(1.0+exp(-(Vm+28.0)/6.9)) - node_var(node,var_ind,local_ind) ) / (9.0 / (0.0197 * exp(-pow(0.0337*(Vm + 10),2.0)) + 0.02));
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( exp(-(Vm+28.0)/6.9)/(1.0+exp(-(Vm+28.0)/6.9)) - node_var(node,var_ind,local_ind) ) / (9.0 / (0.0197 * exp(-pow(0.0337*(Vm + 10),2.0)) + 0.02));
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) - 1.0/(1.5 * 2.0 * 3.0 / (0.0197 * exp(-0.0337 * 0.0337 * (Vm + 10.0) * (Vm + 10.0)) + 0.02));
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) - 1.0/(1.5 * 2.0 * 3.0 / (0.0197 * exp(-0.0337 * 0.0337 * (Vm + 10.0) * (Vm + 10.0)) + 0.02));
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //xr
         //====================================================================
@@ -697,11 +736,15 @@ namespace oomph{
         else{alpha = 0.0015;}
         if (fabs(Vm - 3.3328) > 1e-10){beta = 0.000073898 * (Vm - 3.3328) / (exp((Vm - 3.3328) / 5.1237) - 1.0);}
         else{beta = 3.7836118e-4;}
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / ( 1.0 + exp( -(Vm + get_IKr_ac_shift(cell_type, mut_type) + 14.1) / (6.5 * get_IKr_ac_grad(cell_type, mut_type))) ) - node_var(node,var_ind,local_ind) )*(alpha + beta);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / ( 1.0 + exp( -(Vm + get_IKr_ac_shift(cell_type, mut_type) + 14.1) / (6.5 * get_IKr_ac_grad(cell_type, mut_type))) ) - node_var(node,var_ind,local_ind) )*(alpha + beta);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) - node_var(node,var_ind,local_ind)*(alpha + beta);
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) - node_var(node,var_ind,local_ind)*(alpha + beta);
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //xs
         //====================================================================
@@ -716,30 +759,45 @@ namespace oomph{
             alpha = 0.00068;
             beta = 0.000315;
         }
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( sqrt(1.0 / (1.0 + exp(-(Vm - 19.9 - get_IKs_shift(cell_type, mut_type)) / (12.7 * get_IKs_grad(cell_type, mut_type))))) - node_var(node,var_ind,local_ind) )*2.0*(alpha + beta);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( sqrt(1.0 / (1.0 + exp(-(Vm - 19.9 - get_IKs_shift(cell_type, mut_type)) / (12.7 * get_IKs_grad(cell_type, mut_type))))) - node_var(node,var_ind,local_ind) )*2.0*(alpha + beta);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) - node_var(node,var_ind,local_ind)*2.0*(alpha + beta);
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) - node_var(node,var_ind,local_ind)*2.0*(alpha + beta);
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
 
         //====================================================================
         //nai
         //====================================================================
         var_ind = nai_index_CNZCell();
         
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - (-3.0 * INaK - 3.0 * INaCa - IbNa - INa - ISAC_Na) / (F *CRN_vi);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - (-3.0 * INaK - 3.0 * INaCa - IbNa - INa - ISAC_Na) / (F *CRN_vi);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
 
         //====================================================================
         //ki
         //====================================================================
         var_ind = ki_index_CNZCell();
         
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - (2.0 * INaK - IK1 - Ito - IKur - IKr - IKs - IbK - ISAC_K) / (F * CRN_vi);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - (2.0 * INaK - IK1 - Ito - IKur - IKr - IKs - IbK - ISAC_K) / (F * CRN_vi);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0); //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0); //!!!!! COMPLETE THIS
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
 
         //====================================================================
         //values required for changes in various calcium concentrations
@@ -810,72 +868,104 @@ namespace oomph{
         //====================================================================
         var_ind = cai_index_CNZCell();
 
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - JCa / (Vnonjunct3 * betai * 1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - JCa / (Vnonjunct3 * betai * 1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //fca
         //====================================================================
         var_ind = fca_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + (node_var(node,Cass_index_CNZCell(),local_ind) / 0.00035)) - node_var(node,var_ind,local_ind) )/(2.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + (node_var(node,Cass_index_CNZCell(),local_ind) / 0.00035)) - node_var(node,var_ind,local_ind) )/(2.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 0.5;
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 0.5;
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         // jacobian(var_ind,node_var(node,Cass_index_CNZCell(),local_ind)) += 0.00035/(1 + pow(node_var(node,Cass_index_CNZCell(),local_ind),2.0));
 
         //====================================================================
         //itr
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = itr_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm - 1.0)/11.0)) - node_var(node,var_ind,local_ind) ) / ((0.0035 * exp(-(Vm / 15.0)) + 0.0015)*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm - 1.0)/11.0)) - node_var(node,var_ind,local_ind) ) / ((0.0035 * exp(-(Vm / 15.0)) + 0.0015)*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.0035 * exp(-(Vm / 30.0) * 2.0) + 0.0015);
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.0035 * exp(-(Vm / 30.0) * 2.0) + 0.0015);
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
 
         //====================================================================
         //its
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = its_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + 40.5) / 11.5)) - node_var(node,var_ind,local_ind) ) / ((0.025635 * exp (-(Vm + 52.45) / 7.94135) + 0.01414)*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + 40.5) / 11.5)) - node_var(node,var_ind,local_ind) ) / ((0.025635 * exp (-(Vm + 52.45) / 7.94135) + 0.01414)*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.025635 * exp (-((Vm + 52.45) / 15.8827) * 2.0) + 0.01414);
-    
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.025635 * exp (-((Vm + 52.45) / 15.8827) * 2.0) + 0.01414);
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
+
         //====================================================================
         //isusr
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = isusr_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm + get_IKur_ac_shift(cell_type, mut_type) + 6.0) / (8.6 * get_IKur_ac_grad(cell_type, mut_type)))) - node_var(node,var_ind,local_ind) ) / ((0.009 / (1.0 + exp((Vm + 5.0) / 12.0)) + 0.0005)*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm + get_IKur_ac_shift(cell_type, mut_type) + 6.0) / (8.6 * get_IKur_ac_grad(cell_type, mut_type)))) - node_var(node,var_ind,local_ind) ) / ((0.009 / (1.0 + exp((Vm + 5.0) / 12.0)) + 0.0005)*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.009 / (1.0 + exp((Vm + 5.0) / 12.0)) + 0.0005);
-        
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.009 / (1.0 + exp((Vm + 5.0) / 12.0)) + 0.0005);
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
+
         //====================================================================
         //isuss
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = isuss_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + get_IKur_inac_shift(cell_type,mut_type) + 7.5) / (10.0 * get_IKur_inac_grad(cell_type,mut_type)))) - node_var(node,var_ind,local_ind) ) / ((0.59 / (1.0 + exp((Vm + 60.0) / 10.0)) + 3.05)*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + get_IKur_inac_shift(cell_type,mut_type) + 7.5) / (10.0 * get_IKur_inac_grad(cell_type,mut_type)))) - node_var(node,var_ind,local_ind) ) / ((0.59 / (1.0 + exp((Vm + 60.0) / 10.0)) + 3.05)*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.59 / (1.0 + exp((Vm + 60.0) / 10.0)) + 3.05);
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.59 / (1.0 + exp((Vm + 60.0) / 10.0)) + 3.05);
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //Cass
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = Cass_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - betass * ( JCass / Vss + ((-( get_RyR(cell_type,mut_type) * ICaL) - IbCa - ICap - ICaT + 2 * INaCa - ISAC_Ca)) / (2000.0 * Vss * F) )/1000.0;
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - betass * ( JCass / Vss + ((-( get_RyR(cell_type,mut_type) * ICaL) - IbCa - ICap - ICaT + 2 * INaCa - ISAC_Ca)) / (2000.0 * Vss * F) )/1000.0;
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //CaSR1
         //====================================================================
         var_ind = CaSR1_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] +=    node_var_derivative(node, var_ind, local_ind) - 
+        //Populate residuals
+        residuals[local_ind[var_ind]] +=    node_var_derivative(node, var_ind, local_ind) - 
 
                                     betaSR1 *
                                     (
@@ -889,14 +979,18 @@ namespace oomph{
                                         JSRCa1 / VSR3
                                     );
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }   
         //====================================================================
         //CaSR2
         //====================================================================
         var_ind = CaSR2_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] +=    node_var_derivative(node, var_ind, local_ind) -
+        //Populate residuals
+        residuals[local_ind[var_ind]] +=    node_var_derivative(node, var_ind, local_ind) -
 
                                     betaSR2 *
                                     (
@@ -910,105 +1004,150 @@ namespace oomph{
                                         JSRCa2 / VSR4
                                     );
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //SERCACa
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = SERCACa_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - 0.5 * (-J_SERCASR + J_bulkSERCA) / (Vnonjunct3*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - 0.5 * (-J_SERCASR + J_bulkSERCA) / (Vnonjunct3*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //SERCACass
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = SERCACass_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - 0.5 * (-J_SERCASRss + J_bulkSERCAss) / (Vss*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - 0.5 * (-J_SERCASRss + J_bulkSERCAss) / (Vss*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //RyRoss
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = RyRoss_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( RyRoinfss - node_var(node,var_ind,local_ind) ) / (RyRtauactss*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRoinfss - node_var(node,var_ind,local_ind) ) / (RyRtauactss*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //RyRcss
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = RyRcss_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( RyRcinfss - node_var(node,var_ind,local_ind) ) / (RyRtauinactss*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRcinfss - node_var(node,var_ind,local_ind) ) / (RyRtauinactss*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //RyRass
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = RyRass_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( RyRainfss - node_var(node,var_ind,local_ind) ) / (RyRtauadapt*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRainfss - node_var(node,var_ind,local_ind) ) / (RyRtauadapt*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //RyRo3
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = RyRo3_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( RyRoinf3 - node_var(node,var_ind,local_ind) ) / (RyRtauact*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRoinf3 - node_var(node,var_ind,local_ind) ) / (RyRtauact*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //RyRc3
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = RyRc3_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( RyRcinf3 - node_var(node,var_ind,local_ind) ) / (RyRtauinact*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRcinf3 - node_var(node,var_ind,local_ind) ) / (RyRtauinact*1000.0);
         //Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //RyRa3
         //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
         var_ind = RyRa3_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( RyRainf3 - node_var(node,var_ind,local_ind) ) / (RyRtauadapt*1000.0);
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRainf3 - node_var(node,var_ind,local_ind) ) / (RyRtauadapt*1000.0);
         // Populate jacobian
-        // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        if(flag){
+            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
 
         //====================================================================
         //dd
         //====================================================================
         var_ind = dd_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm + 37.0) / 6.8)) - node_var(node,var_ind,local_ind) ) * ( 1.0680*exp((Vm + 26.3)/30.0) + 1.0680*exp(-(Vm + 26.3)/30.0) );
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm + 37.0) / 6.8)) - node_var(node,var_ind,local_ind) ) * ( 1.0680*exp((Vm + 26.3)/30.0) + 1.0680*exp(-(Vm + 26.3)/30.0) );
         // //Populate jacobian
-        // // jacobian(var_ind, var_ind) += 1.0;
+        if(flag){
+            // jacobian(var_ind, var_ind) += 1.0;
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         // //====================================================================
         // //ff
         // //====================================================================
         var_ind = ff_index_CNZCell();
-        //Populate residual_sub
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + 71.0) / 9.0)) - node_var(node,var_ind,local_ind) ) * ( 0.0153*exp(-(Vm + 71.0)/83.3) + 0.0150*exp((Vm + 71.0)/15.38) );
+        //Populate residuals
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + 71.0) / 9.0)) - node_var(node,var_ind,local_ind) ) * ( 0.0153*exp(-(Vm + 71.0)/83.3) + 0.0150*exp((Vm + 71.0)/15.38) );
         // //Populate jacobian
-        // // jacobian(var_ind, var_ind) += 1.0;
+        if(flag){
+            // jacobian(var_ind, var_ind) += 1.0;
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
+        
         // //====================================================================
         // //rkv
         // //====================================================================
         // var_ind = rkv_index_CNZCell();
-        // //Populate residual_sub
-        // residual_sub[var_ind] += 0.0;
+        // //Populate residuals
+        // residuals[local_ind[var_ind]] += 0.0;
         // //Populate jacobian
         // // jacobian(var_ind, var_ind) += 1.0;
 
@@ -1016,8 +1155,8 @@ namespace oomph{
         // //skv
         // //====================================================================
         // var_ind = skv_index_CNZCell();
-        // //Populate residual_sub
-        // residual_sub[var_ind] += 0.0;
+        // //Populate residuals
+        // residuals[local_ind[var_ind]] += 0.0;
         // //Populate jacobian
         // // jacobian(var_ind, var_ind) += 1.0;
 
@@ -1025,8 +1164,8 @@ namespace oomph{
         // //kif
         // //====================================================================
         // var_ind = kif_index_CNZCell();
-        // //Populate residual_sub
-        // residual_sub[var_ind] += 0.0;
+        // //Populate residuals
+        // residuals[local_ind[var_ind]] += 0.0;
         // //Populate jacobian
         // // jacobian(var_ind, var_ind) += 1.0;
 
@@ -1034,8 +1173,8 @@ namespace oomph{
         // //naif
         // //====================================================================
         // var_ind = naif_index_CNZCell();
-        // //Populate residual_sub
-        // residual_sub[var_ind] += 0.0;
+        // //Populate residuals
+        // residuals[local_ind[var_ind]] += 0.0;
         // //Populate jacobian
         // // jacobian(var_ind, var_ind) += 1.0;
 
@@ -1043,8 +1182,8 @@ namespace oomph{
         // //Vmf
         // //====================================================================
         // var_ind = Vmf_index_CNZCell();
-        // //Populate residual_sub
-        // residual_sub[var_ind] += 0.0;
+        // //Populate residuals
+        // residuals[local_ind[var_ind]] += 0.0;
         // //Populate jacobian
         // // jacobian(var_ind, var_ind) += 1.0;
 
@@ -1053,22 +1192,34 @@ namespace oomph{
         //====================================================================
         var_ind = CNZ_a_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm - (-6.0 + get_IKur_Vhchange(cell_type, mut_type) )) / (8.6 * get_IKur_slope(cell_type,mut_type) ))) - node_var(node,var_ind,local_ind) ) / ( ( get_IKur_timeconstants(cell_type,mut_type)*(45.6666746826 / (1.0 + exp((Vm + 11.2306497073) / 11.5254705962)) + 4.26753514993)*(0.262186042981 / (1.0 + exp((Vm + 35.8658312707) / (-3.87510627762))) + 0.291755017928) ) / 3.5308257834747638 );
-        
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm - (-6.0 + get_IKur_Vhchange(cell_type, mut_type) )) / (8.6 * get_IKur_slope(cell_type,mut_type) ))) - node_var(node,var_ind,local_ind) ) / ( ( get_IKur_timeconstants(cell_type,mut_type)*(45.6666746826 / (1.0 + exp((Vm + 11.2306497073) / 11.5254705962)) + 4.26753514993)*(0.262186042981 / (1.0 + exp((Vm + 35.8658312707) / (-3.87510627762))) + 0.291755017928) ) / 3.5308257834747638 );
+        if(flag){
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //CNZ_i
         //====================================================================
         var_ind = CNZ_i_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( (get_IKur_inac_mult(cell_type,mut_type) * 0.52424) / (1.0 + exp((Vm + 15.1142 + get_IKur_inac_shift(cell_type,mut_type) ) / (7.567021 * get_IKur_inac_grad(cell_type,mut_type) ))) + 0.4580778 + get_IKur_inac_add(cell_type,mut_type)  - node_var(node,var_ind,local_ind) ) / ( (2328.0 / (1.0 + exp((Vm - 9.435) / (3.5827))) + 1739.139) / 3.5308257834747638 );
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( (get_IKur_inac_mult(cell_type,mut_type) * 0.52424) / (1.0 + exp((Vm + 15.1142 + get_IKur_inac_shift(cell_type,mut_type) ) / (7.567021 * get_IKur_inac_grad(cell_type,mut_type) ))) + 0.4580778 + get_IKur_inac_add(cell_type,mut_type)  - node_var(node,var_ind,local_ind) ) / ( (2328.0 / (1.0 + exp((Vm - 9.435) / (3.5827))) + 1739.139) / 3.5308257834747638 );
+        if(flag){
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //If_y
         //====================================================================
         var_ind = If_y_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + 90.95 + get_If_vshift(cell_type,mut_type)) / (10.1 * get_If_grad(cell_type,mut_type))) ) - node_var(node,var_ind,local_ind) ) * (1.2783E-04 * exp(-Vm / 9.2424) + 121.6092 * exp(Vm / 9.2424));
-        
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + 90.95 + get_If_vshift(cell_type,mut_type)) / (10.1 * get_If_grad(cell_type,mut_type))) ) - node_var(node,var_ind,local_ind) ) * (1.2783E-04 * exp(-Vm / 9.2424) + 121.6092 * exp(Vm / 9.2424));
+        if(flag){
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) +=  node->time_stepper_pt()->weight(1,0); 
+        }
 
         
         //====================================================================
@@ -1192,64 +1343,100 @@ namespace oomph{
         //====================================================================
         var_ind = rice_N_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - dN;
-        
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dN;
+        if(flag){
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //rice_XBprer
         //====================================================================
         var_ind = rice_XBprer_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - dXBprer;
-        
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dXBprer;
+        if(flag){
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //rice_XBpostr
         //====================================================================
         var_ind = rice_XBpostr_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - dXBpostr;
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dXBpostr;
+        if(flag){
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //rice_SL
         //====================================================================
         var_ind = rice_SL_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - dSL;
-        
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dSL;
+        if(flag){
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //rice_xXBpostr
         //====================================================================
         var_ind = rice_xXBpostr_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - dxXBpostr;
-        
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dxXBpostr;
+        if(flag){
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //rice_xXBprer
         //====================================================================
         var_ind = rice_xXBprer_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - dxXBprer;
-        
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dxXBprer;
+        if(flag){
+
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //rice_TRPNCaL
         //====================================================================
         var_ind = rice_TRPNCaL_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - dTRPNCaL;
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dTRPNCaL;
+        if(flag){
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //rice_TRPNCaH
         //====================================================================
         var_ind = rice_TRPNCaH_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - dTRPNCaH;
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dTRPNCaH;
+        if(flag){
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //rice_intf
         //====================================================================
         var_ind = intf_index_CNZCell();
 
-        residual_sub[var_ind] += node_var_derivative(node, var_ind, local_ind) - dintf;
+        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dintf;
+        if(flag){
 
+            // Jacobian is identity
+            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+        }
         //====================================================================
         //====================================================================
         // END FORCE MODEL

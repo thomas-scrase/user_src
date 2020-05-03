@@ -3,30 +3,28 @@
 #-----------------------
 
 # Define the sources
-sources =  \
-storage_enrichment_elements.cc \
-vector_with_diffusion_storage_enrichment_elements.cc \
-toms_integral.cc
+sources = \
+	storage_augmented_cell_elements.cc
+	
 # Define the headers
-headers =  \
-storage_enrichment_elements.h \
-vector_with_diffusion_storage_enrichment_elements.h \
-toms_integral.h
-
+headers = \
+	storage_augmented_cell_elements.h \
+	multi_domain_cardiac_tissue_sub_elements.h \
+	projectable_multi_domain_cardiac_tissue_sub_elements.h
 
 # Define name of library
-libname = toms_utilities
+libname = component_multiphysics
 
 # Combine headers and sources
 headers_and_sources = $(headers) $(sources)
 
 # Define the library that gets placed in lib directory
 #-----------------------------------------------------
-lib_LTLIBRARIES = libtoms_utilities.la
+lib_LTLIBRARIES = libcomponent_multiphysics.la
 
 # Sources that the library depends on: 
 #-------------------------------------
-libtoms_utilities_la_SOURCES = $(headers_and_sources)
+libcomponent_multiphysics_la_SOURCES = $(headers_and_sources)
 
 # The library's include headers:
 #-------------------------------
@@ -36,10 +34,10 @@ libtoms_utilities_la_SOURCES = $(headers_and_sources)
 include_HEADERS = $(libname).h 
 
 #Here's the subdirectory where the actual header files are placed
-library_includedir=$(includedir)/toms_utilities
+library_includedir=$(includedir)/component_multiphysics
 
 #These are the header files that are to be placed in subdirectory
-library_include_HEADERS=$(headers)# $(incl_cc_files) $(templates)
+library_include_HEADERS=$(headers)
 
 
 # Required libraries -- [assuming that we want to link against stuff in generic
@@ -66,8 +64,8 @@ dummy_$(libname).h:  $(headers)
 #---------------------------------------------------------------------
 if SYMBOLIC_LINKS_FOR_HEADERS
 install-data-hook: 
-	(cd $(library_includedir) && rm -f $(headers) ) #$(incl_cc_files) $(templates) )
-	(echo "$(headers)" > include_files.list ) #$(incl_cc_files) $(templates)" > include_files.list )
+	(cd $(library_includedir) && rm -f $(headers) )
+	(echo "$(headers)" > include_files.list )
 	($(top_srcdir)/bin/change_headers_to_links.sh `pwd`)
 	($(LN_S) `cat include_files.list.aux` $(library_includedir) )
 	(rm -r include_files.list.aux include_files.list ) 
@@ -76,9 +74,9 @@ install-data-hook:
 endif
 
 
-# Cleanup: Kill automatically generated combined header file
-clean-local: 
-	rm -f $(libname).h *~
-# distclean-local:
-# 	rm -f $(libname).h *~
+# Tidy up
+#--------
+clean-local:
+	rm -f $(libname).h
+
 

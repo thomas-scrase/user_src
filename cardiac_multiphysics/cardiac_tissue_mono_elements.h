@@ -1,9 +1,4 @@
-//======================================================================
-// REWITE this to inherit from AnisotropicWithVectPVDElement
-//		and from MonodomainWithCellElement and DiffusionCoefficientExpansionElement
-//		so that multidomain elements can easily be produced to separate
-//		the electrophysical equations from the solid equations.
-//======================================================================
+
 
 #ifndef OOMPH_CARDIAC_TISSUE_MONO
 #define OOMPH_CARDIAC_TISSUE_MONO
@@ -17,13 +12,13 @@
 #include "../anisotropic_solid/anisotropic_solid_with_vector_storage_elements.h"
 
 //Diffusion ceofficient elements
-#include "diffusion_coefficient_expansion_elements.h"
+#include "../toms_utilities/storage_enrichment_elements.h"
 
 //Cell interface elements (includes cell models)
 #include "../cell_interface/cell_interface_elements.h"
 
 //Monodomain with cell elements
-#include "monodomain_with_cell_elements.h"
+#include "../monodomain/monodomain_elements.h"
 
 // namespace oomph
 // {

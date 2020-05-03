@@ -137,7 +137,8 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includedir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libtoms_utilities_la_LIBADD =
 am__objects_1 =
-am__objects_2 = storage_enrichment_elements.lo
+am__objects_2 = storage_enrichment_elements.lo \
+	vector_with_diffusion_storage_enrichment_elements.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libtoms_utilities_la_OBJECTS = $(am__objects_3)
 libtoms_utilities_la_OBJECTS = $(am_libtoms_utilities_la_OBJECTS)
@@ -400,12 +401,14 @@ top_srcdir = @top_srcdir@
 
 # Define the sources
 sources = \
-storage_enrichment_elements.cc
+storage_enrichment_elements.cc \
+vector_with_diffusion_storage_enrichment_elements.cc
 
 
 # Define the headers
 headers = \
-storage_enrichment_elements.h
+storage_enrichment_elements.h \
+vector_with_diffusion_storage_enrichment_elements.h
 
 
 # Define name of library
@@ -513,6 +516,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/storage_enrichment_elements.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vector_with_diffusion_storage_enrichment_elements.Plo@am__quote@
 
 .cc.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
