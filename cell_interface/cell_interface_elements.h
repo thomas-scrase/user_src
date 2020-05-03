@@ -9,11 +9,9 @@
 
 //!!!!!
 //REQUIRED ALTERATIONS
-//	Add required_concs		-	the required number of concentrations, this might change if
-//								e.g. the conc of ATP is required by a channel formulation
-//
 //	Add no_repeated_cells	-	if the entries in the residual corresponding to the current
-//								nodes cell variables, don't run the cell code, just skip it
+//								nodes cell variables, don't run the cell code, just skip it.
+//								how will this be done though?
 
 //!!!!! PERHAPS IMPLEMENT THE DIFFUSION COEFFICIENTS IN THE CELL INTERFACE ELEMENTS
 

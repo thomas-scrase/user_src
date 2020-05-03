@@ -202,10 +202,11 @@ namespace oomph{
 
 	//====================================================================
 	//====================================================================
-	//Begin the Zero Cell model:
-	// an empty cell class for testing if linking between the
+	//Begin the FitzHugh-Nagumo Cell model:
+	// a deprecated cell class for testing if linking between the
 	// monodomain elements and cell model interface elements
-	// is working correctly.
+	// is working correctly, and for demonstrating cell model wrappers
+	// used during modelling.
 	//====================================================================
 	//====================================================================
 	class FitzHughNagumo	:	public CellModelBase
@@ -225,10 +226,12 @@ namespace oomph{
 
 		inline virtual double potential_forcing_function(const double& Vm) const{
 			return Vm*(1-Vm*Vm/3.0);
+			// return 0.0;
 		}
 
 		inline virtual double variable_forcing_function(const double& Vm, const double& var) const{
 			return 0.08*(Vm + 0.7 - 0.8*var);
+			// return 10.0*(Vm - potential_scaling() + 0.7 - 0.8*var);
 		}
 
 		// The membrane current at the node
@@ -241,7 +244,7 @@ namespace oomph{
 										const unsigned &mut_type,
 										const unsigned &fibrosis) const
 		{
-			return potential_forcing_function(Vm) + node_var(node,0,local_ind);
+			return -(potential_forcing_function(Vm) - node_var(node,0,local_ind));
 		}
 
 		void fill_in_generic_residual_contribution_cell_base(	Node* node,
@@ -265,6 +268,8 @@ namespace oomph{
 		}
 
 		double const cm() const {return 1.0;}
+
+		// double const potential_scaling() const {return -77.079842;}
 	};
 
 
