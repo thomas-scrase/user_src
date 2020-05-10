@@ -1,4 +1,0 @@
-cardiac_tissue_mono_elements.lo: cardiac_tissue_mono_elements.cc \
- /usr/include/stdc-predef.h
-
-/usr/include/stdc-predef.h:
