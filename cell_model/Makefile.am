@@ -3,11 +3,15 @@
 
 # Define the sources
 sources =  \
-cell_model_elements.cc
+cell_model_elements.cc \
+CNZCell_Atria.cc \
+TNNP_Vent.cc
 
 # Define the headers
 headers =  \
-cell_model_elements.h
+cell_model_elements.h \
+CNZCell_Atria.h \
+TNNP_Vent.h
 
 # Define name of library
 libname = cell_model

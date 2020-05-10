@@ -36,6 +36,9 @@ namespace oomph
 
 			outfile << interpolated_membrane_current_CellInterface(s) << " ";
 
+			//output active strain
+			outfile << get_interpolated_cell_active_strain(s) << " ";
+			
 			//Loop over the variables
 			for(unsigned var=min_index_CellInterfaceEquations();var<max_index_CellInterfaceEquations();var++){
 		// unsigned var = 8;
@@ -49,9 +52,6 @@ namespace oomph
 				//output the variable
 				outfile << interp_var << " ";
 			}
-
-			//output active strain
-			outfile << get_interpolated_cell_active_strain(s) << " ";
 
 			outfile << std::endl;
  		}
@@ -91,6 +91,8 @@ namespace oomph
  		const unsigned n_intpt = integral_pt()->nweight();
 		//Set the Vector to hold local coordinates
  		Vector<double> s(DIM);
+ 		//The integral point at node
+		unsigned ipt_node;
  		//should the function include contribution from this cell
  		bool compute_this_node;
  		//Storage vectors for the local_index and local_eqn numbers for the single cell data
@@ -99,38 +101,39 @@ namespace oomph
 
 		//Loop over the nodes
 		for(unsigned l=0;l<n_node;l++){
+			ipt_node = ipt_at_node(l);
 			// Get the local ind and local eqn of the cell data
 			for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
 				local_eqn[var] = nodal_local_eqn(l, min_index_CellInterfaceEquations() + var);
 				local_ind[var] = min_index_CellInterfaceEquations() + var;
 			}
 
-			compute_this_node = true;
-			// If Ignore_Repeated_Cells is true then check if the cell has already been computed
-			if(Ignore_Repeated_Cells){
-				//loop over the single cell data
-				for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
+			// compute_this_node = true;
+			// // If Ignore_Repeated_Cells is true then check if the cell has already been computed
+			// if(Ignore_Repeated_Cells){
+			// 	//loop over the single cell data
+			// 	for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
 
-					if(local_eqn[var]>=0){
-						// Check the value of the residuals corresponding to the single cell data
-						if(residuals[local_eqn[var]]!=0){
-							// If it's not zero then the cell has already been computed
-							// Do not compute this cell
-							compute_this_node = false;
-							// Stop checking
-							break;
-						}
-					}
-				}
-			}
-			// If the single cell for this node has already been computed then go to the next node
-			if(!compute_this_node){
-				std::cout << "+!+!+!+!+!+!+!+!+!+!+!+!+!+! SKIPPED A NODE +!+!+!+!+!+!+!+!+!+!+!+!+!+!" << std::endl;
-				for(unsigned printy=0;printy<10;printy++){
-					std::cout << std::endl;
-				}
-				continue;
-			}
+			// 		if(local_eqn[var]>=0){
+			// 			// Check the value of the residuals corresponding to the single cell data
+			// 			if(residuals[local_eqn[var]]!=0){
+			// 				// If it's not zero then the cell has already been computed
+			// 				// Do not compute this cell
+			// 				compute_this_node = false;
+			// 				// Stop checking
+			// 				break;
+			// 			}
+			// 		}
+			// 	}
+			// }
+			// // If the single cell for this node has already been computed then go to the next node
+			// if(!compute_this_node){
+			// 	std::cout << "+!+!+!+!+!+!+!+!+!+!+!+!+!+! SKIPPED A NODE +!+!+!+!+!+!+!+!+!+!+!+!+!+!" << std::endl;
+			// 	for(unsigned printy=0;printy<10;printy++){
+			// 		std::cout << std::endl;
+			// 	}
+			// 	continue;
+			// }
 
 
 			//Preallocate memory for the residual and jacobian sub objects
@@ -145,15 +148,15 @@ namespace oomph
 			}
 
 			//Get the membrane potential
-			get_membrane_potential_CellInterface(0, s_node, x_node, Vm);
+			get_membrane_potential_CellInterface(ipt_node, s_node, x_node, Vm);
 
 			//Get the strain
-    		get_strain_CellInterface(0, s_node, x_node, strain);
+    		get_strain_CellInterface(ipt_node, s_node, x_node, strain);
 
     		//Calculate the external concentrations
-			Ext_conc[0] = get_external_Na_conc_CellInterface(0,s_node,x_node);
-    		Ext_conc[1] = get_external_Ca_conc_CellInterface(0,s_node,x_node);
-    		Ext_conc[2] = get_external_K_conc_CellInterface(0,s_node,x_node);
+			Ext_conc[0] = get_external_Na_conc_CellInterface(ipt_node,s_node,x_node);
+    		Ext_conc[1] = get_external_Ca_conc_CellInterface(ipt_node,s_node,x_node);
+    		Ext_conc[2] = get_external_K_conc_CellInterface(ipt_node,s_node,x_node);
 
     		//Get the cell type at the node
 			cell_type = get_cell_type_at_node_CellInterface(l);

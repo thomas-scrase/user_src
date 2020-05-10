@@ -34,6 +34,9 @@
 //include the cell model library
 #include "../cell_model/cell_model_elements.h"
 
+//For the custom integration scheme
+#include "../toms_utilities/toms_integral.h"
+
 namespace oomph
 {
 	template <unsigned DIM>
@@ -372,21 +375,24 @@ namespace oomph
 				x_node[j] = raw_nodal_position(n,j);
 			}
 
+			//Get integral point at node
+			unsigned ipt_node;
+			ipt_node = ipt_at_node(n);
 			//Calculate membrane potential
 			double Vm;
-			get_membrane_potential_CellInterface(0, s_node, x_node, Vm);
+			get_membrane_potential_CellInterface(ipt_node, s_node, x_node, Vm);
 
 			//Calculate strain
 			double strain;
-			get_strain_CellInterface(0, s_node, x_node, strain);
+			get_strain_CellInterface(ipt_node, s_node, x_node, strain);
 			//Calculate external concentrations
 			//Na, Ca, K
 			Vector<double> Ext_conc(3);
 			double temp_conc;
 			
-			Ext_conc[0] = get_external_Na_conc_CellInterface(0, s_node, x_node);
-			Ext_conc[1] = get_external_Ca_conc_CellInterface(0, s_node, x_node);
-			Ext_conc[2] = get_external_K_conc_CellInterface(0, s_node, x_node);
+			Ext_conc[0] = get_external_Na_conc_CellInterface(ipt_node, s_node, x_node);
+			Ext_conc[1] = get_external_Ca_conc_CellInterface(ipt_node, s_node, x_node);
+			Ext_conc[2] = get_external_K_conc_CellInterface(ipt_node, s_node, x_node);
 
 
 			//Compile the local locations of the cell variables
@@ -453,6 +459,10 @@ namespace oomph
 			return interpolated_membrane_current;
 		}
 
+		//return the ipt associated with node n
+		inline unsigned ipt_at_node(const unsigned &n) const
+			{return ipt_not_at_nodes + n;}
+
 	protected:
 		//====================================================================
 		//====================================================================
@@ -501,6 +511,8 @@ namespace oomph
 		//	not calculate single cell.
 		bool Ignore_Repeated_Cells;
 
+		unsigned ipt_not_at_nodes;
+
 
 	private:
 	};
@@ -537,6 +549,11 @@ namespace oomph
 			{
 				this->internal_data_pt(Fibrosis_type_internal_index)->pin(l);
 			}
+
+			//set the integration scheme to one with integral points aligned with the nodes
+			this->set_integration_scheme(new GaussWithNodes<DIM, NNODE_1D>);
+			//set the number of integral points which are not aligned with nodes
+			this->ipt_not_at_nodes = this->integral_pt()->nweight() - this->nnode();
 		}
 
 		QCellInterfaceElement(const QCellInterfaceElement<DIM, NUM_VARS, NNODE_1D>& dummy){BrokenCopy::broken_copy("QCellInterfaceElement");}
@@ -663,6 +680,11 @@ namespace oomph
 			{
 				this->internal_data_pt(Fibrosis_type_internal_index)->pin(l);
 			}
+
+			//set the integration scheme to one with integral points aligned with the nodes
+			this->set_integration_scheme(new GaussWithNodes<DIM, NNODE_1D>);
+			//set the number of integral points which are not aligned with nodes
+			this->ipt_not_at_nodes = this->integral_pt()->nweight() - this->nnode();
 		}
 
 		TCellInterfaceElement(const TCellInterfaceElement<DIM, NUM_VARS, NNODE_1D>& dummy){BrokenCopy::broken_copy("TCellInterfaceElement");}
