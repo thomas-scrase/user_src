@@ -25,7 +25,8 @@
 #include "../toms_utilities/vector_with_diffusion_storage_enrichment_elements.h"
 
 //Monodomain elements
-#include "../monodomain/monodomain_elements.h"
+// #include "../monodomain/monodomain_elements.h"
+#include "../cell_membrane_potential/cell_membrane_potential_elements.h"
 
 //Solid elements for the external solid element for geometric data
 #include "../anisotropic_solid/anisotropic_solid_elements.h"

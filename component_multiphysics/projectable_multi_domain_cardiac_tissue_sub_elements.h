@@ -13,8 +13,9 @@
 #include "../toms_utilities/toms_integral.h"
 
 //Monodomain elements
-#include "../monodomain/monodomain_elements.h"
-#include "../monodomain/refineable_monodomain_elements.h"
+// #include "../monodomain/monodomain_elements.h"
+// #include "../monodomain/refineable_monodomain_elements.h"
+#include "../cell_membrane_potential/cell_membrane_potential_elements.h"
 
 //Solid elements for the external solid element for geometric data
 #include "../anisotropic_solid/anisotropic_solid_elements.h"
@@ -610,7 +611,7 @@ namespace oomph{
 			EXT_MONO_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_MONO_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node));
 			//if there is an external element then return the value in that element at that point
 			if(ext_elmt_pt!=0){
-				return ext_elmt_pt->interpolated_u_monodomain(external_element_local_coord(external_mono_mesh_interaction_index,ipt_node));
+				return ext_elmt_pt->vm_index_BaseCellMembranePotential(external_element_local_coord(external_mono_mesh_interaction_index,ipt_node));
 			}
 
 			//otherwise, loop over the nodes in this element and get their contribution using the weights,
@@ -625,7 +626,7 @@ namespace oomph{
 				//if the node we are looping over has no external element or it is this node, skip it.
 				if(l==n  || !ext_elmt_pt)	continue;
 				//otherwise we want to add the external value at this node to our interpolated value
-				membrane_current += ext_elmt_pt->interpolated_u_monodomain(external_element_local_coord(external_mono_mesh_interaction_index,ipt_node))*
+				membrane_current += ext_elmt_pt->vm_index_BaseCellMembranePotential(external_element_local_coord(external_mono_mesh_interaction_index,ipt_node))*
 										interpolation_weight_external_membrane_potential(n, l);
 			}
 
