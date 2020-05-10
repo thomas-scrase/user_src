@@ -137,8 +137,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(includedir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libcomponent_multiphysics_la_LIBADD =
 am__objects_1 =
-am__objects_2 = storage_augmented_cell_elements.lo \
-	multi_domain_cardiac_tissue_sub_elements.lo
+am__objects_2 = storage_augmented_cell_elements.lo
 am__objects_3 = $(am__objects_1) $(am__objects_2)
 am_libcomponent_multiphysics_la_OBJECTS = $(am__objects_3)
 libcomponent_multiphysics_la_OBJECTS =  \
@@ -235,12 +234,12 @@ AMTAR = $${TAR-tar}
 # Include path for library headers -- need to refer to include files
 # in their respective source directories as they will not have been 
 # installed yet! 
-AM_CPPFLAGS = -isystem /home/thomas/oomph-lib-1.0.1306/external_distributions/hypre/hypre_default_installation/include -DOOMPH_HAS_HYPRE -isystem /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include -DOOMPH_HAS_TRILINOS -DOOMPH_HAS_STACKTRACE -DOOMPH_HAS_UNISTDH -DOOMPH_HAS_FPUCONTROLH -DOOMPH_HAS_MALLOCH -DOOMPH_HAS_MPI -DOOMPH_HAS_TRIANGLE_LIB -DOOMPH_HAS_TETGEN_LIB -DUSING_OOMPH_SUPERLU -DUSING_OOMPH_SUPERLU_DIST -I$(top_builddir)/src/generic \
+AM_CPPFLAGS = -isystem /home/thomas/oomph-lib-1.0.1306/external_distributions/hypre/hypre_default_installation/include -DOOMPH_HAS_HYPRE -isystem /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include -DOOMPH_HAS_TRILINOS -I/home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/include -DOOMPH_HAS_MUMPS -DOOMPH_HAS_STACKTRACE -DOOMPH_HAS_UNISTDH -DOOMPH_HAS_FPUCONTROLH -DOOMPH_HAS_MALLOCH -DOOMPH_HAS_MPI -DOOMPH_HAS_TRIANGLE_LIB -DOOMPH_HAS_TETGEN_LIB -DUSING_OOMPH_SUPERLU -DUSING_OOMPH_SUPERLU_DIST -I$(top_builddir)/src/generic \
 	-I$(top_builddir)/user_src/
 AM_CXXFLAGS = -DgFortran
 AM_DEFAULT_VERBOSITY = 1
 AM_FFLAGS = 
-AM_LDFLAGS = -L/home/thomas/oomph-lib-1.0.1306/external_distributions/hypre/hypre_default_installation/lib -L/home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib
+AM_LDFLAGS = -L/home/thomas/oomph-lib-1.0.1306/external_distributions/hypre/hypre_default_installation/lib -L/home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib -L/home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib
 AR = ar
 AUTOCONF = ${SHELL} /home/thomas/oomph-lib-1.0.1306/missing autoconf
 AUTOHEADER = ${SHELL} /home/thomas/oomph-lib-1.0.1306/missing autoheader
@@ -250,13 +249,13 @@ BLACS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_sca
 BLAS_LIB = 
 CC = mpicc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -g -O3 -Wall
+CFLAGS = -O3
 CPP = mpicc -E
 CPPFLAGS = 
 CXX = mpic++
 CXXCPP = mpic++ -E
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -g -O3 -Wall
+CXXFLAGS = -O3 -Wall
 CXXLD = $(CXX)
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
@@ -269,12 +268,12 @@ ECHO_N = -n
 ECHO_T = 
 EGREP = /bin/grep -E
 EXEEXT = 
-EXTERNAL_LIBS = -lHYPRE -lml -lifpack -lamesos -lanasazi -laztecoo -lepetraext -ltriutils -lepetra -lteuchosremainder -lteuchosnumerics -lteuchoscomm -lteuchosparameterlist -lteuchoscore /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/blacs.a /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/blacsF77.a /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/blacs_copy.a /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/libpord.a -loomph_hsl -loomph_arpack -loomph_crbond_bessel -loomph_triangle -loomph_tetgen -loomph_superlu_4.3 -loomph_parmetis_3.1.1 -loomph_superlu_dist_3.0 -loomph_metis_from_parmetis_3.1.1 -loomph_lapack -loomph_flapack -loomph_blas
+EXTERNAL_LIBS = -lHYPRE -lml -lifpack -lamesos -lanasazi -laztecoo -lepetraext -ltriutils -lepetra -lteuchosremainder -lteuchosnumerics -lteuchoscomm -lteuchosparameterlist -lteuchoscore -ldmumps -lmumps_common /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/libscalapack.a /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/blacs.a /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/blacsF77.a /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/blacs_copy.a /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/libpord.a -loomph_hsl -loomph_arpack -loomph_crbond_bessel -loomph_triangle -loomph_tetgen -loomph_superlu_4.3 -loomph_parmetis_3.1.1 -loomph_superlu_dist_3.0 -loomph_metis_from_parmetis_3.1.1 -loomph_lapack -loomph_flapack -loomph_blas
 F77 = mpif77
 FC = gfortran
 FCFLAGS = -g -O2
-FFLAGS = -g -O3 -Wall
-FFLAGS_NO_OPT = -O3
+FFLAGS = -O3
+FFLAGS_NO_OPT = -O0
 FGREP = /bin/grep -F
 FLIBS =  -L/usr//lib -L/usr/lib/x86_64-linux-gnu/openmpi/lib -L/usr/lib/gcc/x86_64-linux-gnu/7 -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/7/../../.. -lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi -lgfortran -lm -lquadmath -lpthread
 GREP = /bin/grep
@@ -300,13 +299,13 @@ LT_SYS_LIBRARY_PATH =
 MAKEINFO = ${SHELL} /home/thomas/oomph-lib-1.0.1306/missing makeinfo
 MANIFEST_TOOL = :
 MKDIR_P = /bin/mkdir -p
-MPI_INCLUDE_DIRECTORY = /usr/lib/x86_64-linux-gnu/openmpi/include
+MPI_INCLUDE_DIRECTORY = /usr/lib/x86_64-linux-gnu/openmpi/include/
 MPI_RUN_COMMAND = mpirun -np 2
 MPI_VARIABLENP_RUN_COMMAND = mpirun -np OOMPHNP
 MUMPS_AND_SCALAPACK_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/include
 MUMPS_AND_SCALAPACK_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib
-MUMPS_INCLUDE = 
-MUMPS_LIB = 
+MUMPS_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/include
+MUMPS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib
 NM = /usr/bin/nm -B
 NMEDIT = 
 OBJDUMP = objdump
@@ -327,15 +326,15 @@ PRIVATE_SUBDIRECTORIES =
 PRIVATE_USER_DRIVER_SUBDIRECTORIES = 
 PRIVATE_USER_SRC_SUBDIRECTORIES = 
 RANLIB = ranlib
-SCALAPACK_LIB = 
+SCALAPACK_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_scalapack/mumps_and_scalapack_default_installation/lib/libscalapack.a
 SED = /bin/sed
 SET_MAKE = 
 SHELL = /bin/bash
 STRIP = strip
 TRILINOS_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include
 TRILINOS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib
-USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ monodomain/ multiphysics_test/ single_cell_analysis/ tissuedeformation/
-USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cardiac_multiphysics/ cell_interface/ cell_model/ component_multiphysics/ monodomain/ multiphysics_tests/ toms_utilities/
+USER_DRIVERS_SUBDIRECTORIES = cardiac_tissue_without_cells_test/ cell_model_test/ full_tissue_test/ monodomain/ multiphysics_test/ single_cell_analysis/ tissuedeformation/
+USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cell_interface/ cell_membrane_potential/ cell_model/ component_multiphysics/ toms_utilities/
 VERSION = 1.0.0000
 abs_builddir = /home/thomas/oomph-lib-1.0.1306/user_src/component_multiphysics
 abs_srcdir = /home/thomas/oomph-lib-1.0.1306/user_src/component_multiphysics
@@ -367,7 +366,7 @@ exec_prefix = ${prefix}
 have_cmake = true
 have_doxygen = false
 have_online_triangle = true
-have_pdf_latex = false
+have_pdf_latex = true
 have_python = true
 have_tetgen = true
 host = x86_64-pc-linux-gnu
@@ -402,13 +401,14 @@ top_srcdir = ../..
 
 # Define the sources
 sources = \
-	storage_augmented_cell_elements.cc \
-	multi_domain_cardiac_tissue_sub_elements.cc
+	storage_augmented_cell_elements.cc
+
 
 # Define the headers
 headers = \
 	storage_augmented_cell_elements.h \
-	multi_domain_cardiac_tissue_sub_elements.h
+	multi_domain_cardiac_tissue_sub_elements.h \
+	projectable_multi_domain_cardiac_tissue_sub_elements.h
 
 
 # Define name of library
@@ -515,7 +515,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-include ./$(DEPDIR)/multi_domain_cardiac_tissue_sub_elements.Plo
 include ./$(DEPDIR)/storage_augmented_cell_elements.Plo
 
 .cc.o:
