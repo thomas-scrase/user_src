@@ -78,7 +78,7 @@ namespace oomph{
 		//Residual and Jacobian functions
 		void fill_in_contribution_to_residuals(Vector<double> &residuals)
 		{
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_residuals(residuals);
+			CellInterfaceEquations<DIM, NUM_VARS>::fill_in_contribution_to_residuals(residuals);
 
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_residuals(residuals);
 
@@ -88,7 +88,7 @@ namespace oomph{
 		void fill_in_contribution_to_jacobian(Vector<double> &residuals,
 											DenseMatrix<double> &jacobian)
 		{
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			CellInterfaceEquations<DIM, NUM_VARS>::fill_in_contribution_to_jacobian(residuals,jacobian);
 			
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_jacobian(residuals,jacobian);
 		}
@@ -97,7 +97,7 @@ namespace oomph{
 															DenseMatrix<double> &jacobian,
 															DenseMatrix<double> &mass_matrix)
   		{
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
+			CellInterfaceEquations<DIM, NUM_VARS>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 		}
 	};
@@ -148,19 +148,19 @@ namespace oomph{
 		//	and storage enrichment data is pinned
 		void fill_in_contribution_to_residuals(Vector<double> &residuals)
 		{
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_residuals(residuals);
+			CellInterfaceEquations<DIM, NUM_VARS>::fill_in_contribution_to_residuals(residuals);
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_residuals(residuals);
 		}
 
 		void fill_in_contribution_to_jacobian(Vector<double> &residuals,DenseMatrix<double> &jacobian)
 		{
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			CellInterfaceEquations<DIM, NUM_VARS>::fill_in_contribution_to_jacobian(residuals,jacobian);
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_jacobian(residuals,jacobian);
 		}
 
 		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals, DenseMatrix<double> &jacobian, DenseMatrix<double> &mass_matrix)
   		{
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
+			CellInterfaceEquations<DIM, NUM_VARS>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 		}
 	};
@@ -213,19 +213,19 @@ namespace oomph{
 		//	and storage enrichment data is pinned
 		void fill_in_contribution_to_residuals(Vector<double> &residuals)
 		{
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_residuals(residuals);
+			CellInterfaceEquations<DIM, NUM_VARS>::fill_in_contribution_to_residuals(residuals);
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_residuals(residuals);
 		}
 
 		void fill_in_contribution_to_jacobian(Vector<double> &residuals,DenseMatrix<double> &jacobian)
 		{
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			CellInterfaceEquations<DIM, NUM_VARS>::fill_in_contribution_to_jacobian(residuals,jacobian);
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_jacobian(residuals,jacobian);
 		}
 
 		void fill_in_contribution_to_jacobian_and_mass_matrix(Vector<double> &residuals, DenseMatrix<double> &jacobian, DenseMatrix<double> &mass_matrix)
   		{
-			CellInterfaceEquations<DIM>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
+			CellInterfaceEquations<DIM, NUM_VARS>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 			VectorWithDiffusionStorageEnrichmentEquations<DIM*(DIM+1)>::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 		}
 	};

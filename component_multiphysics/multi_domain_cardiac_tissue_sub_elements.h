@@ -275,7 +275,7 @@ namespace oomph{
 	//========================================================================================================================================
 	//========================================================================================================================================
 
-	template<unsigned DIM, unsigned NNODE_1D>
+	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 	class QMonodomainElementWithExternalCellAndSolidElements	:
 	public virtual QMonodomainElement<DIM, NNODE_1D>,
 	public virtual ElementWithExternalElement
@@ -338,7 +338,7 @@ namespace oomph{
 
 
 			//Add the membrane current from the external cell interface element
-			source += dynamic_cast<CellInterfaceEquations<DIM>*> //cast the external element
+			source += dynamic_cast<CellInterfaceEquations<DIM, NUM_VARS>*> //cast the external element
 			(external_element_pt(cell_interaction, ipt))->			//get the external element pointer
 				interpolated_membrane_current_CellInterface(
 					external_element_local_coord(cell_interaction,ipt)); //call the membrane current function at the correct local coord
@@ -388,7 +388,7 @@ namespace oomph{
 		}
 	};
 
-	template<unsigned DIM, unsigned NNODE_1D>
+	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 	class TMonodomainElementWithExternalCellAndSolidElements	:
 	public virtual TMonodomainElement<DIM, NNODE_1D>,
 	public virtual ElementWithExternalElement
@@ -423,7 +423,7 @@ namespace oomph{
 			}
 
 			//Add the membrane current from the external cell interface element
-			source += dynamic_cast<CellInterfaceEquations<DIM>*> //cast the external element
+			source += dynamic_cast<CellInterfaceEquations<DIM, NUM_VARS>*> //cast the external element
 			(external_element_pt(cell_interaction, ipt))->			//get the external element pointer
 				interpolated_membrane_current_CellInterface(
 					external_element_local_coord(cell_interaction,ipt)); //call the membrane current function at the correct local coord
@@ -508,7 +508,7 @@ namespace oomph{
 	// 		}
 
 	// 		//Add the membrane current from the external cell interface element
-	// 		source += dynamic_cast<CellInterfaceEquations<DIM>*> //cast the external element
+	// 		source += dynamic_cast<CellInterfaceEquations<DIM, NUM_VARS>*> //cast the external element
 	// 		(external_element_pt(cell_interaction, ipt))->			//get the external element pointer
 	// 			interpolated_membrane_current_CellInterface(
 	// 				external_element_local_coord(cell_interaction,ipt)); //call the membrane current function at the correct local coord
@@ -561,7 +561,7 @@ namespace oomph{
 
 
 	//Refineable Q
-	template<unsigned DIM, unsigned NNODE_1D>
+	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 	class RefineableQMonodomainElementWithExternalCellAndSolidElements	:
 	public virtual RefineableQMonodomainElement<DIM, NNODE_1D>,
 	public virtual ElementWithExternalElement
@@ -596,7 +596,7 @@ namespace oomph{
 
 			if(external_element_pt(cell_interaction, ipt)){
 				//Add the membrane current from the external cell interface element
-				source += dynamic_cast<CellInterfaceEquations<DIM>*> //cast the external element
+				source += dynamic_cast<CellInterfaceEquations<DIM, NUM_VARS>*> //cast the external element
 				(external_element_pt(cell_interaction, ipt))->			//get the external element pointer
 					interpolated_membrane_current_CellInterface(external_element_local_coord(cell_interaction,ipt)); //call the membrane current function at the correct local coord
 			}
@@ -669,7 +669,7 @@ namespace oomph{
 	//========================================================================================================================================
 	//========================================================================================================================================
 
-	template<unsigned DIM, unsigned NNODE_1D>
+	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 	class QAnisotropicSolidElementWithExternalAugmentedCellElement	:
 	public virtual QAnisotropicPVDElement<DIM, NNODE_1D>,
 	public virtual ElementWithExternalElement
@@ -708,7 +708,7 @@ namespace oomph{
 		{
 			unsigned cell_interaction = 0;
 			lambda.resize(1);
-			lambda[0] = dynamic_cast<CellInterfaceEquations<DIM>*>
+			lambda[0] = dynamic_cast<CellInterfaceEquations<DIM, NUM_VARS>*>
 			(external_element_pt(cell_interaction, ipt))->get_interpolated_cell_active_strain(external_element_local_coord(cell_interaction, ipt));
 		}
 
@@ -735,7 +735,7 @@ namespace oomph{
 		}
 	};
 
-	template<unsigned DIM>
+	template<unsigned DIM, unsigned NUM_VARS>
 	class QAnisotropicSolidElementWithPressureWithExternalAugmentedCellElement	:
 	public virtual QAnisotropicPVDElementWithPressure<DIM>,
 	public virtual ElementWithExternalElement
@@ -775,7 +775,7 @@ namespace oomph{
 		{
 			unsigned cell_interaction = 0;
 			lambda.resize(1);
-			lambda[0] = dynamic_cast<CellInterfaceEquations<DIM>*>
+			lambda[0] = dynamic_cast<CellInterfaceEquations<DIM, NUM_VARS>*>
 			(external_element_pt(cell_interaction, ipt))->get_interpolated_cell_active_strain(external_element_local_coord(cell_interaction, ipt));
 		}
 
@@ -804,7 +804,7 @@ namespace oomph{
 
 
 
-	template<unsigned DIM, unsigned NNODE_1D>
+	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 	class TAnisotropicSolidElementWithExternalAugmentedCellElement	:
 	public virtual TAnisotropicPVDElement<DIM, NNODE_1D>,
 	public virtual ElementWithExternalElement
@@ -843,7 +843,7 @@ namespace oomph{
 		{
 			unsigned cell_interaction = 0;
 			lambda.resize(1);
-			lambda[0] = dynamic_cast<CellInterfaceEquations<DIM>*>
+			lambda[0] = dynamic_cast<CellInterfaceEquations<DIM, NUM_VARS>*>
 			(external_element_pt(cell_interaction, ipt))->get_interpolated_cell_active_strain(external_element_local_coord(cell_interaction, ipt));
 		}
 
@@ -871,7 +871,7 @@ namespace oomph{
 	};
 
 	//Refineable Q
-	template<unsigned DIM, unsigned NNODE_1D>
+	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 	class RefineableQAnisotropicSolidElementWithExternalAugmentedCellElement	:
 	public virtual RefineableQAnisotropicPVDElement<DIM, NNODE_1D>,
 	public virtual ElementWithExternalElement
@@ -910,7 +910,7 @@ namespace oomph{
 		{
 			unsigned cell_interaction = 0;
 			lambda.resize(1);
-			lambda[0] = dynamic_cast<CellInterfaceEquations<DIM>*>
+			lambda[0] = dynamic_cast<CellInterfaceEquations<DIM, NUM_VARS>*>
 			(external_element_pt(cell_interaction, ipt))->get_interpolated_cell_active_strain(external_element_local_coord(cell_interaction, ipt));
 		}
 

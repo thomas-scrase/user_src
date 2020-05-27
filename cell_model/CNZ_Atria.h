@@ -1,3 +1,8 @@
+//LIC// ====================================================================
+//LIC// Contains the CNZ Atrial cell model
+//LIC// ====================================================================
+
+
 #ifndef OOMPH_CNZ_ATRIA_HEADER
 #define OOMPH_CNZ_ATRIA_HEADER
 
@@ -6,7 +11,7 @@
   #include <oomph-lib-config.h>
 #endif
 
-#include "cell_model_elements.h"
+#include "cell_model_base.h"
 
 namespace oomph{
 
@@ -25,8 +30,7 @@ namespace oomph{
 
 		virtual ~CNZCell()	{}
 
-		virtual double active_strain(	Node* node,
-										const Vector<unsigned> &local_ind) const
+		virtual double active_strain(CellState &state)
 		{	
 			//!!!!!
 			// SLrest is set to 1.9 by default, in future this
@@ -35,110 +39,89 @@ namespace oomph{
 
 			// SLrest = 1.9;
 			
-			return (node_var(node, rice_SL_index_CNZCell(), local_ind) - get_SLrest()) / get_SLrest();
+			return (state.var(0,34) - get_SLrest()) / get_SLrest();
 		}
 
 		//====================================================================
 		//Total membrane current at node
 		//====================================================================
-		inline double membrane_current(	Node* node,
-										const double& Vm,
-										const double& strain,
-										const Vector<double> &Ext_conc,
-										const Vector<unsigned> &local_ind,
-										const unsigned &cell_type,
-										const unsigned &mut_type,
-										const unsigned &fibrosis) const
+		inline double membrane_current(CellState &state)
 		{
-			//Calculate values required by lots of currents now to avoid excessive overhead...
+			//Calculate reversal potentials
+	        ENa_reversal(state);
+	        ECa_reversal(state);
+	        EK_reversal(state);
+	        EKf_reversal(state);
+        	Enaf_reversal(state);
+	        
+	        //Calculate channel currents
+	        INa_current(state);
+	        IKr_current(state);
+	        IKs_current(state);
+	        ICaL_current(state);
+	        IK1_current(state);
+	        Iab_current(state);
+	        IbK_current(state);
+	        IbCa_current(state);
+	        IbNa_current(state);
+	        ICap_current(state);
+	        INaCa_current(state);
+	        INaK_current(state);
+	        Ito_current(state);
+	        IKur_current(state);
+	        If_current(state);
+	        ICaT_current(state);
+	        IGap_current(state);
+	        ISAC_current(state);
+	        //get fibrosis currents
+	        IK1f_current(state);
+    		IbNaf_current(state);
 
-			double Ena, Eca, Ek;
-			//double Ekf, Enaf;												//!!!!! REVERSAL POTENTIALS USED BY FIBROSIS
-			get_reversal_Na(Ext_conc[0], node_var(node, nai_index_CNZCell(), local_ind), Ena);
-			get_reversal_Ca(Ext_conc[1], node_var(node, cai_index_CNZCell(), local_ind), Eca);
-			get_reversal_K(Ext_conc[2],  node_var(node,  ki_index_CNZCell(), local_ind), Ek);
+	        return (state.ina() + state.ikr() + state.iks() + state.ical() + state.ik1() + state.iab()
+	        	 + state.ibk() + state.ibca() + state.ibna() + state.icap() + state.inaca() + state.inak()
+	        	 + state.ito() + state.ikur() /*+ state.if()*/ + state.icat() + state.igap()
+	        	 + state.isac_na() + state.isac_ca() + state.isac_k()
+	        	 /*+ state.ik1f()*/ + state.ibnaf()) / Cm;
+	        	 //add fibrosis currents
 
-			//Get the ISAC scale
-			double ISAC_ = ISAC_ISAC_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, strain);
-
-			double total_membrane_current;
-			//Calculate contribution from each channel
-			total_membrane_current 	= 	(	INa_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ena)
-										+	IKr_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek)
-										+	IKs_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek)
-										+	ICaL_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, CRN_ErL)
-										+	IK1_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek)
-										+	Iab_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0)			//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
-										+	IbK_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek)
-										+	IbCa_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Eca)
-									    +	IbNa_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ena)
-									    +	ICap_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0)		//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
-									    +	INaCa_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0)		//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
-									    +	INaK_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0)		//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
-									    +	Ito_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek)
-									    +	IKur_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek)
-									    +	If_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0)			//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
-									    +	ICaT_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0)		//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
-										+	IGap_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0)		//!!!!! NOT IMPLEMENTED YET
-										// +	ISAC_Na_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, ISAC_)
-										// +	ISAC_K_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, ISAC_)
-										// +	ISAC_Ca_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, ISAC_)
-										+	ISAC_ISAC_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, strain)
-										) / Cm;
+			// //Calculate contribution from each channel
+			// total_membrane_current 	= 	(	INa_current(state)
+			// 							+	IKr_current(state)
+			// 							+	IKs_current(state)
+			// 							+	ICaL_current(state)
+			// 							+	IK1_current(state)
+			// 							+	Iab_current(state)			//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
+			// 							+	IbK_current(state)
+			// 							+	IbCa_current(state)
+			// 						    +	IbNa_current(state)
+			// 						    +	ICap_current(state)		//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
+			// 						    +	INaCa_current(state)		//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
+			// 						    +	INaK_current(state)		//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
+			// 						    +	Ito_current(state)
+			// 						    +	IKur_current(state)
+			// 						    +	If_current(state)			//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
+			// 						    +	ICaT_current(state)		//!!!!! NO NERNST POTENTIAL USED IN CNZCell CODE
+			// 							+	IGap_current(state)		//!!!!! NOT IMPLEMENTED YET
+			// 							// +	ISAC_Na_current(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, ISAC_)
+			// 							// +	ISAC_K_current(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, ISAC_)
+			// 							// +	ISAC_Ca_current(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, ISAC_)
+			// 							+	ISAC_ISAC(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, strain)
+			// 							) / Cm;
 
 			//Not dividing by the membrane capacitance. I am moving dependence on Cm to the monodomain element
-			return total_membrane_current;
 		}
 
 		//Fill in the generic residual and jacobian contribution for the cell variables associated with the node passed
 		//	Defined in .cc
-		void fill_in_generic_residual_contribution_cell_base(Node* node,
-															const double& Vm,
-															const double& strain,
-															const Vector<double> &Ext_conc,
-															const Vector<unsigned> &local_ind,
-															const unsigned &cell_type,
-															const unsigned &mut_type,
-															const unsigned &fibrosis,
+		void fill_in_generic_residual_contribution_cell_base(CellState &state,
 															Vector<double> &residuals,
 															DenseMatrix<double> &jacobian,
 															unsigned flag);
 
 		//The membrane capacitance
-		double const cm() const {return Cm;}
+		double cm() const {return Cm;}
 	
 	protected:
-
-		//====================================================================
-		//====================================================================
-		// Cell Helper functions
-		//====================================================================
-		//====================================================================
-
-		//====================================================================
-		// External ionic concentrations
-		//====================================================================
-		inline void get_reversal_Na(const double& Na_o,
-									const double& Na_i,
-									double& Ena) const
-		{
-			Ena = 26.71*log(Na_o / Na_i);
-		}
-		inline void get_reversal_K(const double& K_o,
-									const double& K_i,
-									double& Ek) const
-		{
-			Ek = 26.71*log(K_o / K_i);
-		}
-		inline void get_reversal_Ca(const double& Ca_o,
-									const double& Ca_i,
-									double& Eca) const
-		{
-			Eca = 13.35*log(Ca_o / Ca_i);
-		}
-		//!!!!!
-		//ADD THE FIBROBLAST REVERSAL POTENTIALS
-
 		//====================================================================
 		// The channel currents
 		//	Calculates the current through each channel from the gating variables
@@ -146,176 +129,69 @@ namespace oomph{
 		//	Implemented as virtual to allow overloading for testing new channel models
 		//		with minimal effort
 		//====================================================================
-		inline double INa_current_CNZCell(	Node* node,
-													const Vector<double> &Ext_conc,
-                            						const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-		inline double IKr_current_CNZCell(	Node* node,
-													const Vector<double> &Ext_conc,
-													const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-		inline double IKs_current_CNZCell(	Node* node,
-													const Vector<double> &Ext_conc,
-													const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-		inline double ICaL_current_CNZCell(	Node* node,
-													const Vector<double> &Ext_conc,
-													const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-		inline double IK1_current_CNZCell(	Node* node,
-													const Vector<double> &Ext_conc,
-													const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-		inline double Iab_current_CNZCell(	Node* node,
-													const Vector<double> &Ext_conc,
-													const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-		inline double IbK_current_CNZCell(	Node* node,
-													const Vector<double> &Ext_conc,
-													const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-		inline double IbCa_current_CNZCell(	Node* node,
-													const Vector<double> &Ext_conc,
-													const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-    	inline double IbNa_current_CNZCell(	Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-    	inline double ICap_current_CNZCell(	Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-    	inline double INaCa_current_CNZCell(Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-    	inline double INaK_current_CNZCell(	Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-    	inline double Ito_current_CNZCell(	Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-    	inline double IKur_current_CNZCell(	Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-    	inline double If_current_CNZCell(	Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-    	inline double ICaT_current_CNZCell(	Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
+		inline void INa_current(CellState &state);
+		inline void IKr_current(CellState &state);
+		inline void IKs_current(CellState &state);
+		inline void ICaL_current(CellState &state);
+		inline void IK1_current(CellState &state);
+		inline void Iab_current(CellState &state);
+		inline void IbK_current(CellState &state);
+		inline void IbCa_current(CellState &state);
+    	inline void IbNa_current(CellState &state);
+    	inline void ICap_current(CellState &state);
+    	inline void INaCa_current(CellState &state);
+    	inline void INaK_current(CellState &state);
+    	inline void Ito_current(CellState &state);
+    	inline void IKur_current(CellState &state);
+    	inline void If_current(CellState &state);
+    	inline void ICaT_current(CellState &state);
+    	inline void IGap_current(CellState &state);
     	
-    	inline double IGap_current_CNZCell(	Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &Rev_Pot) const ;
-    	
-    	inline double ISAC_ISAC_CNZCell(	Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &strain) const ;
-    	inline double ISAC_Na_current_CNZCell(Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &ISAC_) const ;
-    	inline double ISAC_K_current_CNZCell(Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &ISAC_) const ;
-    	inline double ISAC_Ca_current_CNZCell(Node* node,
-    												const Vector<double> &Ext_conc,
-    												const Vector<unsigned> &local_ind,
-													const unsigned &cell_type,
-													const unsigned &mut_type,
-													const unsigned &fibrosis,
-													const double &Vm,
-													const double &ISAC_) const ;
+    	inline void IK1f_current(CellState &state);
+    	inline void IbNaf_current(CellState &state);
+    	inline void IKv_current(CellState &state);
+
+    	inline void ISAC_current(CellState &state);
+    	//The refersal potentials
+    	inline void ENa_reversal(CellState &state);
+		inline void EK_reversal(CellState &state);
+		inline void ECa_reversal(CellState &state);
+		inline void EKf_reversal(CellState &state);
+		inline void Enaf_reversal(CellState &state);
+
+    	//The channel residual functions
+    	inline void INa_current_residual(const CellState &state, Vector<double> &residuals);
+		inline void IKr_current_residual(const CellState &state, Vector<double> &residuals);
+		inline void IKs_current_residual(const CellState &state, Vector<double> &residuals);
+		inline void ICaL_current_residual(const CellState &state, Vector<double> &residuals);
+		inline void IK1_current_residual(const CellState &state, Vector<double> &residuals);
+		inline void Iab_current_residual(const CellState &state, Vector<double> &residuals);
+		inline void IbK_current_residual(const CellState &state, Vector<double> &residuals);
+		inline void IbCa_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void IbNa_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void ICap_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void INaCa_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void INaK_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void Ito_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void IKur_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void If_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void ICaT_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void IGap_current_residual(const CellState &state, Vector<double> &residuals);
+    	inline void ISAC_current_residual(const CellState &state, Vector<double> &residuals);
+
+
+    	//The current residual functions
+		inline void Ca_i_residual(const CellState &state, Vector<double> &residuals);
+		inline void Na_i_residual(const CellState &state, Vector<double> &residuals);
+		inline void K_i_residual(const CellState &state, Vector<double> &residuals);
+		inline void Calcium_dynamics_residual(const CellState &state, Vector<double> &residuals);
+
+		//Fibrosis residual
+		inline void fibrosis_residuals(const CellState &state, Vector<double> &residuals);
+
+		//Force model residuals
+		inline void rice_force_model_residuals(const CellState &state, Vector<double> &residuals);
+
     	
     private:
 		//====================================================================
@@ -327,56 +203,61 @@ namespace oomph{
 		//!!!!! Currently this daisy chains down the functions
 		//!!!!!		incurring significant overhead for large index variables
 
-		inline unsigned m_index_CNZCell() const {return 0;}
-		inline unsigned h_index_CNZCell() const {return m_index_CNZCell()+1;}
-		inline unsigned j_index_CNZCell() const {return h_index_CNZCell()+1;}
-		inline unsigned d_index_CNZCell() const {return j_index_CNZCell()+1;}
-		inline unsigned f_index_CNZCell() const {return d_index_CNZCell()+1;}
-		inline unsigned xr_index_CNZCell() const {return f_index_CNZCell()+1;}
-		inline unsigned xs_index_CNZCell() const {return xr_index_CNZCell()+1;}
-		inline unsigned nai_index_CNZCell() const {return xs_index_CNZCell()+1;}
-		inline unsigned cai_index_CNZCell() const {return nai_index_CNZCell()+1;}
-		inline unsigned ki_index_CNZCell() const {return cai_index_CNZCell()+1;}
-		inline unsigned fca_index_CNZCell() const {return ki_index_CNZCell()+1;}
-		inline unsigned itr_index_CNZCell() const {return fca_index_CNZCell()+1;}
-		inline unsigned its_index_CNZCell() const {return itr_index_CNZCell()+1;}
-		inline unsigned isusr_index_CNZCell() const {return its_index_CNZCell()+1;}
-		inline unsigned isuss_index_CNZCell() const {return isusr_index_CNZCell()+1;}
-		inline unsigned Cass_index_CNZCell() const {return isuss_index_CNZCell()+1;}
-		inline unsigned CaSR1_index_CNZCell() const {return Cass_index_CNZCell()+1;}
-		inline unsigned CaSR2_index_CNZCell() const {return CaSR1_index_CNZCell()+1;}
-		inline unsigned SERCACa_index_CNZCell() const {return CaSR2_index_CNZCell()+1;}
-		inline unsigned SERCACass_index_CNZCell() const {return SERCACa_index_CNZCell()+1;}
-		inline unsigned RyRoss_index_CNZCell() const {return SERCACass_index_CNZCell()+1;}
-		inline unsigned RyRcss_index_CNZCell() const {return RyRoss_index_CNZCell()+1;}
-		inline unsigned RyRass_index_CNZCell() const {return RyRcss_index_CNZCell()+1;}
-		inline unsigned RyRo3_index_CNZCell() const {return RyRass_index_CNZCell()+1;}
-		inline unsigned RyRc3_index_CNZCell() const {return RyRo3_index_CNZCell()+1;}
-		inline unsigned RyRa3_index_CNZCell() const {return RyRc3_index_CNZCell()+1;}
-		//These are the pinned variables
-		inline unsigned dd_index_CNZCell() const {return RyRa3_index_CNZCell()+1;}
-		inline unsigned ff_index_CNZCell() const {return dd_index_CNZCell()+1;}
-		// inline unsigned rkv_index_CNZCell() const {return ff_index_CNZCell()+1;}
-		// inline unsigned skv_index_CNZCell() const {return rkv_index_CNZCell()+1;}
-		// inline unsigned kif_index_CNZCell() const {return skv_index_CNZCell()+1;}
-		// inline unsigned naif_index_CNZCell() const {return kif_index_CNZCell()+1;}
-		// inline unsigned Vmf_index_CNZCell() const {return naif_index_CNZCell()+1;}
-		inline unsigned CNZ_a_index_CNZCell() const {return ff_index_CNZCell()+1;}//{return Vmf_index_CNZCell()+1;}
-		inline unsigned CNZ_i_index_CNZCell() const {return CNZ_a_index_CNZCell()+1;}
-		inline unsigned If_y_index_CNZCell() const {return CNZ_i_index_CNZCell()+1;}
-		// inline unsigned BA_index_CNZCell() const {return If_y_index_CNZCell()+1;}
-		// inline unsigned BI_index_CNZCell() const {return BA_index_CNZCell()+1;}
+		// inline unsigned m_index_CNZCell(){return 0;}
+		// inline unsigned h_index_CNZCell(){return m_index_CNZCell()+1;}1
+		// inline unsigned j_index_CNZCell(){return h_index_CNZCell()+1;}2
+		// inline unsigned d_index_CNZCell(){return j_index_CNZCell()+1;}3
+		// inline unsigned f_index_CNZCell(){return d_index_CNZCell()+1;}4
+		// inline unsigned xr_index_CNZCell(){return f_index_CNZCell()+1;}5
+		// inline unsigned xs_index_CNZCell(){return xr_index_CNZCell()+1;}6
+		// inline unsigned nai_index_CNZCell(){return xs_index_CNZCell()+1;}7
+		// inline unsigned cai_index_CNZCell(){return nai_index_CNZCell()+1;}8
+		// inline unsigned ki_index_CNZCell(){return cai_index_CNZCell()+1;}9
+		// inline unsigned fca_index_CNZCell(){return ki_index_CNZCell()+1;}10
+		// inline unsigned itr_index_CNZCell(){return fca_index_CNZCell()+1;}11
+		// inline unsigned its_index_CNZCell(){return itr_index_CNZCell()+1;}12
+		// inline unsigned isusr_index_CNZCell(){return its_index_CNZCell()+1;}13
+		// inline unsigned isuss_index_CNZCell(){return isusr_index_CNZCell()+1;}14
+		// inline unsigned Cass_index_CNZCell(){return isuss_index_CNZCell()+1;}15
+		// inline unsigned CaSR1_index_CNZCell(){return Cass_index_CNZCell()+1;}16
+		// inline unsigned CaSR2_index_CNZCell(){return CaSR1_index_CNZCell()+1;}17
+		// inline unsigned SERCACa_index_CNZCell(){return CaSR2_index_CNZCell()+1;}18
+		// inline unsigned SERCACass_index_CNZCell(){return SERCACa_index_CNZCell()+1;}19
+		// inline unsigned RyRoss_index_CNZCell(){return SERCACass_index_CNZCell()+1;}20
+		// inline unsigned RyRcss_index_CNZCell(){return RyRoss_index_CNZCell()+1;}21
+		// inline unsigned RyRass_index_CNZCell(){return RyRcss_index_CNZCell()+1;}22
+		// inline unsigned RyRo3_index_CNZCell(){return RyRass_index_CNZCell()+1;}23
+		// inline unsigned RyRc3_index_CNZCell(){return RyRo3_index_CNZCell()+1;}24
+		// inline unsigned RyRa3_index_CNZCell(){return RyRc3_index_CNZCell()+1;}25
 
-		//Force model parameters
-		inline unsigned rice_N_index_CNZCell() const {return If_y_index_CNZCell()+1;}
-		inline unsigned rice_XBprer_index_CNZCell() const {return rice_N_index_CNZCell()+1;}
-		inline unsigned rice_XBpostr_index_CNZCell() const {return rice_XBprer_index_CNZCell()+1;}
-		inline unsigned rice_SL_index_CNZCell() const {return rice_XBpostr_index_CNZCell()+1;}
-		inline unsigned rice_xXBpostr_index_CNZCell() const {return rice_SL_index_CNZCell()+1;}
-		inline unsigned rice_xXBprer_index_CNZCell() const {return rice_xXBpostr_index_CNZCell()+1;}
-		inline unsigned rice_TRPNCaL_index_CNZCell() const {return rice_xXBprer_index_CNZCell()+1;}
-		inline unsigned rice_TRPNCaH_index_CNZCell() const {return rice_TRPNCaL_index_CNZCell()+1;}
-		inline unsigned intf_index_CNZCell() const {return rice_TRPNCaH_index_CNZCell()+1;}
+		// inline unsigned dd_index_CNZCell(){return RyRa3_index_CNZCell()+1;}26 //These are used in ICaT
+		// inline unsigned ff_index_CNZCell(){return dd_index_CNZCell()+1;}27	//These are used in ICaT
+		
+		// inline unsigned CNZ_a_index_CNZCell(){return ff_index_CNZCell()+1;}28
+		// inline unsigned CNZ_i_index_CNZCell(){return CNZ_a_index_CNZCell()+1;}29
+		// inline unsigned If_y_index_CNZCell(){return CNZ_i_index_CNZCell()+1;}30
+
+		// //Force model parameters
+		// inline unsigned rice_N_index_CNZCell(){return If_y_index_CNZCell()+1;}31
+		// inline unsigned rice_XBprer_index_CNZCell(){return rice_N_index_CNZCell()+1;}32
+		// inline unsigned rice_XBpostr_index_CNZCell(){return rice_XBprer_index_CNZCell()+1;}33
+		// inline unsigned rice_SL_index_CNZCell(){return rice_XBpostr_index_CNZCell()+1;}34
+		// inline unsigned rice_xXBpostr_index_CNZCell(){return rice_SL_index_CNZCell()+1;}35
+		// inline unsigned rice_xXBprer_index_CNZCell(){return rice_xXBpostr_index_CNZCell()+1;}36
+		// inline unsigned rice_TRPNCaL_index_CNZCell(){return rice_xXBprer_index_CNZCell()+1;}37
+		// inline unsigned rice_TRPNCaH_index_CNZCell(){return rice_TRPNCaL_index_CNZCell()+1;}38
+		// inline unsigned intf_index_CNZCell(){return rice_TRPNCaH_index_CNZCell()+1;}39
+
+
+		// inline unsigned rkv_index_CNZCell(){return ff_index_CNZCell()+1;} 40	//Associated with fibrosis
+		// inline unsigned skv_index_CNZCell(){return rkv_index_CNZCell()+1;} 41	//Associated with fibrosis
+		// inline unsigned kif_index_CNZCell(){return skv_index_CNZCell()+1;}42	//Associated with fibrosis
+		// inline unsigned naif_index_CNZCell(){return kif_index_CNZCell()+1;}43	//Associated with fibrosis
+		// inline unsigned Vmf_index_CNZCell(){return naif_index_CNZCell()+1;}44	//Associated with fibrosis
+
+
+		// inline unsigned BA_index_CNZCell(){return If_y_index_CNZCell()+1;}45	//Not sure what these are for
+		// inline unsigned BI_index_CNZCell(){return BA_index_CNZCell()+1;}46	//Not sure what these are for
 
 		//========================================================================================================================================
 		//========================================================================================================================================
@@ -492,6 +373,9 @@ namespace oomph{
 		double naof; //mM
 		double kof; //mM
 		double Cm;
+		double GGAP;
+		double FB_Ikv_shift;
+		double FB_Gkv;
 		//ISAC parameters
 		//densities of the different ISAC types
 		double ISAC_pNa;

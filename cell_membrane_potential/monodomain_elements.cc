@@ -36,7 +36,7 @@ namespace oomph{
    //Set the Vector to hold local coordinates
    Vector<double> s(DIM);
 
-   //Get the Peclet*Strouhal number
+   //Get the membrane capacitance
    const double cm = this->cm();
 
    //Integers used to store the local equation number and local unknown

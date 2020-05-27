@@ -5,6 +5,7 @@
 //LIC//			this is provided through combining with a monodomain element
 //LIC//			in order to avoid overlapping functionality
 //LIC//		+	Must be combined with Monodomain Element in order to function
+//LIC//			- that is unless you want to prescribe membrane potential
 //LIC//====================================================================
 
 //!!!!!
@@ -32,14 +33,16 @@
 #include "../generic/error_estimator.h"
 
 //include the cell model library
-#include "../cell_model/cell_model_elements.h"
+#include "../cell_model/cell_model_base.h"
+#include "../cell_model/cell_state_container.h"
 
 //For the custom integration scheme
 #include "../toms_utilities/toms_integral.h"
 
+
 namespace oomph
 {
-	template <unsigned DIM>
+	template <unsigned DIM, unsigned NUM_VARS>
 	class CellInterfaceEquations : public virtual FiniteElement
 	{
 	public:
@@ -53,8 +56,7 @@ namespace oomph
 		typedef void (* CellInterfaceBoundarySourceFctPt)
 		(std::set<unsigned>* &boundaries_pt, double& bound_source);
 
-		CellInterfaceEquations() : 	Mutation_pt(0),
-									Cell_model_pt(0),
+		CellInterfaceEquations() :	Cell_model_pt(0),
 									Membrane_potential_fct_pt_CellInterface(0),
 									Strain_fct_pt(0),
 									Boundary_source_fct_pt(0),
@@ -70,40 +72,345 @@ namespace oomph
 
 		//Min and max variable indexes for output function and for ease of multiphysics elements
 		virtual inline unsigned min_index_CellInterfaceEquations() const {return 0;}
-		virtual inline unsigned max_index_CellInterfaceEquations() const {return (min_index_CellInterfaceEquations() + cell_model_pt()->Required_storage());}
+		virtual inline unsigned max_index_CellInterfaceEquations() const {return (min_index_CellInterfaceEquations() + cell_model_pt()->required_storage());}
 
 		// Access functions to ignore repeated cells variable
 		void ignore_repeated_cells(){Ignore_Repeated_Cells = true;}
 		void do_not_ignore_repeated_cells(){Ignore_Repeated_Cells = false;}
 
+		//====================================================================
+		//Handle cell model pt
+		//====================================================================
 		//Return the cell model pt
-		CellModelBase* &cell_model_pt()
-			{
-				// std::cout << "in cell_model_pt()" << std::endl;
-			#ifdef PARANOID
-				if(Cell_model_pt == 0){
-					//throw an error			    
-					throw OomphLibError("No Cell model assigned to element Cell_interface_element",
-					OOMPH_CURRENT_FUNCTION,
-					OOMPH_EXCEPTION_LOCATION);
-				}
-			#endif
-				return Cell_model_pt;
+		CellModelBase* &cell_model_pt(){
+		#ifdef PARANOID
+			if(Cell_model_pt == 0){
+				//throw an error			    
+				throw OomphLibError("No Cell model assigned to element Cell_interface_element",
+				OOMPH_CURRENT_FUNCTION,
+				OOMPH_EXCEPTION_LOCATION);
 			}
+		#endif
+			return Cell_model_pt;
+		}
 
-		CellModelBase* const & cell_model_pt() const
-			{
-				// std::cout << "in const cell_model_pt()" << std::endl;
-			#ifdef PARANOID
-				if(Cell_model_pt == 0){
-					//throw an error			    
-					throw OomphLibError("No Cell model assigned to element Cell_interface_element",
-					OOMPH_CURRENT_FUNCTION,
-					OOMPH_EXCEPTION_LOCATION);
-				}
-			#endif
-				return Cell_model_pt;
+		CellModelBase* const & cell_model_pt() const{
+		#ifdef PARANOID
+			if(Cell_model_pt == 0){
+				//throw an error			    
+				throw OomphLibError("No Cell model assigned to element Cell_interface_element",
+				OOMPH_CURRENT_FUNCTION,
+				OOMPH_EXCEPTION_LOCATION);
 			}
+		#endif
+			return Cell_model_pt;
+		}
+
+		void set_cell_model_pt(CellModelBase* cell_model_pt_){
+			//Check if the required number of values from cell_model_pt is the same as that passed to the element constructor
+			if(NUM_VARS!=cell_model_pt_->required_storage()){
+				//throw an error
+				std::string error_message =
+						"The number of variables passed to the QCellInterfaceElement constructor (";
+			    error_message += std::to_string(NUM_VARS);
+			    error_message += ") does not match\n\tthe number defined by the Cell_model_pt (";
+			    error_message += std::to_string(cell_model_pt_->required_storage());
+			    error_message += ".";
+			    
+			   	throw OomphLibError(error_message,
+			                       	OOMPH_CURRENT_FUNCTION,
+			                       	OOMPH_EXCEPTION_LOCATION);
+			}
+			else
+			{
+				//set the cell_model_pt
+				this->Cell_model_pt = cell_model_pt_;
+
+				//build the required internal data pt and assign the data pt indexes
+
+				//Create data for cell type and pin them immediately
+				if(cell_model_pt()->requires_cell_type()){
+					Cell_type_internal_index = this->add_internal_data(new Data(this->nnode()), false);
+					for(unsigned l=0;l<this->nnode();l++)
+					{
+						this->internal_data_pt(Cell_type_internal_index)->pin(l);
+					}
+				}
+				if(cell_model_pt()->requires_fibrosis()){
+					//Create data fibrosis type and pin them immediately
+					Fibrosis_type_internal_index = this->add_internal_data(new Data(this->nnode()), false);
+					for(unsigned l=0;l<this->nnode();l++)
+					{
+						this->internal_data_pt(Fibrosis_type_internal_index)->pin(l);
+					}
+				}
+
+				if(cell_model_pt()->requires_ab_index()){
+					//Create data AB index and pin them immediately
+					AB_index_internal_index = this->add_internal_data(new Data(this->nnode()), false);
+					for(unsigned l=0;l<this->nnode();l++)
+					{
+						this->internal_data_pt(AB_index_internal_index)->pin(l);
+					}
+				}
+
+				if(cell_model_pt()->requires_rv_index()){
+					//Create data AB index and pin them immediately
+					RV_index_internal_index = this->add_internal_data(new Data(this->nnode()), false);
+					for(unsigned l=0;l<this->nnode();l++)
+					{
+						this->internal_data_pt(RV_index_internal_index)->pin(l);
+					}
+				}
+
+				if(cell_model_pt()->requires_is_index()){
+					//Create data AB index and pin them immediately
+					IS_index_internal_index = this->add_internal_data(new Data(this->nnode()), false);
+					for(unsigned l=0;l<this->nnode();l++)
+					{
+						this->internal_data_pt(IS_index_internal_index)->pin(l);
+					}
+				}
+
+			}
+		}
+
+		//====================================================================
+		//Required values in cell model
+		//====================================================================
+		inline unsigned required_nvalue(const unsigned &n) const {return NUM_VARS;}//this->cell_model_pt()->Required_storage();}
+
+		//====================================================================
+		//State container filling functions
+		//====================================================================
+		inline double nodal_cell_variable(const unsigned &l, const unsigned &v) const {
+			return nodal_value(l,min_index_CellInterfaceEquations()+v);
+		}
+
+		inline double nodal_cell_variable_derivative(const unsigned &l, const unsigned &d, const unsigned &v) const {
+			// Get the data's timestepper
+			TimeStepper* time_stepper_pt= this->node_pt(l)->time_stepper_pt();
+			double dvdt=0.0;
+			//Loop over the timesteps, if there is a non Steady timestepper
+			if (!time_stepper_pt->is_steady()){
+				//Initialise dudt
+				
+				const unsigned var_index = min_index_CellInterfaceEquations()+v;
+				
+				// Number of timsteps (past & present)
+				const unsigned n_time = time_stepper_pt->ntstorage();
+
+				for(unsigned t=0;t<n_time;t++){
+					dvdt += time_stepper_pt->weight(d,t)*nodal_value(t,l,var_index);
+				}
+			}
+			return dvdt;
+		}
+
+		inline double nodal_vm(const unsigned &l) const {
+			unsigned ipt_node = ipt_at_node(l);
+			Vector<double> s_node(DIM);
+			Vector<double> x_node(DIM);
+
+			local_coordinate_of_node(l,s_node);
+			for(unsigned j=0;j<DIM;j++){x_node[j] = raw_nodal_position(l,j);}
+			double Vm;
+			get_membrane_potential_CellInterface(ipt_node, s_node, x_node, Vm);
+			return Vm;
+		}
+
+		inline double nodal_active_strain(const unsigned &l) const {
+			unsigned ipt_node = ipt_at_node(l);
+			Vector<double> s_node(DIM);
+			Vector<double> x_node(DIM);
+
+			local_coordinate_of_node(l,s_node);
+			for(unsigned j=0;j<DIM;j++){x_node[j] = raw_nodal_position(l,j);}
+			double strain;
+			get_active_strain_CellInterface(ipt_node, s_node, x_node, strain);
+			return strain;
+		}
+
+		inline double nodal_Na_o(const unsigned &l) const {
+			unsigned ipt_node = ipt_at_node(l);
+			Vector<double> s_node(DIM);
+			Vector<double> x_node(DIM);
+
+			local_coordinate_of_node(l,s_node);
+			for(unsigned j=0;j<DIM;j++){x_node[j] = raw_nodal_position(l,j);}
+			return get_external_Na_conc_CellInterface(ipt_node, s_node, x_node);
+		}
+
+		inline double nodal_Ca_o(const unsigned &l) const {
+			unsigned ipt_node = ipt_at_node(l);
+			Vector<double> s_node(DIM);
+			Vector<double> x_node(DIM);
+
+			local_coordinate_of_node(l,s_node);
+			for(unsigned j=0;j<DIM;j++){x_node[j] = raw_nodal_position(l,j);}
+			return get_external_Ca_conc_CellInterface(ipt_node, s_node, x_node);
+		}
+
+		inline double nodal_K_o(const unsigned &l) const {
+			unsigned ipt_node = ipt_at_node(l);
+			Vector<double> s_node(DIM);
+			Vector<double> x_node(DIM);
+
+			local_coordinate_of_node(l,s_node);
+			for(unsigned j=0;j<DIM;j++){x_node[j] = raw_nodal_position(l,j);}
+			return get_external_K_conc_CellInterface(ipt_node, s_node, x_node);
+		}
+
+		inline double nodal_passive_strain(const unsigned &l) const {
+			unsigned ipt_node = ipt_at_node(l);
+			Vector<double> s_node(DIM);
+			Vector<double> x_node(DIM);
+
+			local_coordinate_of_node(l,s_node);
+			for(unsigned j=0;j<DIM;j++){x_node[j] = raw_nodal_position(l,j);}
+			double strain;
+			get_passive_strain_CellInterface(ipt_node, s_node, x_node, strain);
+			return strain;
+		}
+
+		//====================================================================
+		//Cell type at node
+		//	Used in switch function with the following correspondence:
+		//		ATRIA 0 - 99,
+		//		VENTS 100 - 199,
+		//		OTHER 200 - 299 (?)
+		//		CNZAtrie
+		//		0 RA, 1 PM, 2 CT, 3 RAA, 4 AS, 5 AVR, 6 BB, 7 LA, 8 LAA, 9 PV, 10 SAN_C, 11 SAN_P
+		//		TNNPVentricle
+		//		100 LVEPI 101 LVMCELL 102 LVENDO 103 RVEPI 104 RVMCELL 105 RVENDO 106 PFI 107 PFMB 108 PF
+		//====================================================================
+		void set_cell_type(const unsigned &n, const unsigned &cell_type){
+			this->internal_data_pt(Cell_type_internal_index)->set_value(n, cell_type);
+		}
+
+		unsigned get_cell_type_at_node(const unsigned &n) const {
+			return this->internal_data_pt(Cell_type_internal_index)->value(n);
+		}
+
+		//====================================================================
+		//Fibrosis type set and access functions
+		//====================================================================		
+		void set_fibrosis_type(const unsigned &n, const unsigned &fibrosis_type){
+			this->internal_data_pt(Fibrosis_type_internal_index)->set_value(n, fibrosis_type);
+		}
+
+		unsigned get_fibrosis_type_at_node(const unsigned &n) const {
+			return this->internal_data_pt(Fibrosis_type_internal_index)->value(n);
+		}
+		
+		//====================================================================
+		//AB index set and access functions
+		//====================================================================	
+		void set_ab_index(const unsigned &n, const double &ab_index){
+			this->internal_data_pt(AB_index_internal_index)->set_value(n, ab_index);
+		}
+
+		inline double get_ab_index_at_node(const unsigned &n) const {
+			{return this->internal_data_pt(AB_index_internal_index)->value(n);}
+		}
+
+		//====================================================================
+		//AB index set and access functions
+		//====================================================================
+		void set_rv_index(const unsigned &n, const double &rv_index){
+			this->internal_data_pt(RV_index_internal_index)->set_value(n, rv_index);
+		}
+
+		inline double get_rv_index_at_node(const unsigned &n) const {
+			{return this->internal_data_pt(RV_index_internal_index)->value(n);}
+		}
+
+		//====================================================================
+		//IS index set and access functions
+		//====================================================================
+		void set_is_index(const unsigned &n, const double &is_index){
+			this->internal_data_pt(IS_index_internal_index)->set_value(n, is_index);
+		}
+
+		inline double get_is_index_at_node(const unsigned &n) const {
+			{return this->internal_data_pt(IS_index_internal_index)->value(n);}
+		}
+
+		//====================================================================
+		//====================================================================
+		//Fill in data of state container
+		//====================================================================
+		//====================================================================
+		void fill_state_container_at_node(CellState &state, const unsigned &l) const {
+			//Loop through the variables which are requested by the cell model and
+			//	grab the data from the interface element
+
+			//Fill in current state and derivative matrix
+			DenseMatrix<double> new_vars;
+			new_vars.resize(cell_model_pt()->required_derivatives()+1, cell_model_pt()->required_storage());
+			for(unsigned v = 0; v < cell_model_pt()->required_storage(); v++){
+				new_vars(0,v) = nodal_cell_variable(l,v);
+				for(unsigned d = 1; d <= cell_model_pt()->required_derivatives(); d++){
+					new_vars(d,v) = nodal_cell_variable_derivative(l, d, v);
+				}
+			}
+			state.set_vars(new_vars);
+
+			//FIll in time_stepper_weights
+			DenseMatrix<double> new_weights;
+			new_weights.resize(cell_model_pt()->required_derivatives()+1, cell_model_pt()->required_storage());
+			for(unsigned v = 0; v < cell_model_pt()->required_storage(); v++){
+				new_weights(0,v) = 1.0;
+				for(unsigned d = 1; d <= cell_model_pt()->required_derivatives(); d++){
+					new_weights(d,v) = this->node_pt(l)->time_stepper_pt()->weight(d, 0);
+				}
+			}
+			state.set_time_stepper_weights(new_weights);
+
+			//Fill in transmembrane potential
+			if(cell_model_pt()->requires_vm()){
+				state.set_vm(nodal_vm(l));
+			}
+			//Fill in mechanical stress
+			if(cell_model_pt()->requires_strain()){
+				state.set_stress(nodal_passive_strain(l));
+			}
+			//Fill in external sodium
+			if(cell_model_pt()->requires_na_o()){
+				state.set_nao(nodal_Na_o(l));
+			}
+			//Fill in external potassium
+			if(cell_model_pt()->requires_k_o()){
+				state.set_ko(nodal_K_o(l));
+			}
+			//Fill in external calcium
+			if(cell_model_pt()->requires_ca_o()){
+				state.set_cao(nodal_Ca_o(l));
+			}
+			//Fill in cell type
+			if(cell_model_pt()->requires_cell_type()){
+				state.set_cell_type(get_cell_type_at_node(l));
+			}
+			//Fill in fibrosis
+			if(cell_model_pt()->requires_fibrosis()){
+				state.set_fibrosis_type(get_fibrosis_type_at_node(l));
+			}
+			//Fill in ab index
+			if(cell_model_pt()->requires_ab_index()){
+				state.set_ab_index(get_ab_index_at_node(l));
+			}
+			//Fill in rv index
+			if(cell_model_pt()->requires_rv_index()){
+				state.set_rv_index(get_rv_index_at_node(l));
+			}
+			//Fill in is index
+			if(cell_model_pt()->requires_is_index()){
+				state.set_is_index(get_is_index_at_node(l));
+			}
+		}
+
+
+
 
 
 		//====================================================================
@@ -129,11 +436,7 @@ namespace oomph
 
 
 		//====================================================================
-		//====================================================================
-		//====================================================================
 		//Access functions
-		//====================================================================
-		//====================================================================
 		//====================================================================
 
 		/// Access function: Pointer to boundary source function
@@ -165,14 +468,18 @@ namespace oomph
 		}
 
 		//====================================================================
-		//Strain access function
+		//Strain access functions
 		//====================================================================
-		//!!!!!
-		// Might remove Strain_fct_pt, it serves little purpose
-		//  this fct could be default implemented to just get the cell
-		//  active strain, but overloaded in a tissue element to use the
-		//  interpolated strain in the tissue
-		inline virtual void get_strain_CellInterface(const unsigned& ipt,
+		//Get the active strain from the cell model
+		inline virtual void get_active_strain_CellInterface(const unsigned& ipt,
+											const Vector<double>& s,
+											const Vector<double>& x,
+											double& strain) const
+		{
+			strain = get_interpolated_cell_active_strain(s);
+		}
+
+		inline virtual void get_passive_strain_CellInterface(const unsigned& ipt,
 											const Vector<double>& s,
 											const Vector<double>& x,
 											double& strain) const
@@ -182,7 +489,7 @@ namespace oomph
 				(*Strain_fct_pt)(time, ipt, s, x, strain);
 			}
 			else{
-				strain = get_interpolated_cell_active_strain(s);
+				strain = 0.0;
 			}
 		}
 
@@ -234,29 +541,10 @@ namespace oomph
 		}
 
 		//====================================================================
-		//Cell type at node
-		//	Used in switch function with the following correspondence:
-		//		0 RA, 1 PM, 2 CT, 3 RAA, 4 AS, 5 AVR, 6 BB, 7 LA, 8 LAA, 9 PV, 10 SAN_C, 11 SAN_P
-		//====================================================================
-		virtual unsigned get_cell_type_at_node_CellInterface(const unsigned &n) const = 0;
-
-		virtual unsigned get_fibrosis_type_at_node_CellInterface(const unsigned &n) const =0;
-
-		//====================================================================
 		//Drug Action
 		//Default to zero
 		//(Might be worth implementing these node-wise so diffusion of drugs could be investigated in future)
 		//====================================================================
-
-
-		//====================================================================
-		//Access functions for mutation type
-		//(Element-wise since we assume all cells are affected by the same mutation)
-		//====================================================================
-		const unsigned &mutation_CellInterface() const {return *Mutation_pt;}
-		unsigned* &mutation_pt_CellInterface() {return Mutation_pt;}
-
-		void set_mutation_pt(unsigned* mutation_pt_){Mutation_pt = mutation_pt_;}
 
 		//====================================================================
 		//Access functions to function pointers
@@ -335,6 +623,7 @@ namespace oomph
 		//====================================================================
 		inline double get_interpolated_cell_active_strain(const Vector<double> &s) const
 		{
+			// std::cout << "in get_interpolated_cell_active_strain" << std::endl;
 			//number of nodes in the element
 			unsigned n_node = nnode();
 			//The local and global coordinates of the node being considered
@@ -346,71 +635,43 @@ namespace oomph
 			//running total of the interpolated active strain
 			double interpolated_active_strain = 0.0;
 			// The local locations of the cell variables
-			Vector<unsigned> local_ind(cell_model_pt()->Required_storage());
+			// Vector<unsigned> local_ind(cell_model_pt()->Required_storage());
+
+			CellState state;
 
 			//loop over nodes in the element and add their contributions
 			for(unsigned n=0;n<n_node;n++){
 				//Compile the local locations of the cell variables
-				for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){local_ind[var] = min_index_CellInterfaceEquations() + var;}
-
-				interpolated_active_strain += cell_model_pt()->active_strain(this->node_pt(n),local_ind)
-															*psi[n];
+				// for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){local_ind[var] = min_index_CellInterfaceEquations() + var;
+				fill_state_container_at_node(state, n);
+				interpolated_active_strain += cell_model_pt()->active_strain(state)*psi[n];
 			}
 
 			return interpolated_active_strain;
 		}
 
 		//return the membrane current at the nth node
-		inline double membrane_current_at_node_CellInterface(const unsigned &n) const
+		inline double membrane_current_at_node_CellInterface(const unsigned &l) const
 		{
-
+			// std::cout << "in membrane_current_at_node_CellInterface" << std::endl;
 			double nodal_membrane_current = 0.0;
-			//The local and global coordinates of the node being considered
-			Vector<double> s_node(DIM);
-			Vector<double> x_node(DIM);
 
-			//Calculate the local and global coordinate of node n
-			local_coordinate_of_node(n,s_node);
-			for(unsigned j=0;j<DIM;j++){
-				x_node[j] = raw_nodal_position(n,j);
+			//Construct the state container
+			CellState state;
+
+			fill_state_container_at_node(state, l);
+
+			// std::cout << "Filled in container" << std::endl;
+			for(unsigned v = 0; v < cell_model_pt()->required_storage(); v++){
+				for(unsigned d = 0; d < cell_model_pt()->required_derivatives()+1; d++){
+					// std::cout << "deriv " << d << " of var " << v << " " << state.var(d,v) << std::endl;
+				}
 			}
 
-			//Get integral point at node
-			unsigned ipt_node;
-			ipt_node = ipt_at_node(n);
-			//Calculate membrane potential
-			double Vm;
-			get_membrane_potential_CellInterface(ipt_node, s_node, x_node, Vm);
-
-			//Calculate strain
-			double strain;
-			get_strain_CellInterface(ipt_node, s_node, x_node, strain);
-			//Calculate external concentrations
-			//Na, Ca, K
-			Vector<double> Ext_conc(3);
-			double temp_conc;
-			
-			Ext_conc[0] = get_external_Na_conc_CellInterface(ipt_node, s_node, x_node);
-			Ext_conc[1] = get_external_Ca_conc_CellInterface(ipt_node, s_node, x_node);
-			Ext_conc[2] = get_external_K_conc_CellInterface(ipt_node, s_node, x_node);
-
-
-			//Compile the local locations of the cell variables
-			Vector<unsigned> local_ind(cell_model_pt()->Required_storage());
-			for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
-				local_ind[var] = min_index_CellInterfaceEquations() + var;
-			}
+			// std:: cout << "vm in state " << state.vm() << std::endl;
 
 			//Add nodal contribution to interpolated current
-			nodal_membrane_current += cell_model_pt()->membrane_current(	this->node_pt(n),		
-																				Vm,
-																				strain,
-																				Ext_conc,
-																				local_ind,
-																				get_cell_type_at_node_CellInterface(n),
-																				mutation_CellInterface(),
-																				get_fibrosis_type_at_node_CellInterface(n)	);
-
+			nodal_membrane_current += cell_model_pt()->membrane_current(state);
 
 			//If Boundary_source_fct_pt has been set, get the contribution from the node
 			//  This check prevents bulk non boundary elements from contributing
@@ -419,7 +680,7 @@ namespace oomph
 				// Preallocate boundaries the node is on
 				std::set<unsigned>* boundaries_pt;
 				// Get the pointer to set of boundaries node lies on
-				node_pt(n)->get_boundaries_pt(boundaries_pt);
+				node_pt(l)->get_boundaries_pt(boundaries_pt);
 				// If the set is non-zero, get a contribution to nodal_membrane_current
 				if(boundaries_pt!=0){
 					double bound_source = 0.0;
@@ -436,7 +697,6 @@ namespace oomph
 		//====================================================================
 		inline double interpolated_membrane_current_CellInterface(const Vector<double> &s) const
 		{	
-			// std::cout << "boom" << std::endl;
 			//number of nodes in the element
 			unsigned n_node = nnode();
 			
@@ -496,12 +756,6 @@ namespace oomph
 		//====================================================================
 
 
-		//====================================================================
-		//Mutation type
-		//	Used in switch function with the following correspondence:
-		//		0 WT, 1 D322H, 2 E48G, 3 A305T, 4 Y155C, 5 D469E, 6 P488S
-		//====================================================================
-		unsigned *Mutation_pt;
 
 		//Pointer to the cell model
 		CellModelBase *Cell_model_pt;
@@ -514,8 +768,25 @@ namespace oomph
 		unsigned ipt_not_at_nodes;
 
 
+		unsigned Cell_type_internal_index;
+
+		unsigned Fibrosis_type_internal_index;
+
+		unsigned AB_index_internal_index;
+
+		unsigned RV_index_internal_index;
+
+		unsigned IS_index_internal_index;
+
+
 	private:
 	};
+
+
+
+
+
+
 
 
 	//====================================================================
@@ -527,7 +798,7 @@ namespace oomph
 	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 	class QCellInterfaceElement	:
 		public virtual QElement<DIM, NNODE_1D>,
-		public virtual CellInterfaceEquations<DIM>
+		public virtual CellInterfaceEquations<DIM, NUM_VARS>
 	{
 	private:
 
@@ -536,20 +807,8 @@ namespace oomph
 		//Constructors
 		//====================================================================
 		QCellInterfaceElement()	:	QElement<DIM, NNODE_1D>(),
-									CellInterfaceEquations<DIM>()
+									CellInterfaceEquations<DIM, NUM_VARS>()
 		{
-			//Create data for cell type and fibrosis type and pin them immediately
-			Cell_type_internal_index = this->add_internal_data(new Data(this->nnode()), false);
-			for(unsigned l=0;l<this->nnode();l++)
-			{
-				this->internal_data_pt(Cell_type_internal_index)->pin(l);
-			}
-			Fibrosis_type_internal_index = this->add_internal_data(new Data(this->nnode()), false);
-			for(unsigned l=0;l<this->nnode();l++)
-			{
-				this->internal_data_pt(Fibrosis_type_internal_index)->pin(l);
-			}
-
 			//set the integration scheme to one with integral points aligned with the nodes
 			this->set_integration_scheme(new GaussWithNodes<DIM, NNODE_1D>);
 			//set the number of integral points which are not aligned with nodes
@@ -565,66 +824,22 @@ namespace oomph
 		//====================================================================
 		/// Output with default number of plot points
 		void output(std::ostream &outfile){
-			CellInterfaceEquations<DIM>::output(outfile);
+			CellInterfaceEquations<DIM, NUM_VARS>::output(outfile);
 		}
 		/// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		/// nplot^DIM plot points
 		void output(std::ostream &outfile, const unsigned &nplot){
-			CellInterfaceEquations<DIM>::output(outfile, nplot);
+			CellInterfaceEquations<DIM, NUM_VARS>::output(outfile, nplot);
 		}
 		/// C_style output with default number of plot points
 		void output(FILE* file_pt){
-			CellInterfaceEquations<DIM>::output(file_pt);
+			CellInterfaceEquations<DIM, NUM_VARS>::output(file_pt);
 		}
 		 /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		 /// n_plot^DIM plot points
 		 void output(FILE* file_pt, const unsigned &n_plot){
-		 	CellInterfaceEquations<DIM>::output(file_pt, n_plot);
+		 	CellInterfaceEquations<DIM, NUM_VARS>::output(file_pt, n_plot);
 		}
-
-
-
-
-		inline unsigned required_nvalue(const unsigned &n) const {return NUM_VARS;}//this->cell_model_pt()->Required_storage();}
-
-		void set_cell_model_pt(CellModelBase* cell_model_pt_){
-			//Check if the required number of values from cell_model_pt is the same as that passed to the element constructor
-			if(NUM_VARS!=cell_model_pt_->Required_storage()){
-				//throw an error
-				std::string error_message =
-						"The number of variables passed to the QCellInterfaceElement constructor (";
-			    error_message += std::to_string(NUM_VARS);
-			    error_message += ") does not match\n\tthe number defined by the Cell_model_pt (";
-			    error_message += std::to_string(cell_model_pt_->Required_storage());
-			    error_message += ".";
-			    
-			   	throw OomphLibError(error_message,
-			                       	OOMPH_CURRENT_FUNCTION,
-			                       	OOMPH_EXCEPTION_LOCATION);
-			}
-			else{
-				//set the cell_model_pt
-				this->Cell_model_pt = cell_model_pt_;	
-			}
-		}
-
-		//====================================================================
-		//Cell type set and access functions
-		//====================================================================
-		unsigned  get_cell_type_at_node_CellInterface(const unsigned &n) const
-		{return this->internal_data_pt(Cell_type_internal_index)->value(n);}
-
-		void set_cell_type(const unsigned &n, const unsigned &cell_type){this->internal_data_pt(Cell_type_internal_index)->set_value(n, cell_type);}
-		unsigned get_cell_type_at_node(const unsigned &n){return this->internal_data_pt(Cell_type_internal_index)->value(n);}
-
-		//====================================================================
-		//Fibrosis type set and access functions
-		//====================================================================
-		unsigned  get_fibrosis_type_at_node_CellInterface(const unsigned &n) const {return this->internal_data_pt(Fibrosis_type_internal_index)->value(n);}
-		
-		void set_fibrosis_type(const unsigned &n, const unsigned &fibrosis_type){this->internal_data_pt(Fibrosis_type_internal_index)->set_value(n, fibrosis_type);}
-		unsigned get_fibrosis_type_at_node(const unsigned &n){return this->internal_data_pt(Fibrosis_type_internal_index)->value(n);}
-
 
 	protected:
 		unsigned Cell_type_internal_index;
@@ -658,7 +873,7 @@ namespace oomph
 	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 	class TCellInterfaceElement	:
 		public virtual TElement<DIM, NNODE_1D>,
-		public virtual CellInterfaceEquations<DIM>
+		public virtual CellInterfaceEquations<DIM, NUM_VARS>
 	{
 	private:
 
@@ -667,20 +882,8 @@ namespace oomph
 		//Constructors
 		//====================================================================
 		TCellInterfaceElement()	:	TElement<DIM, NNODE_1D>(),
-									CellInterfaceEquations<DIM>()
+									CellInterfaceEquations<DIM, NUM_VARS>()
 		{
-			//Create data for cell type and fibrosis type and pin them immediately
-			Cell_type_internal_index = this->add_internal_data(new Data(this->nnode()), false);
-			for(unsigned l=0;l<this->nnode();l++)
-			{
-				this->internal_data_pt(Cell_type_internal_index)->pin(l);
-			}
-			Fibrosis_type_internal_index = this->add_internal_data(new Data(this->nnode()), false);
-			for(unsigned l=0;l<this->nnode();l++)
-			{
-				this->internal_data_pt(Fibrosis_type_internal_index)->pin(l);
-			}
-
 			//set the integration scheme to one with integral points aligned with the nodes
 			this->set_integration_scheme(new GaussWithNodes<DIM, NNODE_1D>);
 			//set the number of integral points which are not aligned with nodes
@@ -696,71 +899,22 @@ namespace oomph
 		//====================================================================
 		/// Output with default number of plot points
 		void output(std::ostream &outfile){
-			CellInterfaceEquations<DIM>::output(outfile);
+			CellInterfaceEquations<DIM, NUM_VARS>::output(outfile);
 		}
 		/// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		/// nplot^DIM plot points
 		void output(std::ostream &outfile, const unsigned &nplot){
-			CellInterfaceEquations<DIM>::output(outfile, nplot);
+			CellInterfaceEquations<DIM, NUM_VARS>::output(outfile, nplot);
 		}
 		/// C_style output with default number of plot points
 		void output(FILE* file_pt){
-			CellInterfaceEquations<DIM>::output(file_pt);
+			CellInterfaceEquations<DIM, NUM_VARS>::output(file_pt);
 		}
 		 /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		 /// n_plot^DIM plot points
 		 void output(FILE* file_pt, const unsigned &n_plot){
-		 	CellInterfaceEquations<DIM>::output(file_pt, n_plot);
+		 	CellInterfaceEquations<DIM, NUM_VARS>::output(file_pt, n_plot);
 		}
-
-
-
-
-		inline unsigned required_nvalue(const unsigned &n) const {return NUM_VARS;}//this->cell_model_pt()->Required_storage();}
-
-		void set_cell_model_pt(CellModelBase* cell_model_pt_){
-			//Check if the required number of values from cell_model_pt is the same as that passed to the element constructor
-			if(NUM_VARS!=cell_model_pt_->Required_storage()){
-				//throw an error
-				std::string error_message =
-						"The number of variables passed to the TCellInterfaceElement constructor (";
-			    error_message += NUM_VARS;
-			    error_message += ") does not match\n\tthe number defined by the Cell_model_pt (";
-			    error_message += cell_model_pt_->Required_storage();
-			    error_message += ".";
-			    
-			   	throw OomphLibError(error_message,
-			                       	OOMPH_CURRENT_FUNCTION,
-			                       	OOMPH_EXCEPTION_LOCATION);
-			}
-			else{
-				//set the cell_model_pt
-				this->Cell_model_pt = cell_model_pt_;
-			}
-		}
-
-		//====================================================================
-		//Cell type set and access functions
-		//====================================================================
-		unsigned  get_cell_type_at_node_CellInterface(const unsigned &n) const
-		{return this->internal_data_pt(Cell_type_internal_index)->value(n);}
-
-		void set_cell_type(const unsigned &n, const unsigned &cell_type){this->internal_data_pt(Cell_type_internal_index)->set_value(n, cell_type);}
-		unsigned get_cell_type_at_node(const unsigned &n){return this->internal_data_pt(Cell_type_internal_index)->value(n);}
-
-		//====================================================================
-		//Fibrosis type set and access functions
-		//====================================================================
-		unsigned  get_fibrosis_type_at_node_CellInterface(const unsigned &n) const {return this->internal_data_pt(Fibrosis_type_internal_index)->value(n);}
-		
-		void set_fibrosis_type(const unsigned &n, const unsigned &fibrosis_type){this->internal_data_pt(Fibrosis_type_internal_index)->set_value(n, fibrosis_type);}
-		unsigned get_fibrosis_type_at_node(const unsigned &n){return this->internal_data_pt(Fibrosis_type_internal_index)->value(n);}
-
-
-	protected:
-		unsigned Cell_type_internal_index;
-
-		unsigned Fibrosis_type_internal_index;
 	};
 
 	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
@@ -792,7 +946,7 @@ namespace oomph
 	template<unsigned DIM, unsigned NUM_VARS>
 	class PointCellInterfaceElement	:
 		public virtual PointElement,
-		public virtual CellInterfaceEquations<DIM>
+		public virtual CellInterfaceEquations<DIM, NUM_VARS>
 	{
 	private:
 
@@ -801,19 +955,8 @@ namespace oomph
 		//Constructors
 		//====================================================================
 		PointCellInterfaceElement()	:	PointElement(),
-										CellInterfaceEquations<DIM>()
+										CellInterfaceEquations<DIM, NUM_VARS>()
 		{
-			//Create data for cell type and fibrosis type and pin them immediately
-			Cell_type_internal_index = this->add_internal_data(new Data(1), false);
-			for(unsigned l=0;l<this->nnode();l++)
-			{
-				this->internal_data_pt(Cell_type_internal_index)->pin(l);
-			}
-			Fibrosis_type_internal_index = this->add_internal_data(new Data(1), false);
-			for(unsigned l=0;l<this->nnode();l++)
-			{
-				this->internal_data_pt(Fibrosis_type_internal_index)->pin(l);
-			}
 		}
 		PointCellInterfaceElement(const PointCellInterfaceElement<DIM,NUM_VARS>& dummy){BrokenCopy::broken_copy("PointCellInterfaceElement");}
 
@@ -839,69 +982,22 @@ namespace oomph
 
 		 /// Output with default number of plot points
 		void output(std::ostream &outfile){
-			CellInterfaceEquations<DIM>::output(outfile);
+			CellInterfaceEquations<DIM, NUM_VARS>::output(outfile);
 		}
 		/// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		/// nplot^DIM plot points
 		void output(std::ostream &outfile, const unsigned &nplot){
-			CellInterfaceEquations<DIM>::output(outfile, nplot);
+			CellInterfaceEquations<DIM, NUM_VARS>::output(outfile, nplot);
 		}
 		/// C_style output with default number of plot points
 		void output(FILE* file_pt){
-			CellInterfaceEquations<DIM>::output(file_pt);
+			CellInterfaceEquations<DIM, NUM_VARS>::output(file_pt);
 		}
 		 /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		 /// n_plot^DIM plot points
 		 void output(FILE* file_pt, const unsigned &n_plot){
-		 	CellInterfaceEquations<DIM>::output(file_pt, n_plot);
+		 	CellInterfaceEquations<DIM, NUM_VARS>::output(file_pt, n_plot);
 		}
-
-
-		inline unsigned required_nvalue(const unsigned &n) const {return NUM_VARS;}//this->cell_model_pt()->Required_storage();}
-
-		void set_cell_model_pt(CellModelBase* cell_model_pt_){
-			//Check if the required number of values from cell_model_pt is the same as that passed to the element constructor
-			if(NUM_VARS!=cell_model_pt_->Required_storage()){
-				//throw an error
-				std::string error_message =
-			    "The number of variables passed to the PointCellInterfaceElement constructor (";
-			    error_message += NUM_VARS;
-			    error_message += ") does not match\n\tthe number defined by the Cell_model_pt (";
-			    error_message += cell_model_pt_->Required_storage();
-			    error_message += ".";
-			    
-			   	throw OomphLibError(error_message,
-			                       	OOMPH_CURRENT_FUNCTION,
-			                       	OOMPH_EXCEPTION_LOCATION);
-			}
-			else{
-				//set the cell_model_pt
-				this->Cell_model_pt = cell_model_pt_;
-			}
-		}
-
-		//====================================================================
-		//Cell type set and access functions
-		//====================================================================
-		unsigned  get_cell_type_at_node_CellInterface(const unsigned &n) const
-		{return this->internal_data_pt(Cell_type_internal_index)->value(0);}
-
-		void set_cell_type(const unsigned &n, const unsigned &cell_type){this->internal_data_pt(Cell_type_internal_index)->set_value(0, cell_type);}
-		unsigned get_cell_type_at_node(const unsigned &n){return this->internal_data_pt(Cell_type_internal_index)->value(0);}
-
-		//====================================================================
-		//Fibrosis type set and access functions
-		//====================================================================
-		unsigned  get_fibrosis_type_at_node_CellInterface(const unsigned &n) const {return this->internal_data_pt(Fibrosis_type_internal_index)->value(0);}
-		
-		void set_fibrosis_type(const unsigned &n, const unsigned &fibrosis_type){this->internal_data_pt(Fibrosis_type_internal_index)->set_value(0, fibrosis_type);}
-		unsigned get_fibrosis_type_at_node(const unsigned &n){return this->internal_data_pt(Fibrosis_type_internal_index)->value(0);}
-
-
-	protected:
-		unsigned Cell_type_internal_index;
-
-		unsigned Fibrosis_type_internal_index;
 	};
 }
 

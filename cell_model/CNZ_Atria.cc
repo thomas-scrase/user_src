@@ -1,4 +1,4 @@
-#include "cell_model_elements.h"
+#include "CNZ_Atria.h"
 
 namespace oomph{
 
@@ -6,8 +6,11 @@ namespace oomph{
     {
         //The required storage
         //..without variables with zero residual
-        this->Required_Storage = 40;
+        this->Required_Storage = 45;
 
+        //Overload the requests which are not the default value
+        Requires_Strain = true;
+        Requires_Fibrosis = true;
 
         //Constants
         CRN_vcell = 20100.0; /* um3 */
@@ -110,6 +113,9 @@ namespace oomph{
         vif = 0.00000137;//0.00000137;//0.00000000137; // um3  (from 0.00137 nL -> 0.00000137 nm3 -> 0.00000000137 um3
         naof = 130.0110; //mM
         kof = 5.3581; //mM
+        GGAP = 0.0;
+        FB_Ikv_shift = 0.0;
+        FB_Gkv = 0.0;
         //Membrane capacitance
         Cm = 100.0; //pF
         //ISAC parameters
@@ -127,7 +133,6 @@ namespace oomph{
         IKur_type_CNZ = 1;
 
 
-        //====================================================================
         //BEGIN Assign force model parameters
         double p0 = 1.754251548964904;
         double p1 = 0.905622641626625;
@@ -200,1053 +205,548 @@ namespace oomph{
         Trop_conc = 70e-3;       //   (uM) troponin concentration
         Temp = 310.0/*-17.0*/;
         //END Assign force model parameters
-        //====================================================================
     }
+
+
+
+
+
 
     //====================================================================
     //====================================================================
     // Define the channel currents
     //====================================================================
     //====================================================================
-    double CNZCell::INa_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                get_GNa(cell_type)* //!!!!!
-                CRN_gna*                                //Blockade, originally from state[39] and state[40]
-                pow(node_var(node,m_index_CNZCell(),local_ind),3)*
-                node_var(node,h_index_CNZCell(),local_ind)*
-                node_var(node,j_index_CNZCell(),local_ind)*
-                (Vm - Rev_Pot);
+    void CNZCell::INa_current(CellState &state){
+        state.set_ina_current(Cm*
+                            get_GNa(state.cell_type())* //!!!!!
+                            CRN_gna*                                //Blockade, originally from state[39] and state[40]
+                            pow(state.var(0,0),3)*
+                            state.var(0,1)*
+                            state.var(0,2)*
+                            (state.vm() - state.ena()));
     }
 
-    double CNZCell::IKr_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                get_GKr(cell_type)*
-                CRN_gkr*
-                node_var(node,xr_index_CNZCell(),local_ind)*
-                (Vm - Rev_Pot)/
-                (1.0 + exp((Vm + 15.0) / 22.4));
+    void CNZCell::IKr_current(CellState &state){
+        state.set_ikr_current(Cm*
+                            get_GKr(state.cell_type())*
+                            CRN_gkr*
+                            state.var(0,5)*
+                            (state.vm() - state.ek())/
+                            (1.0 + exp((state.vm() + 15.0) / 22.4)));
     }
 
-    double CNZCell::IKs_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                get_GKs(cell_type)*
-                CRN_gks*
-                pow(
-                    node_var(node,xs_index_CNZCell(),local_ind)
-                    ,2.0
-                    )*
-                (Vm - Rev_Pot);
+    void CNZCell::IKs_current(CellState &state){
+        state.set_iks_current(Cm*
+                            get_GKs(state.cell_type())*
+                            CRN_gks*
+                            pow(
+                                state.var(0,6)
+                                ,2.0
+                                )*
+                            (state.vm() - state.ek()));
     }
 
-    double CNZCell::ICaL_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                2.125*
-                get_GCaL(cell_type)*
-                CRN_gcaL*
-                node_var(node,d_index_CNZCell(),local_ind)*
-                node_var(node,f_index_CNZCell(),local_ind)*
-                node_var(node,fca_index_CNZCell(),local_ind)*
-                (Vm - Rev_Pot);
+    void CNZCell::ICaL_current(CellState &state){
+        state.set_ical_current(Cm*
+                            2.125*
+                            get_GCaL(state.cell_type())*
+                            CRN_gcaL*
+                            state.var(0,3)*
+                            state.var(0,4)*
+                            state.var(0,10)*
+                            (state.vm() - state.eca()));
     }
 
-    double CNZCell::IK1_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                get_GK1(cell_type)*
-                CRN_gk1*
-                (Vm - Rev_Pot + get_IK1_v_shift(cell_type))/
-                (1.0 + exp(0.07 * (Vm + 80.0 + get_IK1_v_shift(cell_type))));
+    void CNZCell::IK1_current(CellState &state){
+        state.set_ik1_current(Cm*
+                            get_GK1(state.cell_type())*
+                            CRN_gk1*
+                            (state.vm() - state.ek() + get_IK1_v_shift(state.cell_type()))/
+                            (1.0 + exp(0.07 * (state.vm() + 80.0 + get_IK1_v_shift(state.cell_type())))));
     }
 
-    double CNZCell::Iab_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                0.0003879*
-                (Vm + 69.6)/
-                (1.0 - 0.8377*exp((Vm + 49.06)/1056.0));
+    void CNZCell::Iab_current(CellState &state){
+        state.set_iab_current(Cm*
+                            0.0003879*
+                            (state.vm() + 69.6)/
+                            (1.0 - 0.8377*exp((state.vm() + 49.06)/1056.0)));
     }
 
-    double CNZCell::IbK_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                CRN_gbk*
-                (Vm - Rev_Pot);
+    void CNZCell::IbK_current(CellState &state){
+        state.set_ibk_current(Cm*
+                            CRN_gbk*
+                            (state.vm() - state.ek()));
     }
 
-    double CNZCell::IbCa_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                get_Gbca(cell_type)*
-                CRN_gbca*
-                (Vm - Rev_Pot);
+    void CNZCell::IbCa_current(CellState &state){
+        state.set_ibca_current(Cm*
+                            get_Gbca(state.cell_type())*
+                            CRN_gbca*
+                            (state.vm() - state.eca()));
     }
 
-    double CNZCell::IbNa_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                CRN_gbna*
-                (Vm - Rev_Pot);
+    void CNZCell::IbNa_current(CellState &state){
+        state.set_ibna_current(Cm*
+                            CRN_gbna*
+                            (state.vm() - state.ena()));
     }
 
-    double CNZCell::ICap_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                1.4*
-                get_GCap(cell_type)*
-                CRN_icapbar*
-                node_var(node, Cass_index_CNZCell(), local_ind)/
-                (node_var(node, Cass_index_CNZCell(),local_ind) + CRN_kmcap );
+    void CNZCell::ICap_current(CellState &state){
+        state.set_icap_current(Cm*
+                            1.4*
+                            get_GCap(state.cell_type())*
+                            CRN_icapbar*
+                            state.var(0,15)/
+                            (state.var(0,15) + CRN_kmcap ));
     }
 
-    double CNZCell::INaCa_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                get_GNaCa(cell_type)*
-                CRN_knacalr/
-                (pow(CRN_kmnalr,3.0)+pow(Ext_conc[0],3.0))/
-                (CRN_kmcalr+Ext_conc[1])/
-                (1.0+CRN_ksatlr*exp((CRN_gammalr-1.0)*Vm*FoRT))*
-                (pow(node_var(node,nai_index_CNZCell(),local_ind),3.0)*Ext_conc[1]*exp(Vm*CRN_gammalr*FoRT)-
-                    pow(Ext_conc[0],3.0)*node_var(node, Cass_index_CNZCell(),local_ind)*exp(Vm*(CRN_gammalr-1.0)*FoRT));
+    void CNZCell::INaCa_current(CellState &state){
+        state.set_inaca_current(Cm*
+                            get_GNaCa(state.cell_type())*
+                            CRN_knacalr/
+                            (pow(CRN_kmnalr,3.0)+pow(state.na_o(),3.0))/
+                            (CRN_kmcalr+state.ca_o())/
+                            (1.0+CRN_ksatlr*exp((CRN_gammalr-1.0)*state.vm()*FoRT))*
+                            (pow(state.var(0,7),3.0)*state.ca_o()*exp(state.vm()*CRN_gammalr*FoRT)-
+                                pow(state.na_o(),3.0)*state.var(0,15)*exp(state.vm()*(CRN_gammalr-1.0)*FoRT)));
     }
 
-    double CNZCell::INaK_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                CRN_inakbar/
-                (
-                    (1.0+0.1245*exp(-0.1*Vm*FoRT)+0.0365*((exp(Ext_conc[0]/67.3)-1.0)/7.0)*exp(-Vm*FoRT))*
-                    (1.0 + CRN_kmko / Ext_conc[2])*
-                    (1.0 + pow(CRN_kmnai/node_var(node,nai_index_CNZCell(),local_ind),1.5))
-                );
+    void CNZCell::INaK_current(CellState &state){
+        state.set_inak_current(Cm*
+                            CRN_inakbar/
+                            ((1.0+0.1245*exp(-0.1*state.vm()*FoRT)+0.0365*((exp(state.na_o()/67.3)-1.0)/7.0)*exp(-state.vm()*FoRT))*
+                            (1.0 + CRN_kmko / state.k_o())*
+                            (1.0 + pow(CRN_kmnai/state.var(0,7),1.5))));
     }
 
-    double CNZCell::Ito_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                get_Gto(cell_type)*
-                MAL_gto*
-                node_var(node,itr_index_CNZCell(),local_ind)*
-                node_var(node,its_index_CNZCell(),local_ind)*
-                (Vm - Rev_Pot);
+    void CNZCell::Ito_current(CellState &state){
+        state.set_ito_current(Cm*
+                            get_Gto(state.cell_type())*
+                            MAL_gto*
+                            state.var(0,11)*
+                            state.var(0,12)*
+                            (state.vm() - state.ek()));
     }
 
-    double CNZCell::IKur_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  Cm*
-                get_IKur_cond(cell_type,mut_type)*
-                get_GKur(cell_type,mut_type)*
-                CNZ_gkur*
-                (get_IKur_c(cell_type,mut_type) + get_IKur_x0(cell_type,mut_type)/(1.0 + exp((Vm - get_Ikur_y0(cell_type,mut_type))/(-8.26597))))*
-                node_var(node,CNZ_a_index_CNZCell(),local_ind)*
-                node_var(node,CNZ_i_index_CNZCell(),local_ind)*
-                (Vm - Rev_Pot);
+    void CNZCell::IKur_current(CellState &state){
+        state.set_ikur_current(Cm*
+                            get_IKur_cond(state.cell_type(),this->mutation())*
+                            get_GKur(state.cell_type(),this->mutation())*
+                            CNZ_gkur*
+                            (get_IKur_c(state.cell_type(),this->mutation()) + get_IKur_x0(state.cell_type(),this->mutation())/(1.0 + exp((state.vm() - get_Ikur_y0(state.cell_type(),this->mutation()))/(-8.26597))))*
+                            state.var(0,28)*
+                            state.var(0,29)*
+                            (state.vm() - state.ek()));
     }
 
-    double CNZCell::If_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  0.0;
+    void CNZCell::If_current(CellState &state){
                 /*
                 Cm*
-                get_Gf(get_cell_type_at_node_CNZ(n))*
+                get_Gf(get_state.cell_type()_at_node_CNZ(n))*
                 CRN_gf*
-                node_var(node,If_y_index_CNZ(),local_ind)*
-                (Vm - Rev_Pot);
+                state.var(0,30)*
+                (state.vm() - Rev_Pot);
                 */
     }
 
-    double CNZCell::ICaT_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return  0.0;
+    void CNZCell::IK1f_current(CellState &state){
+        double ak1f = 0.1 / (1 + exp(0.06 * (state.var(0,44) - state.ekf() - 200.0 ) )  );
+        double bk1f = (3 * exp(0.0002 * (state.var(0,44) - state.ekf() + 100.0)) + exp(0.1 * (state.var(0,44) - state.ekf() - 10.0))) / (1.0 + exp(-0.5 * (state.var(0,44) - state.ekf())));
+        double gk1f = 0.4822;
+        // state.set_ik1f_current(gk1f * (ak1f / (ak1f + bk1f)) * (state.var(0,44) - state.ekf()));
+        state.set_ik1f_current(0.0);
+
+    }
+
+    void CNZCell::IbNaf_current(CellState &state){
+        double gbnaf = 0.0095;
+        state.set_ibnaf_current(gbnaf * (state.var(0,44) - state.enaf()));
+    }
+
+    void CNZCell::ICaT_current(CellState &state){
+        // return  0.0;
                 /*
                 Cm*
-                get_GCaT(cell_type)*
+                get_GCaT(state.cell_type())*
                 gcaT*
-                node_var(node,ff_index_CNZCell(),local_ind)*
-                node_var(node,dd_index_CNZCell(),local_ind)*
-                (Vm - EcaT);
+                state.var(0,27)*
+                state.var(0,26)*
+                (state.vm() - EcaT);
                 */
     }
 
-    //!!!!!
-    //MISSING PARAMETER GGAP IN ORIGINAL CNZCell.cpp
-
-    double CNZCell::IGap_current_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &Rev_Pot) const {
-        return 0.0;
+    void CNZCell::IGap_current(CellState &state){
+        state.set_igap_current(GGAP * (state.vm() - state.var(0,44)));
     }
 
-
-    double CNZCell::ISAC_ISAC_CNZCell(Node* node,
-                                        const Vector<double> &Ext_conc,
-                                        const Vector<unsigned> &local_ind,
-                                        const unsigned &cell_type,
-                                        const unsigned &mut_type,
-                                        const unsigned &fibrosis,
-                                        const double &Vm,
-                                        const double &strain) const {
-        return  Cm*
-                ISAC_GSac*
-                (Vm - ISAC_Esac)/
-                (1.0 + exp(-(strain - ISAC_strain_half)/ISAC_Ke));
+    inline void CNZCell::IKv_current(CellState &state){
+        double gkv = FB_Gkv * 0.25;
+        state.set_ikv_current(Cmf * gkv * state.var(0,40) * state.var(0,41) * (state.var(0,44) - state.ekf()));
     }
 
-    double CNZCell::ISAC_Na_current_CNZCell(Node* node,
-                                            const Vector<double> &Ext_conc,
-                                            const Vector<unsigned> &local_ind,
-                                            const unsigned &cell_type,
-                                            const unsigned &mut_type,
-                                            const unsigned &fibrosis,
-                                            const double &Vm,
-                                            const double &ISAC_) const {
-        return  ISAC_pNa*
-                ISAC_/
-                ISAC_total_Sca;
+    void CNZCell::ISAC_current(CellState &state){
+        double ISAC = Cm*
+                        ISAC_GSac*
+                        (state.vm() - ISAC_Esac)/
+                        (1.0 + exp(-(state.stress() - ISAC_strain_half)/ISAC_Ke));
 
+        state.set_isac_na_current(ISAC_pNa*ISAC/ISAC_total_Sca);
+        state.set_isac_ca_current(ISAC_pCa*ISAC/ISAC_total_Sca);
+        state.set_isac_k_current(ISAC_pK*ISAC/ISAC_total_Sca);
     }
 
-    double CNZCell::ISAC_K_current_CNZCell(Node* node,
-                                            const Vector<double> &Ext_conc,
-                                            const Vector<unsigned> &local_ind,
-                                            const unsigned &cell_type,
-                                            const unsigned &mut_type,
-                                            const unsigned &fibrosis,
-                                            const double &Vm,
-                                            const double &ISAC_) const {
-        return  ISAC_pK*
-                ISAC_/
-                ISAC_total_Sca;
-    }
-
-    double CNZCell::ISAC_Ca_current_CNZCell(Node* node,
-                                            const Vector<double> &Ext_conc,
-                                            const Vector<unsigned> &local_ind,
-                                            const unsigned &cell_type,
-                                            const unsigned &mut_type,
-                                            const unsigned &fibrosis,
-                                            const double &Vm,
-                                            const double &ISAC_) const {
-        return  ISAC_pCa*
-                ISAC_/
-                ISAC_total_Sca;
-    }
+    //fibrosis currents
 
     //====================================================================
     //====================================================================
-    // Calculate the sub residual for CNZCell
+    // Define the channel currents
     //====================================================================
     //====================================================================
-    void CNZCell::fill_in_generic_residual_contribution_cell_base( Node* node,
-                            const double& Vm,
-                            const double& strain,
-                            const Vector<double> &Ext_conc,
-                            const Vector<unsigned> &local_ind,
-                            const unsigned &cell_type,
-                            const unsigned &mut_type,
-                            const unsigned &fibrosis,
-                            Vector<double> &residuals,
-                            DenseMatrix<double> &jacobian,
-                            unsigned flag)
-    {   
-        // std::cout << "entered residual in cell_model" << std::endl;
-        //====================================================================
-        //====================================================================
-        // Calculate some variables before residuals is calculated
-        //====================================================================
-        //====================================================================
-        //Preallocate memory for the reversal potentials
-        double Ena, Eca, Ek;
-        //Preallocate memory for the ISAC scale
-        double ISAC_;
-        //Preallocate memory for the channel currents used when calcualting concentration changes (all of them)
-        double INa, IKr, IKs, ICaL, IK1, Iab, IbK, IbCa, IbNa, ICap, INaCa, INaK, Ito, IKur, If, ICaT, IGap, ISAC_Na, ISAC_K, ISAC_Ca;
-        //Preallocate memory for alpha and beta
+
+    void CNZCell::ENa_reversal(CellState &state)
+    {
+        state.set_ena(26.71*log(state.na_o() / state.var(0,7)));
+    }
+    void CNZCell::EK_reversal(CellState &state)
+    {
+        state.set_ek(26.71*log(state.k_o() / state.var(0,9)));
+    }
+    void CNZCell::ECa_reversal(CellState &state)
+    {
+        state.set_eca(13.35*log(state.ca_o() / state.var(0,8)));
+    }
+
+    void CNZCell::EKf_reversal(CellState &state)
+    {
+        state.set_ekf(26.71 * log(kof / state.var(0,42)));
+    }
+    void CNZCell::Enaf_reversal(CellState &state)
+    {
+        state.set_enaf(26.71 * log(naof / state.var(0,43)));
+    }
+
+
+
+
+
+
+    //====================================================================
+    //====================================================================
+    // Define the channel residuals
+    //====================================================================
+    //====================================================================
+    inline void CNZCell::INa_current_residual(const CellState &state, Vector<double> &residuals){
         double alpha, beta;
-        //Calculate reversal potentials
-        get_reversal_Na(Ext_conc[0], node_var(node,nai_index_CNZCell(),local_ind), Ena);
-        get_reversal_Ca(Ext_conc[1], node_var(node,cai_index_CNZCell(),local_ind), Eca);
-        get_reversal_K(Ext_conc[2], node_var(node,ki_index_CNZCell(),local_ind), Ek);
-
-        //Get the ISAC scale
-        ISAC_ = ISAC_ISAC_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, strain);
-
-        //Calculate channel currents
-        INa = INa_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ena);
-        IKr = IKr_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek);
-        IKs = IKs_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek);
-        ICaL = ICaL_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, CRN_ErL);
-        IK1 = IK1_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek);
-        Iab = Iab_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0);          //!!!!! NO NERNST POTENTIAL USED IN CNZ CODE
-        IbK = IbK_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek);
-        IbCa = IbCa_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Eca);
-        IbNa = IbNa_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ena);
-        ICap = ICap_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0);        //!!!!! NO NERNST POTENTIAL USED IN CNZ CODE
-        INaCa = INaCa_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0);      //!!!!! NO NERNST POTENTIAL USED IN CNZ CODE
-        INaK = INaK_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0);        //!!!!! NO NERNST POTENTIAL USED IN CNZ CODE
-        Ito = Ito_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek);
-        IKur = IKur_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, Ek);
-        If = If_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0);            //!!!!! NO NERNST POTENTIAL USED IN CNZ CODE
-        ICaT = ICaT_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0);        //!!!!! NO NERNST POTENTIAL USED IN CNZ CODE
-
-        IGap = IGap_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, 0.0);        //!!!!! NOT IMPLEMENTED YET
-
-        ISAC_Na = ISAC_Na_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, ISAC_);
-        ISAC_K = ISAC_K_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, ISAC_);
-        ISAC_Ca = ISAC_Ca_current_CNZCell(node, Ext_conc, local_ind, cell_type, mut_type, fibrosis, Vm, ISAC_);
-
-
-
-        //====================================================================
-        //====================================================================
-        // Loop through the local equations
-        //====================================================================
-        //====================================================================
-
-        //====================================================================
         //m
-        //====================================================================
-        int var_ind = m_index_CNZCell();
         //Calculate rates
-        if(std::fabs(Vm + 47.13) > 1e-10){alpha = 0.32 * (Vm + 47.13) / (1.0 - exp(-0.1 * (Vm + 47.13)));}
+        if(std::fabs(state.vm() + 47.13) > 1e-10){alpha = 0.32 * (state.vm() + 47.13) / (1.0 - exp(-0.1 * (state.vm() + 47.13)));}
         else{alpha = 3.2;}
-        beta = 0.08 * exp(-Vm / 11.0);
-        //Populate residuals
-        // residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
+        beta = 0.08 * exp(-state.vm() / 11.0);
 
-        // Populate residual with step from previous value to next one, to be used with identity jacobian
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + alpha + beta;
+        residuals[0] -= state.var(1,0) + state.var(0,0)*(alpha + beta) - alpha;
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0);
-        }
-        //====================================================================
         //h
-        //====================================================================
-        var_ind = h_index_CNZCell();
         //Calculate rates
-        if(Vm>=-40.0){
+        if(state.vm()>=-40.0){
             alpha = 0.0;
-            beta = 1.0 / (0.13 * (1.0 + exp((Vm + 10.66) / -11.1)));
+            beta = 1.0 / (0.13 * (1.0 + exp((state.vm() + 10.66) / -11.1)));
         }
         else{
-            alpha = 0.135 * exp((Vm + 80.0) / -6.8);
-            beta = 3.56 * exp(0.079 * Vm) + 3.1e5 * exp(0.35 * Vm);
+            alpha = 0.135 * exp((state.vm() + 80.0) / -6.8);
+            beta = 3.56 * exp(0.079 * state.vm()) + 3.1e5 * exp(0.35 * state.vm());
         }
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
 
-        // Populate residual with step from previous value to next one, to be used with identity jacobian
-        // residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha
-        //                         + ( 1 - node->time_stepper_pt()->weight(1,0) )*node->value(0,local_ind[var_ind]) - ( 1 + node->time_stepper_pt()->weight(1,1) )*node->value(1,local_ind[var_ind]);
+        residuals[1] -= state.var(1,1) + state.var(0,1)*(alpha + beta) - alpha;
 
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + alpha + beta;
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
         //j
-        //====================================================================
-        var_ind = j_index_CNZCell();
         //Calculate rates
-        if (Vm >= -40.0)
+        if (state.vm() >= -40.0)
         {
             alpha  = 0.0;
-            beta = 0.3 * exp(-2.535e-7 * Vm) / (1.0 + exp(-0.1 * (Vm + 32.0)));
+            beta = 0.3 * exp(-2.535e-7 * state.vm()) / (1.0 + exp(-0.1 * (state.vm() + 32.0)));
         }
         else
         {
-            alpha = (-1.2714e5 * exp(0.2444 * Vm) - 3.474e-5 * exp(-0.04391 * Vm)) * (Vm + 37.78) / (1.0 + exp(0.311 * (Vm + 79.23)));
-            beta = 0.1212 * exp(-0.01052 * Vm) / (1.0 + exp(-0.1378 * (Vm + 40.14)));
+            alpha = (-1.2714e5 * exp(0.2444 * state.vm()) - 3.474e-5 * exp(-0.04391 * state.vm())) * (state.vm() + 37.78) / (1.0 + exp(0.311 * (state.vm() + 79.23)));
+            beta = 0.1212 * exp(-0.01052 * state.vm()) / (1.0 + exp(-0.1378 * (state.vm() + 40.14)));
         }
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha;
+        residuals[2] -= state.var(1,2) + state.var(0,2)*(alpha + beta) - alpha;
+    }
 
-        // Populate residual with step from previous value to next one, to be used with identity jacobian
-        // residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) + node_var(node,var_ind,local_ind)*(alpha + beta) - alpha
-        //                         + ( 1 - node->time_stepper_pt()->weight(1,0) )*node->value(0,local_ind[var_ind]) - ( 1 + node->time_stepper_pt()->weight(1,1) )*node->value(1,local_ind[var_ind]);
-
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + alpha + beta;
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0);
-        }
-        //====================================================================
-        //d
-        //====================================================================
-        var_ind = d_index_CNZCell();
-        //Populate residuals and jacobian without rates         
-        if (std::fabs(Vm + 10.0) > 1e-10)
-        {
-            //Populate residuals
-            residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - 0.035*(Vm + 10.0)*( (1.0+exp(-(Vm+10.0)/6.24)) / (1.0-exp(-(Vm+10.0)/6.24)) )*(1.0/(1.0+exp(-(Vm+10.0)/8.0)) - node_var(node,var_ind,local_ind));
-            //Populate jacobian
-            if(flag){
-               // jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0) + 0.035*(Vm+10.0)*(1.0+exp(-(Vm+10.0)/8.0))/(1.0-exp(-(Vm+10.0)/6.24));   
-
-               // Jacobian is identity
-                jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-           }
-        }
-        else
-        {   
-            //Populate residuals
-            residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - (1.0/4.579) * (1.0 + exp((Vm + 10.0) / -6.24)) * ( 1.0 / (1.0 + exp((Vm + 10.0) / -8.0)) - node_var(node,var_ind,local_ind));
-            //Populate jacobian
-            if(flag){
-                // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 5.60897e-3;
-
-                // Jacobian is identity
-                jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-            }
-        }
-
-        //====================================================================
-        //f
-        //====================================================================
-        var_ind = f_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( exp(-(Vm+28.0)/6.9)/(1.0+exp(-(Vm+28.0)/6.9)) - node_var(node,var_ind,local_ind) ) / (9.0 / (0.0197 * exp(-pow(0.0337*(Vm + 10),2.0)) + 0.02));
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) - 1.0/(1.5 * 2.0 * 3.0 / (0.0197 * exp(-0.0337 * 0.0337 * (Vm + 10.0) * (Vm + 10.0)) + 0.02));
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+    inline void CNZCell::IKr_current_residual(const CellState &state, Vector<double> &residuals){
+        double alpha, beta;
         //xr
-        //====================================================================
-        var_ind = xr_index_CNZCell();
         //Calculate rates
-        if (std::fabs(Vm + 14.1) > 1e-10){alpha = 0.0003 * (Vm + 14.1) / (1.0 - exp(-(Vm + 14.1) / 5.0));}
+        if (std::fabs(state.vm() + 14.1) > 1e-10){alpha = 0.0003 * (state.vm() + 14.1) / (1.0 - exp(-(state.vm() + 14.1) / 5.0));}
         else{alpha = 0.0015;}
-        if (fabs(Vm - 3.3328) > 1e-10){beta = 0.000073898 * (Vm - 3.3328) / (exp((Vm - 3.3328) / 5.1237) - 1.0);}
+        if (fabs(state.vm() - 3.3328) > 1e-10){beta = 0.000073898 * (state.vm() - 3.3328) / (exp((state.vm() - 3.3328) / 5.1237) - 1.0);}
         else{beta = 3.7836118e-4;}
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / ( 1.0 + exp( -(Vm + get_IKr_ac_shift(cell_type, mut_type) + 14.1) / (6.5 * get_IKr_ac_grad(cell_type, mut_type))) ) - node_var(node,var_ind,local_ind) )*(alpha + beta);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) - node_var(node,var_ind,local_ind)*(alpha + beta);
+        residuals[5] += state.var(1,5) - ( 1.0 / ( 1.0 + exp( -(state.vm() + get_IKr_ac_shift(state.cell_type(), this->mutation()) + 14.1) / (6.5 * get_IKr_ac_grad(state.cell_type(), this->mutation()))) ) - state.var(0,5) )*(alpha + beta);
+    }
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+    inline void CNZCell::IKs_current_residual(const CellState &state, Vector<double> &residuals){
+        double alpha, beta;
         //xs
-        //====================================================================
-        var_ind = xs_index_CNZCell();
         //Calculate rates
-        if (std::fabs(Vm - 19.9) > 1e-10){
+        if (std::fabs(state.vm() - 19.9) > 1e-10){
             
-            alpha = 0.00004 * (Vm - 19.9) / (1.0 - exp(-(Vm - 19.9) / 17.0));
-            beta = 0.000035 * (Vm - 19.9) / (exp((Vm - 19.9) / 9.0) - 1.0);
+            alpha = 0.00004 * (state.vm() - 19.9) / (1.0 - exp(-(state.vm() - 19.9) / 17.0));
+            beta = 0.000035 * (state.vm() - 19.9) / (exp((state.vm() - 19.9) / 9.0) - 1.0);
         }
         else{
             alpha = 0.00068;
             beta = 0.000315;
         }
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( sqrt(1.0 / (1.0 + exp(-(Vm - 19.9 - get_IKs_shift(cell_type, mut_type)) / (12.7 * get_IKs_grad(cell_type, mut_type))))) - node_var(node,var_ind,local_ind) )*2.0*(alpha + beta);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) - node_var(node,var_ind,local_ind)*2.0*(alpha + beta);
+        residuals[6] += state.var(1,6) - ( sqrt(1.0 / (1.0 + exp(-(state.vm() - 19.9 - get_IKs_shift(state.cell_type(), this->mutation())) / (12.7 * get_IKs_grad(state.cell_type(), this->mutation()))))) - state.var(0,6) )*2.0*(alpha + beta);
+    }
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
+    inline void CNZCell::ICaL_current_residual(const CellState &state, Vector<double> &residuals){
+        //d
+ // and jacobian without rates         
+        if (std::fabs(state.vm() + 10.0) > 1e-10)
+        {
+            residuals[3] += state.var(1,3) - 0.035*(state.vm() + 10.0)*( (1.0+exp(-(state.vm()+10.0)/6.24)) / (1.0-exp(-(state.vm()+10.0)/6.24)) )*(1.0/(1.0+exp(-(state.vm()+10.0)/8.0)) - state.var(0,3));
         }
+        else
+        {   
+            residuals[3] += state.var(1,3) - (1.0/4.579) * (1.0 + exp((state.vm() + 10.0) / -6.24)) * ( 1.0 / (1.0 + exp((state.vm() + 10.0) / -8.0)) - state.var(0,3));
+        }
+        //f
+        residuals[4] += state.var(1,4) - ( exp(-(state.vm()+28.0)/6.9)/(1.0+exp(-(state.vm()+28.0)/6.9)) - state.var(0,4) ) / (9.0 / (0.0197 * exp(-pow(0.0337*(state.vm() + 10),2.0)) + 0.02));
+        //fca
+        residuals[10] += state.var(1,10) - ( 1.0 / (1.0 + (state.var(0,15) / 0.00035)) - state.var(0,10) )/(2.0);
+    }
 
-        //====================================================================
+    //====================================================================
+    //Either no variables for these channels or variables shared with other channels
+    inline void CNZCell::IK1_current_residual(const CellState &state, Vector<double> &residuals) {
+
+    }
+    inline void CNZCell::Iab_current_residual(const CellState &state, Vector<double> &residuals) {
+
+    }
+    inline void CNZCell::IbK_current_residual(const CellState &state, Vector<double> &residuals) {
+
+    }
+    inline void CNZCell::IbCa_current_residual(const CellState &state, Vector<double> &residuals){
+
+    }
+    inline void CNZCell::IbNa_current_residual(const CellState &state, Vector<double> &residuals){
+
+    }
+    inline void CNZCell::ICap_current_residual(const CellState &state, Vector<double> &residuals) {
+
+    }
+    inline void CNZCell::INaCa_current_residual(const CellState &state, Vector<double> &residuals) {
+
+    }
+    inline void CNZCell::INaK_current_residual(const CellState &state, Vector<double> &residuals) {
+
+    }
+    inline void CNZCell::IGap_current_residual(const CellState &state, Vector<double> &residuals) {
+
+    }
+    inline void CNZCell::ISAC_current_residual(const CellState &state, Vector<double> &residuals) {
+
+    }
+    //End no variables for these channels or variables shared with other channels
+    //====================================================================
+
+    inline void CNZCell::Ito_current_residual(const CellState &state, Vector<double> &residuals){
+        //itr //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[11] += state.var(1,11) - ( 1.0 / (1.0 + exp(-(state.vm() - 1.0)/11.0)) - state.var(0,11) ) / ((0.0035 * exp(-(state.vm() / 15.0)) + 0.0015)*1000.0);
+        //its //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[12] += state.var(1,12) - ( 1.0 / (1.0 + exp((state.vm() + 40.5) / 11.5)) - state.var(0,12) ) / ((0.025635 * exp (-(state.vm() + 52.45) / 7.94135) + 0.01414)*1000.0);
+    }
+
+    inline void CNZCell::IKur_current_residual(const CellState &state, Vector<double> &residuals){
+        //CNZ_a
+        residuals[28] += state.var(1,28) - ( 1.0 / (1.0 + exp(-(state.vm() - (-6.0 + get_IKur_Vhchange(state.cell_type(), this->mutation()) )) / (8.6 * get_IKur_slope(state.cell_type(),this->mutation()) ))) - state.var(0,28) ) / ( ( get_IKur_timeconstants(state.cell_type(),this->mutation())*(45.6666746826 / (1.0 + exp((state.vm() + 11.2306497073) / 11.5254705962)) + 4.26753514993)*(0.262186042981 / (1.0 + exp((state.vm() + 35.8658312707) / (-3.87510627762))) + 0.291755017928) ) / 3.5308257834747638 );
+        //CNZ_i
+        residuals[29] += state.var(1,29) - ( (get_IKur_inac_mult(state.cell_type(),this->mutation()) * 0.52424) / (1.0 + exp((state.vm() + 15.1142 + get_IKur_inac_shift(state.cell_type(),this->mutation()) ) / (7.567021 * get_IKur_inac_grad(state.cell_type(),this->mutation()) ))) + 0.4580778 + get_IKur_inac_add(state.cell_type(),this->mutation())  - state.var(0,29) ) / ( (2328.0 / (1.0 + exp((state.vm() - 9.435) / (3.5827))) + 1739.139) / 3.5308257834747638 );
+    }
+
+    inline void CNZCell::If_current_residual(const CellState &state, Vector<double> &residuals){
+        //If_y
+        residuals[30] += state.var(1,30) - ( 1.0 / (1.0 + exp((state.vm() + 90.95 + get_If_vshift(state.cell_type(),this->mutation())) / (10.1 * get_If_grad(state.cell_type(),this->mutation()))) ) - state.var(0,30) ) * (1.2783E-04 * exp(-state.vm() / 9.2424) + 121.6092 * exp(state.vm() / 9.2424));
+    }
+
+    inline void CNZCell::ICaT_current_residual(const CellState &state, Vector<double> &residuals){
+        //dd
+        residuals[26] += state.var(1,26) - ( 1.0 / (1.0 + exp(-(state.vm() + 37.0) / 6.8)) - state.var(0,26) ) * ( 1.0680*exp((state.vm() + 26.3)/30.0) + 1.0680*exp(-(state.vm() + 26.3)/30.0) );
+        //ff
+        residuals[27] += state.var(1,27) - ( 1.0 / (1.0 + exp((state.vm() + 71.0) / 9.0)) - state.var(0,27) ) * ( 0.0153*exp(-(state.vm() + 71.0)/83.3) + 0.0150*exp((state.vm() + 71.0)/15.38) );
+        
+    }
+
+    //====================================================================
+    //====================================================================
+    // Define the concentration residuals
+    //====================================================================
+    //====================================================================
+
+    //The current residual functions
+    inline void CNZCell::Ca_i_residual(const CellState &state, Vector<double> &residuals){
+    }
+
+    inline void CNZCell::Na_i_residual(const CellState &state, Vector<double> &residuals){
         //nai
-        //====================================================================
-        var_ind = nai_index_CNZCell();
-        
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - (-3.0 * INaK - 3.0 * INaCa - IbNa - INa - ISAC_Na) / (F *CRN_vi);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);
+        residuals[7] += state.var(1,7) - (-3.0 * state.inak() - 3.0 * state.inaca() - state.ibna() - state.ina() - state.isac_na()) / (F *CRN_vi);
+    }
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
+    inline void CNZCell::K_i_residual(const CellState &state, Vector<double> &residuals){
+        //ki       
+        residuals[9] += state.var(1,9) - (2.0 * state.inak() - state.ik1() - state.ito() - state.ikur()- state.ikr() - state.iks() - state.ibk() - state.isac_k()) / (F * CRN_vi);
+    }
 
-        //====================================================================
-        //ki
-        //====================================================================
-        var_ind = ki_index_CNZCell();
-        
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - (2.0 * INaK - IK1 - Ito - IKur - IKr - IKs - IbK - ISAC_K) / (F * CRN_vi);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0); //!!!!! COMPLETE THIS
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-
-        //====================================================================
+    inline void CNZCell::Calcium_dynamics_residual(const CellState &state, Vector<double> &residuals){
         //values required for changes in various calcium concentrations
-        //====================================================================
         double betass;
         betass = pow(
-                     ( 1 + SLlow * KdSLlow / pow((node_var(node,Cass_index_CNZCell(),local_ind) + KdSLlow), 2)
-                       + SLhigh * KdSLhigh / pow((node_var(node,Cass_index_CNZCell(),local_ind) + KdSLhigh), 2)
-                       + BCa * KdBCa / pow(((node_var(node,Cass_index_CNZCell(),local_ind)) + KdBCa), 2)  )
+                     ( 1 + SLlow * KdSLlow / pow((state.var(0,15) + KdSLlow), 2)
+                       + SLhigh * KdSLhigh / pow((state.var(0,15) + KdSLhigh), 2)
+                       + BCa * KdBCa / pow(((state.var(0,15)) + KdBCa), 2)  )
                      , (-1));
-
         double betai, gammai;
-        betai = pow(( 1 + BCa * KdBCa / pow((node_var(node,cai_index_CNZCell(),local_ind) + KdBCa), 2)  ), (-1));
-        gammai = BCa * KdBCa / pow((node_var(node,cai_index_CNZCell(),local_ind) + KdBCa), 2);
-
+        betai = pow(( 1 + BCa * KdBCa / pow((state.var(0,8) + KdBCa), 2)  ), (-1));
+        gammai = BCa * KdBCa / pow((state.var(0,8) + KdBCa), 2);
         double betaSR1, betaSR2;
-        betaSR1 = pow( ( 1 + CSQN * KdCSQN / pow((node_var(node,CaSR1_index_CNZCell(),local_ind) + KdCSQN), 2) ), (-1));
-        betaSR2 = pow( ( 1 + CSQN * KdCSQN / pow((node_var(node,CaSR2_index_CNZCell(),local_ind) + KdCSQN), 2) ), (-1));
-
+        betaSR1 = pow( ( 1 + CSQN * KdCSQN / pow((state.var(0,16) + KdCSQN), 2) ), (-1));
+        betaSR2 = pow( ( 1 + CSQN * KdCSQN / pow((state.var(0,17) + KdCSQN), 2) ), (-1));
         double Jj_nj;
-        Jj_nj = DCa * Aj_nj / xj_nj * (node_var(node,Cass_index_CNZCell(),local_ind) - node_var(node,cai_index_CNZCell(),local_ind)) * 1e-6;
-
+        Jj_nj = DCa * Aj_nj / xj_nj * (state.var(0,15) - state.var(0,8)) * 1e-6;
         double J_SERCASR, J_bulkSERCA;
         double J_SERCASRss, J_bulkSERCAss;
-
-        J_SERCASR =  (-k3 * pow(node_var(node,CaSR1_index_CNZCell(),local_ind), 2) * (cpumps - node_var(node,SERCACa_index_CNZCell(),local_ind)) + k4 * node_var(node,SERCACa_index_CNZCell(),local_ind)) * Vnonjunct3 * 2;
-        J_bulkSERCA = (k1 * pow(node_var(node,cai_index_CNZCell(),local_ind), 2) * (cpumps - node_var(node,SERCACa_index_CNZCell(),local_ind)) - k2 * node_var(node,SERCACa_index_CNZCell(),local_ind)) * Vnonjunct3 * 2;
-        J_SERCASRss = (-k3 * pow(node_var(node,CaSR2_index_CNZCell(),local_ind), 2) * (cpumps - node_var(node,SERCACass_index_CNZCell(),local_ind)) + k4 * node_var(node,SERCACass_index_CNZCell(),local_ind)) * Vss * 2;
-        J_bulkSERCAss = (k1 * pow((node_var(node,Cass_index_CNZCell(),local_ind)), 2) * (cpumps - node_var(node,SERCACass_index_CNZCell(),local_ind)) - k2 * node_var(node,SERCACass_index_CNZCell(),local_ind)) * Vss * 2;
-
+        J_SERCASR =  (-k3 * pow(state.var(0,16), 2) * (cpumps - state.var(0,18)) + k4 * state.var(0,18)) * Vnonjunct3 * 2;
+        J_bulkSERCA = (k1 * pow(state.var(0,8), 2) * (cpumps - state.var(0,18)) - k2 * state.var(0,18)) * Vnonjunct3 * 2;
+        J_SERCASRss = (-k3 * pow(state.var(0,17), 2) * (cpumps - state.var(0,19)) + k4 * state.var(0,19)) * Vss * 2;
+        J_bulkSERCAss = (k1 * pow((state.var(0,15)), 2) * (cpumps - state.var(0,19)) - k2 * state.var(0,19)) * Vss * 2;
         double RyRtauadapt = 1.0;
         double RyRtauactss = 5e-3;
         double RyRtauinactss = 15e-3;
         double RyRtauact = 18.75e-3;
         double RyRtauinact = 87.5e-3;
-
         double nuss = 625.0 * Vss;
-        double RyRSRCass = (1 - 1 / (1 +  exp((node_var(node,CaSR2_index_CNZCell(),local_ind) - 0.3) / 0.1)));
-        double RyRainfss = 0.505 - 0.427 / (1 + exp(( ( node_var(node,Cass_index_CNZCell(),local_ind) + (get_fRyR(cell_type, mut_type) * node_var(node,Cass_index_CNZCell(),local_ind)) ) * 1000 - 0.29) / 0.082));
-        double RyRoinfss = (1 - 1 / (1 +  exp(((node_var(node,Cass_index_CNZCell(),local_ind) + (get_fRyR(cell_type, mut_type) * node_var(node,Cass_index_CNZCell(),local_ind))   ) * 1000 - ((node_var(node,RyRass_index_CNZCell(),local_ind)) + 0.22)) / 0.03)));
-        double RyRcinfss = (1 / (1 + exp(((node_var(node,Cass_index_CNZCell(),local_ind) + (get_fRyR(cell_type, mut_type) * node_var(node,Cass_index_CNZCell(),local_ind) )) * 1000 - ((node_var(node,RyRass_index_CNZCell(),local_ind)) + 0.02)) / 0.01)));
-        double Jrelss = nuss * ( (node_var(node,RyRoss_index_CNZCell(),local_ind)) ) * (node_var(node,RyRcss_index_CNZCell(),local_ind)) * RyRSRCass * ( node_var(node,CaSR2_index_CNZCell(),local_ind) -  (node_var(node,Cass_index_CNZCell(),local_ind)) );
-
+        double RyRSRCass = (1 - 1 / (1 +  exp((state.var(0,17) - 0.3) / 0.1)));
+        double RyRainfss = 0.505 - 0.427 / (1 + exp(( ( state.var(0,15) + (get_fRyR(state.cell_type(), this->mutation()) * state.var(0,15)) ) * 1000 - 0.29) / 0.082));
+        double RyRoinfss = (1 - 1 / (1 +  exp(((state.var(0,15) + (get_fRyR(state.cell_type(), this->mutation()) * state.var(0,15))   ) * 1000 - ((state.var(0,22)) + 0.22)) / 0.03)));
+        double RyRcinfss = (1 / (1 + exp(((state.var(0,15) + (get_fRyR(state.cell_type(), this->mutation()) * state.var(0,15) )) * 1000 - ((state.var(0,22)) + 0.02)) / 0.01)));
+        double Jrelss = nuss * ( (state.var(0,20)) ) * (state.var(0,21)) * RyRSRCass * ( state.var(0,17) -  (state.var(0,15)) );
         double nu3 = 1 * Vnonjunct3;
-        double RyRSRCa3 = (1 - 1 / (1 +  exp((node_var(node,CaSR1_index_CNZCell(),local_ind) - 0.3) / 0.1)));
-        double RyRainf3 =  0.505 - 0.427 / (1 + exp(( (node_var(node,cai_index_CNZCell(),local_ind) + ( get_fRyR(cell_type, mut_type) * node_var(node,cai_index_CNZCell(),local_ind))  ) * 1000 - 0.29) / 0.082));
-        double RyRoinf3 = (1 - 1 / (1 +  exp(( (node_var(node,cai_index_CNZCell(),local_ind) + ( get_fRyR(cell_type, mut_type) * node_var(node,cai_index_CNZCell(),local_ind)) ) * 1000 - ((node_var(node,RyRa3_index_CNZCell(),local_ind)) + 0.22)) / 0.03)));
-        double RyRcinf3 = (1 / (1 +  exp(( (node_var(node,cai_index_CNZCell(),local_ind) + (get_fRyR(cell_type, mut_type) * node_var(node,cai_index_CNZCell(),local_ind) ) ) * 1000 - ((node_var(node,RyRa3_index_CNZCell(),local_ind)) + 0.02)) / 0.01)));
-        double Jrel3 = nu3 * ( (node_var(node,RyRo3_index_CNZCell(),local_ind)) ) * (node_var(node,RyRc3_index_CNZCell(),local_ind)) * RyRSRCa3 * ( node_var(node,CaSR1_index_CNZCell(),local_ind) -  node_var(node,cai_index_CNZCell(),local_ind) );
-
-        Jrelss = get_fIRel(cell_type, mut_type) * Jrelss;
-        Jrel3 = get_fIRel(cell_type, mut_type) * Jrel3;
-
-        double JSRCaleak3 = get_GSR_leak(cell_type, mut_type) * kSRleak * ( node_var(node,CaSR1_index_CNZCell(),local_ind) - node_var(node,cai_index_CNZCell(),local_ind) ) * Vnonjunct3;
-        double JSRCaleakss = get_GSR_leak(cell_type, mut_type) * kSRleak * ( node_var(node,CaSR2_index_CNZCell(),local_ind) - (node_var(node,Cass_index_CNZCell(),local_ind)) ) * Vss;
-
+        double RyRSRCa3 = (1 - 1 / (1 +  exp((state.var(0,16) - 0.3) / 0.1)));
+        double RyRainf3 =  0.505 - 0.427 / (1 + exp(( (state.var(0,8) + ( get_fRyR(state.cell_type(), this->mutation()) * state.var(0,8))  ) * 1000 - 0.29) / 0.082));
+        double RyRoinf3 = (1 - 1 / (1 +  exp(( (state.var(0,8) + ( get_fRyR(state.cell_type(), this->mutation()) * state.var(0,8)) ) * 1000 - ((state.var(0,25)) + 0.22)) / 0.03)));
+        double RyRcinf3 = (1 / (1 +  exp(( (state.var(0,8) + (get_fRyR(state.cell_type(), this->mutation()) * state.var(0,8) ) ) * 1000 - ((state.var(0,25)) + 0.02)) / 0.01)));
+        double Jrel3 = nu3 * ( (state.var(0,23)) ) * (state.var(0,24)) * RyRSRCa3 * ( state.var(0,16) -  state.var(0,8) );
+        Jrelss = get_fIRel(state.cell_type(), this->mutation()) * Jrelss;
+        Jrel3 = get_fIRel(state.cell_type(), this->mutation()) * Jrel3;
+        double JSRCaleak3 = get_GSR_leak(state.cell_type(), this->mutation()) * kSRleak * ( state.var(0,16) - state.var(0,8) ) * Vnonjunct3;
+        double JSRCaleakss = get_GSR_leak(state.cell_type(), this->mutation()) * kSRleak * ( state.var(0,17) - (state.var(0,15)) ) * Vss;
         double JCa, JCass;
-        JCa = -get_BULK_CONST(cell_type, mut_type) * J_bulkSERCA + JSRCaleak3 + Jrel3 + Jj_nj;
-        JCass = -Jj_nj + JSRCaleakss - get_BULK_CONST(cell_type, mut_type) * J_bulkSERCAss + Jrelss;
-
+        JCa = -get_BULK_CONST(state.cell_type(), this->mutation()) * J_bulkSERCA + JSRCaleak3 + Jrel3 + Jj_nj;
+        JCass = -Jj_nj + JSRCaleakss - get_BULK_CONST(state.cell_type(), this->mutation()) * J_bulkSERCAss + Jrelss;
         double JSRCa1, JSRCa2;
         JSRCa1 = J_SERCASR - JSRCaleak3 - Jrel3;
         JSRCa2 = J_SERCASRss - JSRCaleakss - Jrelss;
-
-
-        //====================================================================
         //cai
-        //====================================================================
-        var_ind = cai_index_CNZCell();
-
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - JCa / (Vnonjunct3 * betai * 1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //fca
-        //====================================================================
-        var_ind = fca_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + (node_var(node,Cass_index_CNZCell(),local_ind) / 0.00035)) - node_var(node,var_ind,local_ind) )/(2.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 0.5;
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        // jacobian(var_ind,node_var(node,Cass_index_CNZCell(),local_ind)) += 0.00035/(1 + pow(node_var(node,Cass_index_CNZCell(),local_ind),2.0));
-
-        //====================================================================
-        //itr
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = itr_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm - 1.0)/11.0)) - node_var(node,var_ind,local_ind) ) / ((0.0035 * exp(-(Vm / 15.0)) + 0.0015)*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.0035 * exp(-(Vm / 30.0) * 2.0) + 0.0015);
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-
-        //====================================================================
-        //its
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = its_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + 40.5) / 11.5)) - node_var(node,var_ind,local_ind) ) / ((0.025635 * exp (-(Vm + 52.45) / 7.94135) + 0.01414)*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.025635 * exp (-((Vm + 52.45) / 15.8827) * 2.0) + 0.01414);
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-
-        //====================================================================
-        //isusr
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = isusr_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm + get_IKur_ac_shift(cell_type, mut_type) + 6.0) / (8.6 * get_IKur_ac_grad(cell_type, mut_type)))) - node_var(node,var_ind,local_ind) ) / ((0.009 / (1.0 + exp((Vm + 5.0) / 12.0)) + 0.0005)*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.009 / (1.0 + exp((Vm + 5.0) / 12.0)) + 0.0005);
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-
-        //====================================================================
-        //isuss
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = isuss_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + get_IKur_inac_shift(cell_type,mut_type) + 7.5) / (10.0 * get_IKur_inac_grad(cell_type,mut_type)))) - node_var(node,var_ind,local_ind) ) / ((0.59 / (1.0 + exp((Vm + 60.0) / 10.0)) + 3.05)*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0) + 1.0/(0.59 / (1.0 + exp((Vm + 60.0) / 10.0)) + 3.05);
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //Cass
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = Cass_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - betass * ( JCass / Vss + ((-( get_RyR(cell_type,mut_type) * ICaL) - IbCa - ICap - ICaT + 2 * INaCa - ISAC_Ca)) / (2000.0 * Vss * F) )/1000.0;
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+        residuals[8] += state.var(1,8) - JCa / (Vnonjunct3 * betai * 1000.0);
+        //isusr //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[13] += state.var(1,13) - ( 1.0 / (1.0 + exp(-(state.vm() + get_IKur_ac_shift(state.cell_type(), this->mutation()) + 6.0) / (8.6 * get_IKur_ac_grad(state.cell_type(), this->mutation())))) - state.var(0,13) ) / ((0.009 / (1.0 + exp((state.vm() + 5.0) / 12.0)) + 0.0005)*1000.0);
+        //isuss //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[14] +=state.var(1,14)- ( 1.0 / (1.0 + exp((state.vm() + get_IKur_inac_shift(state.cell_type(),this->mutation()) + 7.5) / (10.0 * get_IKur_inac_grad(state.cell_type(),this->mutation())))) - state.var(0,14) ) / ((0.59 / (1.0 + exp((state.vm() + 60.0) / 10.0)) + 3.05)*1000.0);
+        //Cass //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[15] += state.var(1,15) - betass * ( JCass / Vss + ((-( get_RyR(state.cell_type(),this->mutation()) * state.ical()) - state.ibca() - state.icap() - state.icat() + 2 * state.inaca() - state.isac_ca())) / (2000.0 * Vss * F) )/1000.0;
         //CaSR1
-        //====================================================================
-        var_ind = CaSR1_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] +=    node_var_derivative(node, var_ind, local_ind) - 
-
+        residuals[16] +=    state.var(1,16) - 
                                     betaSR1 *
                                     (
                                         DCaSR *
                                         (
-                                            ( node_var(node,CaSR2_index_CNZCell(),local_ind) - node_var(node,var_ind,local_ind) ) / ( pow(dx,2) )
+                                            ( state.var(0,17) - state.var(0,16) ) / ( pow(dx,2) )
                                             +
-                                            ( node_var(node,var_ind,local_ind) - node_var(node,CaSR2_index_CNZCell(),local_ind) ) / ( 6.0 * pow(dx,2) )
+                                            ( state.var(0,16) - state.var(0,17) ) / ( 6.0 * pow(dx,2) )
                                         )
                                         +
                                         JSRCa1 / VSR3
                                     );
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }   
-        //====================================================================
         //CaSR2
-        //====================================================================
-        var_ind = CaSR2_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] +=    node_var_derivative(node, var_ind, local_ind) -
-
+        residuals[17] +=    state.var(1,17) -
                                     betaSR2 *
                                     (
                                         DCaSR *
                                         (
-                                            ( node_var(node,CaSR1_index_CNZCell(),local_ind) - node_var(node,var_ind,local_ind) ) / ( pow(dx,2) )
+                                            ( state.var(0,16) - state.var(0,17) ) / ( pow(dx,2) )
                                             +
-                                            ( node_var(node,var_ind,local_ind) - node_var(node,CaSR1_index_CNZCell(),local_ind) ) / ( 8.0 * pow(dx,2) )
+                                            ( state.var(0,17) - state.var(0,16) ) / ( 8.0 * pow(dx,2) )
                                         )
                                         +
                                         JSRCa2 / VSR4
                                     );
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        //SERCACa //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[18] += state.var(1,18) - 0.5 * (-J_SERCASR + J_bulkSERCA) / (Vnonjunct3*1000.0);
+        //SERCACass //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[19] += state.var(1,19) - 0.5 * (-J_SERCASRss + J_bulkSERCAss) / (Vss*1000.0);
+        //RyRoss //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[20] += state.var(1,20) - ( RyRoinfss - state.var(0,20) ) / (RyRtauactss*1000.0);
+        //RyRcss //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[21] += state.var(1,21) - ( RyRcinfss - state.var(0,21) ) / (RyRtauinactss*1000.0);
+        //RyRass //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[22] += state.var(1,22) - ( RyRainfss - state.var(0,22) ) / (RyRtauadapt*1000.0);
+        //RyRo3 //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[23] += state.var(1,23) - ( RyRoinf3 - state.var(0,23) ) / (RyRtauact*1000.0);
+        //RyRc3 //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[24] += state.var(1,24) - ( RyRcinf3 - state.var(0,24) ) / (RyRtauinact*1000.0);
+        //RyRa3 //!!!!! 1000.0 in tau is from CNZCell.cpp
+        residuals[25] += state.var(1,25) - ( RyRainf3 - state.var(0,25) ) / (RyRtauadapt*1000.0);
+    }
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //SERCACa
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = SERCACa_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - 0.5 * (-J_SERCASR + J_bulkSERCA) / (Vnonjunct3*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+    //Contains two channel gating variables and potassium and sodium fibrosis concentrations
+    //  and fibrosis transmembrane potential
+    inline void CNZCell::fibrosis_residuals(const CellState &state, Vector<double> &residuals){    
+        //preallocate the tau and inf variables
+        double inf, tau;
+        //rkv
+        inf = (1 / (1 + exp(-(state.var(0,44) + 20 - 25 + FB_Ikv_shift) / 11)));
+        tau = 1000 * (0.0203 + 0.1380 * exp(pow(-((state.var(0,44) + 20) / 25.9), 2)));
+        residuals[40] += state.var(1,40) - (inf - state.var(0,40))/tau;
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //SERCACass
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = SERCACass_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - 0.5 * (-J_SERCASRss + J_bulkSERCAss) / (Vss*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        //skv
+        inf = 1 / (1 + exp((state.var(0,44) + 23 - 25 + FB_Ikv_shift) / 7));
+        tau = 1000 * (1.574 + 5.268 * exp(pow(-((state.var(0,44) + 23) / 22.7), 2)));
+        residuals[41] += state.var(1,41) - (inf - state.var(0,41))/tau;
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //RyRoss
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = RyRoss_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRoinfss - node_var(node,var_ind,local_ind) ) / (RyRtauactss*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        //kif
+        //NO RESIDUAL IN ORIGINAL CNZCell model
+        residuals[42] += state.var(1,42);//state.var(1,42);
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //RyRcss
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = RyRcss_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRcinfss - node_var(node,var_ind,local_ind) ) / (RyRtauinactss*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        //naif
+        //NO RESIDUAL IN ORIGINAL CNZCell model
+        residuals[43] += state.var(1,43);//state.var(1,43);
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //RyRass
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = RyRass_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRainfss - node_var(node,var_ind,local_ind) ) / (RyRtauadapt*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
+        //Vmf
+        residuals[44] += state.var(1,44) + state.ikv() + state.ik1f() /*+ state.inakf()*/ + state.ibnaf() - state.igap()/Cmf;
+        //NO FUNCTON FOR INAKF IN ORIGINAL CODE
+    }
 
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //RyRo3
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = RyRo3_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRoinf3 - node_var(node,var_ind,local_ind) ) / (RyRtauact*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //RyRc3
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = RyRc3_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRcinf3 - node_var(node,var_ind,local_ind) ) / (RyRtauinact*1000.0);
-        //Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //RyRa3
-        //==================================================================== //!!!!! 1000.0 in tau is from CNZCell.cpp
-        var_ind = RyRa3_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( RyRainf3 - node_var(node,var_ind,local_ind) ) / (RyRtauadapt*1000.0);
-        // Populate jacobian
-        if(flag){
-            // jacobian(var_ind,var_ind) += node->time_stepper_pt()->weight(1,0);    //!!!!! COMPLETE THIS
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-
-        //====================================================================
-        //dd
-        //====================================================================
-        var_ind = dd_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm + 37.0) / 6.8)) - node_var(node,var_ind,local_ind) ) * ( 1.0680*exp((Vm + 26.3)/30.0) + 1.0680*exp(-(Vm + 26.3)/30.0) );
-        // //Populate jacobian
-        if(flag){
-            // jacobian(var_ind, var_ind) += 1.0;
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        // //====================================================================
-        // //ff
-        // //====================================================================
-        var_ind = ff_index_CNZCell();
-        //Populate residuals
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + 71.0) / 9.0)) - node_var(node,var_ind,local_ind) ) * ( 0.0153*exp(-(Vm + 71.0)/83.3) + 0.0150*exp((Vm + 71.0)/15.38) );
-        // //Populate jacobian
-        if(flag){
-            // jacobian(var_ind, var_ind) += 1.0;
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        
-        // //====================================================================
-        // //rkv
-        // //====================================================================
-        // var_ind = rkv_index_CNZCell();
-        // //Populate residuals
-        // residuals[local_ind[var_ind]] += 0.0;
-        // //Populate jacobian
-        // // jacobian(var_ind, var_ind) += 1.0;
-
-        // //====================================================================
-        // //skv
-        // //====================================================================
-        // var_ind = skv_index_CNZCell();
-        // //Populate residuals
-        // residuals[local_ind[var_ind]] += 0.0;
-        // //Populate jacobian
-        // // jacobian(var_ind, var_ind) += 1.0;
-
-        // //====================================================================
-        // //kif
-        // //====================================================================
-        // var_ind = kif_index_CNZCell();
-        // //Populate residuals
-        // residuals[local_ind[var_ind]] += 0.0;
-        // //Populate jacobian
-        // // jacobian(var_ind, var_ind) += 1.0;
-
-        // //====================================================================
-        // //naif
-        // //====================================================================
-        // var_ind = naif_index_CNZCell();
-        // //Populate residuals
-        // residuals[local_ind[var_ind]] += 0.0;
-        // //Populate jacobian
-        // // jacobian(var_ind, var_ind) += 1.0;
-
-        // //====================================================================
-        // //Vmf
-        // //====================================================================
-        // var_ind = Vmf_index_CNZCell();
-        // //Populate residuals
-        // residuals[local_ind[var_ind]] += 0.0;
-        // //Populate jacobian
-        // // jacobian(var_ind, var_ind) += 1.0;
-
-        //====================================================================
-        //CNZ_a
-        //====================================================================
-        var_ind = CNZ_a_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp(-(Vm - (-6.0 + get_IKur_Vhchange(cell_type, mut_type) )) / (8.6 * get_IKur_slope(cell_type,mut_type) ))) - node_var(node,var_ind,local_ind) ) / ( ( get_IKur_timeconstants(cell_type,mut_type)*(45.6666746826 / (1.0 + exp((Vm + 11.2306497073) / 11.5254705962)) + 4.26753514993)*(0.262186042981 / (1.0 + exp((Vm + 35.8658312707) / (-3.87510627762))) + 0.291755017928) ) / 3.5308257834747638 );
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //CNZ_i
-        //====================================================================
-        var_ind = CNZ_i_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( (get_IKur_inac_mult(cell_type,mut_type) * 0.52424) / (1.0 + exp((Vm + 15.1142 + get_IKur_inac_shift(cell_type,mut_type) ) / (7.567021 * get_IKur_inac_grad(cell_type,mut_type) ))) + 0.4580778 + get_IKur_inac_add(cell_type,mut_type)  - node_var(node,var_ind,local_ind) ) / ( (2328.0 / (1.0 + exp((Vm - 9.435) / (3.5827))) + 1739.139) / 3.5308257834747638 );
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //If_y
-        //====================================================================
-        var_ind = If_y_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - ( 1.0 / (1.0 + exp((Vm + 90.95 + get_If_vshift(cell_type,mut_type)) / (10.1 * get_If_grad(cell_type,mut_type))) ) - node_var(node,var_ind,local_ind) ) * (1.2783E-04 * exp(-Vm / 9.2424) + 121.6092 * exp(Vm / 9.2424));
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) +=  node->time_stepper_pt()->weight(1,0); 
-        }
-
-        
-        //====================================================================
-        //====================================================================
+    inline void CNZCell::rice_force_model_residuals(const CellState &state, Vector<double> &residuals){
         // BEGIN FORCE MODEL
-        //====================================================================
-        //====================================================================
 
-        //====================================================================
         //Begin calculate variables for force model
         // Copied and only edited for variable names from original CNZCell
-        //====================================================================
         //for readability preallocate the memory for the force variables
-        double N =          node_var(node,rice_N_index_CNZCell(),local_ind);
-        double XBprer =     node_var(node,rice_XBprer_index_CNZCell(),local_ind);
-        double XBpostr =    node_var(node,rice_XBpostr_index_CNZCell(),local_ind);
-        double SL =         node_var(node,rice_SL_index_CNZCell(),local_ind);
-        double xXBpostr =   node_var(node,rice_xXBpostr_index_CNZCell(),local_ind);
-        double xXBprer =    node_var(node,rice_xXBprer_index_CNZCell(),local_ind);
-        double TRPNCaL =    node_var(node,rice_TRPNCaL_index_CNZCell(),local_ind);
-        double TRPNCaH =    node_var(node,rice_TRPNCaH_index_CNZCell(),local_ind);
-        double intf =       node_var(node,intf_index_CNZCell(),local_ind);
-
+        double N =          state.var(0,31);
+        double XBprer =     state.var(0,32);
+        double XBpostr =    state.var(0,33);
+        double SL =         state.var(0,34);
+        double xXBpostr =   state.var(0,35);
+        double xXBprer =    state.var(0,36);
+        double TRPNCaL =    state.var(0,37);
+        double TRPNCaH =    state.var(0,38);
+        double intf =       state.var(0,39);
         //call the resting sarcomma length only once
-        double SLset =      get_SLset(cell_type,mut_type);
-        double SLrest =     get_SLrest(cell_type,mut_type);
-
+        double SLset =      get_SLset(state.cell_type(),this->mutation());
+        double SLrest =     get_SLrest(state.cell_type(),this->mutation());
         double P        = 1 - N - XBprer - XBpostr; //
         //   Compute single overlap fractions
         double sovr_ze   = std::min(len_thick / 2, SL / 2);       //   z-line end
@@ -1254,12 +754,10 @@ namespace oomph{
         double len_sovr  = sovr_ze - sovr_cle;               //   single overlap length
         double SOVFThick = len_sovr * 2 / (len_thick - len_hbare); //   thick filament overlap frac
         double SOVFThin  = len_sovr / len_thin;              //   thin filament overlap frac
-
         //   Compute combined Ca binding to high- (w/XB) and low- (no XB) sites
         double Tropreg = (1 - SOVFThin) * TRPNCaL + SOVFThin * TRPNCaH;
         double permtot = sqrt(1 / (1 + pow((perm50 / Tropreg), nperm)));
         double inprmt = std::min(1.0 / permtot, 100.0);
-
         //   Adjustments for Ca activation, temperature, SL, stress and strain
         double konT    = kon /** pow(Qkon, ((Temp - 310.0) / 10.0))*/;
         double koffLT  = koffL /** pow(Qkoff, ((Temp - 310.0) / 10.0))*/ * koffmod;
@@ -1276,10 +774,9 @@ namespace oomph{
         double gxbmd   = rice_heav(x_0 - xXBpostr) * exp(sigmap * ((x_0 - xXBpostr) / x_0) * ((x_0 - xXBpostr) / x_0))
                          + (1 - rice_heav(x_0 - xXBpostr)) * exp(sigman * (((xXBpostr - x_0) / x_0) * ((xXBpostr - x_0) / x_0)));
         double gxbT    = gxb * gxbmd * xbmodsp /** pow(Qgxb, ((Temp - 310.0) / 10.0))*/;
-
         //   Regulation and corssbridge cycling state derivatives
-        double dTRPNCaL  = konT * node_var(node,cai_index_CNZCell(),local_ind) * (1 - TRPNCaL) - koffLT * TRPNCaL;
-        double dTRPNCaH  = konT * node_var(node,cai_index_CNZCell(),local_ind) * (1 - TRPNCaH) - koffHT * TRPNCaH;
+        double dTRPNCaL  = konT * state.var(0,8) * (1 - TRPNCaL) - koffLT * TRPNCaL;
+        double dTRPNCaH  = konT * state.var(0,8) * (1 - TRPNCaH) - koffHT * TRPNCaH;
         // double dN_NoXB   = -kn_pT * N_NoXB + kp_nT * P_NoXB;
         // double dP_NoXB   = -kp_nT * P_NoXB + kn_pT * N_NoXB;
         double dN        = -kn_pT * N + kp_nT * P;
@@ -1287,7 +784,6 @@ namespace oomph{
         double dXBprer   = fappT * P - gappT * XBprer - hfT * XBprer + hbT * XBpostr;
         double dXBpostr  = hfT * XBprer - hbT * XBpostr - gxbT * XBpostr;
         // double dP        = -(dN + dXBprer + dXBpostr);
-
         //   steady-state fractions in XBprer and XBpostr using King-Altman rule
         double SSXBprer = (hb * fapp + gxb * fapp) / (gxb * hf + fapp * hf + gxb * gapp + hb * fapp + hb * gapp + gxb * fapp);
         double SSXBpostr = fapp * hf / (gxb * hf + fapp * hf + gxb * gapp + hb * fapp + hb * gapp + gxb * fapp);
@@ -1315,21 +811,17 @@ namespace oomph{
                        / (fappT * hfT + gxbT * hfT + gxbT * gappT + hbT * fappT + hbT * gappT + gxbT * fappT);
         double dutypostr = fappT * hfT              //   King-Alman Rule
                        / (fappT * hfT + gxbT * hfT + gxbT * gappT + hbT * fappT + hbT * gappT + gxbT * fappT);
-
         double dxXBprer = dSL / 2.0 + xPsi / dutyprer * (-xXBprer * fappT + (xXBpostr - x_0 - xXBprer) * hbT);
         double dxXBpostr = dSL / 2.0 + xPsi / dutypostr * (x_0 + xXBprer - xXBpostr) * hfT;
-
         //FOR RETURNING dCai_feedback WHICH DOES NOTHING IN THE ORIGINAL CNZCell CODE
         //   Ca buffering by low-affinity troponin C (LTRPNCa)
         double FrSBXB    = (XBpostr + XBprer) / (SSXBpostr + SSXBprer);
         double dFrSBXB   = (dXBpostr + dXBprer) / (SSXBpostr + SSXBprer);
-
         double dsovr_ze  = -dSL / 2.0 * rice_heav(len_thick - SL);
         double dsovr_cle = -dSL / 2.0 * rice_heav((2.0 * len_thin - SL) - len_hbare);
         double dlen_sovr = dsovr_ze - dsovr_cle;
         double dSOVFThin = dlen_sovr / len_thin;
         double dSOVFThick = 2.0 * dlen_sovr / (len_thick - len_hbare);
-
         double TropToT = Trop_conc * ((1 - SOVFThin) * TRPNCaL
                                       + SOVFThin * (FrSBXB * TRPNCaH + (1 - FrSBXB) * TRPNCaL));
         double dTropToT = Trop_conc * (-dSOVFThin * TRPNCaL + (1 - SOVFThin) * dTRPNCaL
@@ -1338,109 +830,108 @@ namespace oomph{
                                                + (1 - FrSBXB) * dTRPNCaL));
         //END FOR RETURNING dCai_feedback WHICH DOES NOTHING IN THE ORIGINAL CNZCell CODE
 
-        //====================================================================
         //rice_N
-        //====================================================================
-        var_ind = rice_N_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dN;
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+        residuals[31] += state.var(1,31) - dN;
         //rice_XBprer
-        //====================================================================
-        var_ind = rice_XBprer_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dXBprer;
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+        residuals[32] += state.var(1,32) - dXBprer;
         //rice_XBpostr
-        //====================================================================
-        var_ind = rice_XBpostr_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dXBpostr;
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+        residuals[33] += state.var(1,33) - dXBpostr;
         //rice_SL
-        //====================================================================
-        var_ind = rice_SL_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dSL;
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+        residuals[34] += state.var(1,34) - dSL;
         //rice_xXBpostr
-        //====================================================================
-        var_ind = rice_xXBpostr_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dxXBpostr;
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+        residuals[35] += state.var(1,35) - dxXBpostr;
         //rice_xXBprer
-        //====================================================================
-        var_ind = rice_xXBprer_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dxXBprer;
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+        residuals[36] += state.var(1,36) - dxXBprer;
         //rice_TRPNCaL
-        //====================================================================
-        var_ind = rice_TRPNCaL_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dTRPNCaL;
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+        residuals[37] += state.var(1,37) - dTRPNCaL;
         //rice_TRPNCaH
-        //====================================================================
-        var_ind = rice_TRPNCaH_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dTRPNCaH;
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
+        residuals[38] += state.var(1,38) - dTRPNCaH;
         //rice_intf
-        //====================================================================
-        var_ind = intf_index_CNZCell();
-
-        residuals[local_ind[var_ind]] += node_var_derivative(node, var_ind, local_ind) - dintf;
-        if(flag){
-
-            // Jacobian is identity
-            jacobian(var_ind, var_ind) += node->time_stepper_pt()->weight(1,0); 
-        }
-        //====================================================================
-        //====================================================================
+        residuals[39] += state.var(1,39) - dintf;
         // END FORCE MODEL
-        //====================================================================
-        //====================================================================
+    }
+
+
+
+    
+
+
+
+
+
+    //====================================================================
+    //====================================================================
+    // Fill in residuals
+    //====================================================================
+    //====================================================================
+    void CNZCell::fill_in_generic_residual_contribution_cell_base(CellState &state,
+                                                                    Vector<double> &residuals,
+                                                                    DenseMatrix<double> &jacobian,
+                                                                    unsigned flag)
+    {   
+        //Calculate reversal potentials
+        ENa_reversal(state);
+        ECa_reversal(state);
+        EK_reversal(state);
+        EKf_reversal(state);
+        Enaf_reversal(state);
+
+        //Calculate channel currents
+        INa_current(state);
+        IKr_current(state);
+        IKs_current(state);
+        ICaL_current(state);
+        IK1_current(state);
+        Iab_current(state);
+        IbK_current(state);
+        IbCa_current(state);
+        IbNa_current(state);
+        ICap_current(state);
+        INaCa_current(state);
+        INaK_current(state);
+        Ito_current(state);
+        IKur_current(state);
+        If_current(state);
+        ICaT_current(state);
+        IGap_current(state);
+
+        IK1f_current(state);
+        IbNaf_current(state);
+        IKv_current(state);
+
+        ISAC_current(state);
+        
+        //Call the channel residual functions
+        INa_current_residual(state, residuals);
+        IKr_current_residual(state, residuals);
+        IKs_current_residual(state, residuals);
+        ICaL_current_residual(state, residuals);
+        IK1_current_residual(state, residuals);
+        Iab_current_residual(state, residuals);
+        IbK_current_residual(state, residuals);
+        IbCa_current_residual(state, residuals);
+        IbNa_current_residual(state, residuals);
+        ICap_current_residual(state, residuals);
+        INaCa_current_residual(state, residuals);
+        INaK_current_residual(state, residuals);
+        Ito_current_residual(state, residuals);
+        IKur_current_residual(state, residuals);
+        If_current_residual(state, residuals);
+        ICaT_current_residual(state, residuals);
+        IGap_current_residual(state, residuals);
+        ISAC_current_residual(state, residuals);
+
+        //Call the fibrosis residual functions
+        fibrosis_residuals(state, residuals);
+
+        //Call the force model residual functions
+        rice_force_model_residuals(state, residuals);
+
+        //Call the current residual functions
+        Ca_i_residual(state, residuals);
+        Na_i_residual(state, residuals);
+        K_i_residual(state, residuals);
+        Calcium_dynamics_residual(state, residuals);
+        
     }
 }

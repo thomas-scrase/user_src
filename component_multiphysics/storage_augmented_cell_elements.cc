@@ -33,6 +33,8 @@ namespace oomph{
 
 			outfile << this->interpolated_membrane_current_CellInterface(s) << " ";
 
+			//output active strain
+			outfile << this->get_interpolated_cell_active_strain(s) << " ";
 
 			// DenseMatrix<double> diffusion_matrix = this->get_interpolated_diffusion_matrix_augmented_cell(s);
 
@@ -196,21 +198,41 @@ namespace oomph{
 	template class PointStorageAugmentedCellElement<3,1>;
 
 
-	template class QStorageAugmentedCellElement<1,40,2>;
-	template class QStorageAugmentedCellElement<1,40,3>;
-	template class QStorageAugmentedCellElement<2,40,2>;
-	template class QStorageAugmentedCellElement<2,40,3>;
-	template class QStorageAugmentedCellElement<3,40,2>;
-	template class QStorageAugmentedCellElement<3,40,3>;
+	template class QStorageAugmentedCellElement<1,45,2>;
+	template class QStorageAugmentedCellElement<1,45,3>;
+	template class QStorageAugmentedCellElement<2,45,2>;
+	template class QStorageAugmentedCellElement<2,45,3>;
+	template class QStorageAugmentedCellElement<3,45,2>;
+	template class QStorageAugmentedCellElement<3,45,3>;
 
-	template class TStorageAugmentedCellElement<1,40,2>;
-	template class TStorageAugmentedCellElement<1,40,3>;
-	template class TStorageAugmentedCellElement<2,40,2>;
-	template class TStorageAugmentedCellElement<2,40,3>;
-	template class TStorageAugmentedCellElement<3,40,2>;
-	template class TStorageAugmentedCellElement<3,40,3>;
+	template class TStorageAugmentedCellElement<1,45,2>;
+	template class TStorageAugmentedCellElement<1,45,3>;
+	template class TStorageAugmentedCellElement<2,45,2>;
+	template class TStorageAugmentedCellElement<2,45,3>;
+	template class TStorageAugmentedCellElement<3,45,2>;
+	template class TStorageAugmentedCellElement<3,45,3>;
 
-	template class PointStorageAugmentedCellElement<1,40>;
-	template class PointStorageAugmentedCellElement<2,40>;
-	template class PointStorageAugmentedCellElement<3,40>;
+	template class PointStorageAugmentedCellElement<1,45>;
+	template class PointStorageAugmentedCellElement<2,45>;
+	template class PointStorageAugmentedCellElement<3,45>;
+
+
+
+	template class QStorageAugmentedCellElement<1,25,2>;
+	template class QStorageAugmentedCellElement<1,25,3>;
+	template class QStorageAugmentedCellElement<2,25,2>;
+	template class QStorageAugmentedCellElement<2,25,3>;
+	template class QStorageAugmentedCellElement<3,25,2>;
+	template class QStorageAugmentedCellElement<3,25,3>;
+
+	template class TStorageAugmentedCellElement<1,25,2>;
+	template class TStorageAugmentedCellElement<1,25,3>;
+	template class TStorageAugmentedCellElement<2,25,2>;
+	template class TStorageAugmentedCellElement<2,25,3>;
+	template class TStorageAugmentedCellElement<3,25,2>;
+	template class TStorageAugmentedCellElement<3,25,3>;
+
+	template class PointStorageAugmentedCellElement<1,25>;
+	template class PointStorageAugmentedCellElement<2,25>;
+	template class PointStorageAugmentedCellElement<3,25>;
 }
