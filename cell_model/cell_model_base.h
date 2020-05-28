@@ -37,6 +37,13 @@ namespace oomph{
 
 		virtual ~CellModelBase()	{}
 
+		//Is the passed cell type compatible with this cell model
+		virtual inline bool compatible_cell_types(const unsigned& cell_type){
+			throw OomphLibError("Cell types compatible with this model have not been defined",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+		}
+
 		virtual inline double active_strain(CellState &state)
 		{
 			std::string error_message =
@@ -79,6 +86,26 @@ namespace oomph{
 
 		void set_mutation_pt(unsigned* mutation_pt_){Mutation_pt = mutation_pt_;}
 
+		//====================================================================
+		//Acess function to dictate initial conditions of cell model to cell
+		//	interface node. Implemented as virutal to be overloaded by each
+		//	cell model. cell_type is provided (with default value of 0) for
+		//	combined cell model to ensure correct cell model initial condition
+		//	is returned. Returns a bool, true if the requested variable number
+		//	is used by the cell model, false if it is not and the variable
+		//	should be pinned
+		//====================================================================
+		inline void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){
+			throw OomphLibError("Initial membrane potential has not been implemented for this cell model yet",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+		}
+		virtual inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type=0){
+			throw OomphLibError("Initial conditions have not been implemented for this cell model yet",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+		}
+
 		
 		//Access functions for request checks
 		const unsigned required_storage() const {return Required_Storage;}
@@ -93,6 +120,8 @@ namespace oomph{
 		bool requires_ab_index() const{return Requires_AB_Index;}
 		bool requires_rv_index() const{return Requires_RV_Index;}
 		bool requires_is_index() const{return Requires_IS_Index;}
+		bool requires_dt() const{return Requires_dt;}
+		bool requires_previous_values() const{return Requires_previous_values;}
 
 		
 		virtual double cm() const {
@@ -124,6 +153,9 @@ namespace oomph{
 		bool Requires_AB_Index; //does the model require ab index
 		bool Requires_RV_Index; //does the model require rv index
 		bool Requires_IS_Index; //does the model require is index
+
+		bool Requires_dt; //does the model use an explicit time-stepping method and hence require the temporal increment
+		bool Requires_previous_values; //does the model require the previous time values of variables? Generally used by explicit time stepping methods
 	};
 
 
@@ -160,6 +192,8 @@ namespace oomph{
 
 		virtual ~ZeroCell()	{}
 
+		bool compatible_cell_types(const unsigned& cell_type){return true;}
+
 		virtual double active_strain(CellState &state) const
 		{
 			return 0.0;
@@ -180,6 +214,18 @@ namespace oomph{
 			residuals[0] += state.var(1,0) + state.var(0,0)*(state.var(0,0)+1.0);
 			if(flag){
 				jacobian(0, 0) += state.time_stepper_weights(1,0) + 2*state.var(0,0)+1.0;
+			}
+		}
+
+		inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type=0){
+			switch(n){
+				case 0 : {
+					v = 1.0;
+					return true;
+				}
+				default : {
+					return false;
+				}
 			}
 		}
 
@@ -215,6 +261,8 @@ namespace oomph{
 		}
 
 		virtual ~FitzHughNagumo()	{}
+
+		bool compatible_cell_types(const unsigned& cell_type){return true;}
 
 		virtual double active_strain(CellState &state) const
 		{
@@ -252,9 +300,206 @@ namespace oomph{
 			}
 		}
 
+		virtual inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type=0){
+			switch(n){
+				case 0 : {
+					v = 0.0;
+					return true;
+				}
+				default : {
+					return false;
+				}
+			}
+		}
+
 		double cm() const {return 1.0;}
 
 		// double const potential_scaling() const {return -77.079842;}
+	};
+
+
+
+
+
+
+
+	//====================================================================
+	//====================================================================
+	//Explicit time-stepping cell model base
+	//	Base for cell models which make explicit time steps, benefits from
+	//	needing to make comparatively few changes to already hard coded cell
+	//	models when compared to a full convert to oomph-lib style computation.
+	//Drawbacks are that benefits of oomph-lib's automatic error computation
+	//	are lost, since an explicit scheme is used, the residual no longer
+	//	represents the error in the solution but instead the difference between
+	//	the value computed by the explicit timestepping function and the current
+	//	value at the node.
+	//====================================================================
+	//====================================================================
+	class ExplicitTimeStepCellModelBase : public CellModelBase
+	{
+	public:
+		//Constructor
+		ExplicitTimeStepCellModelBase(){
+			Requires_dt = true;
+			Requires_previous_values = true;
+		}
+
+		double active_strain(CellState &state)
+		{
+			Vector<double> DummyVector;
+			DummyVector.resize(this->Required_Storage);
+			//Compute the cell model explicit timestep
+			explicit_timestep(state, DummyVector);
+			//Return the calculated cell model strain
+			return state.cell_model_strain();
+		}
+
+		double membrane_current(CellState &state)
+		{
+			Vector<double> DummyVector;
+			DummyVector.resize(this->Required_Storage);
+			//Compute the cell model explicit timestep
+			explicit_timestep(state, DummyVector);
+			//Return the caclulated cell model current
+		   return state.cell_membrane_current();
+		}
+
+		// Calculate the sub residual and sub jacobian objects
+		void fill_in_generic_residual_contribution_cell_base(CellState &state,
+															Vector<double> &residuals,
+															DenseMatrix<double> &jacobian,
+															unsigned flag)
+		{
+			//create vector for the next state of the cell variables
+			Vector<double> new_state;
+			new_state.resize(this->Required_Storage);
+			//calculate the next time values of the cell variables
+			explicit_timestep(state, new_state);
+			//contribute to the residuals: explicit calculated current value - what the node thinks the current value is
+			for(unsigned i=0; i<this->Required_Storage; i++){
+				residuals[i] -= new_state[i] - state.var(0,i);
+			}
+		}
+
+		//The explicit time step taken by the original cell model
+		virtual void explicit_timestep(CellState &state, Vector<double> &new_state){
+			std::string error_message = "Explicit_timestep has not been implemented for this ExplicitTimeStepCellModel type cell model yet\n";
+			error_message += ". In order to use this cell model you must overload this function to a suitably modified version of your cell model time stepper.\n";
+			error_message += "For details on requirements see Thomas M A Scrase PhD Thesis.";
+			throw OomphLibError(error_message,
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+		}
+
+	};
+
+
+
+	//====================================================================
+	//====================================================================
+	//Combined cell model, useful for computations over an entire organ
+	//	i.e. atria computed by CNZ and ventricles by TNNP
+	//	This way multiple cell meshes are not required.
+	//====================================================================
+	//====================================================================
+	template<class CELL_MODEL_1, class CELL_MODEL_2>
+	class CombinedCellModel :	public CELL_MODEL_1,
+								public CELL_MODEL_2
+	{
+	public:
+		CombinedCellModel() :	CELL_MODEL_1(), CELL_MODEL_2()
+		{
+			this->Required_Storage = std::max(CELL_MODEL_1::Required_Storage, CELL_MODEL_2::Required_Storage);
+		}
+
+		//Identify the cell model which is to be used in the subsequent computation:
+		//	by default this function will simply check if the passed cell type compatible
+		//	with both cell models. If it is only compatible with one then return true for
+		//	CELL_MODEL_1, or false for CELL_MODEL_2. If it is compatible with both then
+		//	in DPARANOID throw an error.
+		//	Implemented as virtual so that user defined cell type distributions over
+		//	the cell models can be used
+		//		i.e. both models are of atria type but right atrium is to be computed
+		//		by CELL_MODEL_2 and the rest is to be computed by CELL_MODEL_1
+		virtual inline bool Identify_Correct_Cell_Model(const unsigned& cell_type){
+			#ifdef DPARANOID
+			if(CELL_MODEL_1::compatible_cell_types(cell_type) and CELL_MODEL_2::compatible_cell_types(cell_type)){
+				throw OomphLibError("Cell type is compatible with both cell models, since paranoid is enabled I\n
+									am killing the process. Please use non-overlapping cell models or alternatively redefine this function to\n
+									a user defined cell type distribution",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+			}
+			#endif
+			
+			if(CELL_MODEL_1::compatible_cell_types(cell_type)){
+				return true;
+			}
+			if(CELL_MODEL_2::compatible_cell_types(cell_type)){
+				return false;
+			}
+
+			//if we get here then neither cell model can handle the passed cell type
+			throw OomphLibError("Cell type is not compatible with either cell model",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+
+		}
+
+
+		double active_strain(CellState &state)
+		{
+			if(Identify_Correct_Cell_Model(state.cell_type())){
+				return CELL_MODEL_1::active_strain(state);
+			}
+			else{
+				return CELL_MODEL_2::active_strain(state);
+			}
+		}
+
+		double membrane_current(CellState &state)
+		{
+			if(Identify_Correct_Cell_Model(state.cell_type())){
+				return CELL_MODEL_1::membrane_current(state);
+			}
+			else{
+				return CELL_MODEL_2::membrane_current(state);
+			}
+		}
+
+		// Calculate the sub residual and sub jacobian objects
+		void fill_in_generic_residual_contribution_cell_base(CellState &state,
+															Vector<double> &residuals,
+															DenseMatrix<double> &jacobian,
+															unsigned flag)
+		{
+			if(Identify_Correct_Cell_Model(state.cell_type())){
+				CELL_MODEL_1::fill_in_generic_residual_contribution_cell_base(state,residuals, jacobian, flag);
+			}
+			else{
+				CELL_MODEL_2::fill_in_generic_residual_contribution_cell_base(state,residuals, jacobian, flag);
+			}
+		}
+
+		virtual inline void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){
+			if(Identify_Correct_Cell_Model(cell_type)){
+				CELL_MODEL_1::return_initial_membrane_potential(v, cell_type);
+			}
+			else{
+				CELL_MODEL_2::return_initial_membrane_potential(v, cell_type);
+			}
+		}
+
+		virtual inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type=0){
+			if(Identify_Correct_Cell_Model(cell_type)){
+				return CELL_MODEL_1::return_initial_value(n, v, cell_type);
+			}
+			else{
+				return CELL_MODEL_2::return_initial_value(n, v, cell_type);
+			}
+		}
+
 	};
 
 

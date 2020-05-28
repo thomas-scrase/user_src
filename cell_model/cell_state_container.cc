@@ -67,6 +67,22 @@ namespace oomph{
 	void CellState::set_is_index(const double &new_is_index){IS_index = new_is_index;}
 	double CellState::is_index() const {return IS_index;}
 
+	//dt Value
+	void CellState::set_dt(const double &new_dt){Dt = new_dt;}
+	double CellState::dt() const {return Dt;}
+
+	//Previous values
+	void CellState::set_previous_variables(const Vector<double> &new_previous_variables){
+		for(unsigned i = 0; i < new_previous_variables.size(); i++){
+			Previous_Variables.resize(new_previous_variables.size());
+			Previous_Variables[i] = new_previous_variables[i];
+		}
+	}
+	double CellState::previous_variables(const unsigned &n) const {return Previous_Variables[n];}
+
+
+
+
 	//Currents
 	void CellState::set_ikr_current(const double &new_ikr_current){IKr_current = new_ikr_current;}
 	double CellState::ikr() const {return IKr_current;}
@@ -149,6 +165,8 @@ namespace oomph{
 	void CellState::set_iab_current(const double &new_iab_current){Iab_current = new_iab_current;}
 	double CellState::iab() const {return Iab_current;}
 
+	void CellState::set_cell_membrane_current(const double &new_cell_membrane_current){Cell_Membrane_Current = new_cell_membrane_current;}
+	double CellState::cell_membrane_current() const {return Cell_Membrane_Current;}
 
 	//Reversal potentials
 	void CellState::set_ena(const double &new_ena){ENa = new_ena;}
@@ -168,6 +186,13 @@ namespace oomph{
 
 	void CellState::set_enaf(const double &new_enaf){ENaf = new_enaf;}
 	double CellState::enaf() const {return ENaf;}
+
+	void CellState::set_cell_model_strain(const double &new_cell_model_strain){Cell_Model_Strain = new_cell_model_strain;}
+	double CellState::cell_model_strain() const {return Cell_Model_Strain;}
+	
+
+
+
 	
 	//Force build CellState
 	class CellState;

@@ -81,9 +81,16 @@ namespace oomph{
 		void set_is_index(const double &new_is_index);
 		double is_index() const ;
 
+		//dt Value
+		void set_dt(const double &new_dt);
+		double dt() const ;
 
-		// void set_(const double &new_);
-		// double () const ;
+		//Previous values
+		void set_previous_variables(const Vector<double> &new_previous_variables);
+		double previous_variables(const unsigned &n) const ;
+
+
+		//Things changed by the cell model
 
 		//Currents
 		void set_ikr_current(const double &new_ikr_current);
@@ -167,6 +174,9 @@ namespace oomph{
 		void set_iab_current(const double &new_iab_current);
 		double iab() const ;
 
+		void set_cell_membrane_current(const double &new_cell_membrane_current);
+		double cell_membrane_current() const ;
+
 
 		//Reversal potentials
 		void set_ena(const double &new_ena);
@@ -181,12 +191,14 @@ namespace oomph{
 		void set_eks(const double &new_eks);
 		double eks() const ;
 
-
 		void set_ekf(const double &new_ekf);
 		double ekf() const ;
 
 		void set_enaf(const double &new_enaf);
 		double enaf() const ;
+
+		void set_cell_model_strain(const double &new_cell_model_strain);
+		double cell_model_strain() const ;
 
 
 	private:
@@ -210,6 +222,8 @@ namespace oomph{
 		double AB_index;
 		double RV_index;
 		double IS_index;
+		double Dt;
+		Vector<double> Previous_Variables;
 
 		//Currents
 		double IKr_current;
@@ -244,6 +258,8 @@ namespace oomph{
 
 		double Iab_current;
 
+		double Cell_Membrane_Current;
+
 		//Reversal potentials
 		double ENa;
 		double ECa;
@@ -252,6 +268,8 @@ namespace oomph{
 
 		double EKf;
 		double ENaf;
+
+		double Cell_Model_Strain;
 	};
 }
 

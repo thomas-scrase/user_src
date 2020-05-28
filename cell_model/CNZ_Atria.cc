@@ -932,6 +932,109 @@ namespace oomph{
         Na_i_residual(state, residuals);
         K_i_residual(state, residuals);
         Calcium_dynamics_residual(state, residuals);
-        
     }
+
+    inline void CNZCell::return_initial_membrane_potential(double &v, const unsigned &cell_type){
+        v = -76.079842;
+    }
+
+    inline bool CNZCell::return_initial_value(const unsigned &n, double &v, const unsigned &cell_type){
+        switch(n){
+            case 0 : v = 0.006676; // m
+                    break;
+            case 1 : v = 0.896736; // h
+                    break;
+            case 2 : v = 0.918836; // j
+                    break;
+            case 3 : v = 0.000259; // d
+                    break;
+            case 4 : v = 0.999059; // f
+                    break;
+            case 5 : v = 0.000072; // xr
+                    break;
+            case 6 : v = 0.022846; // xs
+                    break;
+            case 7 : v = 11.170000; // nai
+                    break;
+            case 8 : v = 0.000098;  // Cai
+                    break;
+            case 9 : v = 115.632438; // ki
+                    break;
+            case 10 : v = 0.770253; // fca
+                    break;
+            case 11 : v = 0.000905; // Itr
+                    break;
+            case 12 : v = 0.956638; // Its
+                    break;
+            case 13 : v = 0.000289; // Isusr
+                    break;
+            case 14 : v = 0.998950; // Isuss
+                    break;
+            case 15 : v = 0.000104; // Cass
+                    break;
+            case 16 : v = 0.437859; // CaSR1
+                    break;
+            case 17 : v = 0.434244; // CaSR2
+                    break;
+            case 18 : v = 0.002432; // SERCACa
+                    break;
+            case 19 : v = 0.002443; // SERCACass
+                    break;
+            case 20 : v = 0.000412; // RyRoss
+                    break;
+            case 21 : v = 0.967156; // RyRcss
+                    break;
+            case 22 : v = 0.118222; // RyRass
+                    break;
+            case 23 : v = 0.000365; // RyRo3
+                    break;
+            case 24 : v = 0.977008; // RyRc3
+                    break;
+            case 25 : v = 0.115451; // RyRa3
+                    break;
+            case 26 : v = 0.003182; // dd
+                    break;
+            case 27 : v = 0.637475; // ff
+                    break;
+            case 28 : v = 0; // CNZ_a
+                    break;
+            case 29 : v = 1; // CNZ_i
+                    break;
+            case 30 : v = 0; // if y
+                    break;
+            case 31 : v = 0.97;  // N
+                    break;
+            case 32 : v = 0.01;   // XBprer
+                    break;
+            case 33 : v = 0.01;   // XBpostr
+                    break;
+            case 34 : v = 1.9;   // SL
+                    break;
+            case 35 : v = 0.007;   // xXBpostr
+                    break;
+            case 36 : v = 0.0;   // xXBprer
+                    break;
+            case 37 : v = 0.01447254;   // TropCaL
+                    break;
+            case 38 : v = 0.2320947;   // TropCaH
+                    break;
+            case 39 : v = 0.0;   // intergral of force, normallised
+                    break;
+            // FB data
+            case 40 : v = 0.011694; // rkv
+                    break;
+            case 41 : v = 0.996878; // skv
+                    break;
+            case 42 : v = 129.434900; // kif
+                    break;
+            case 43 : v = 8.554700; // naif
+                    break;
+            case 44 : v = -43.806331; // vmf
+                    break;
+
+            default : return false;
+        }
+        return true;
+    }
+
 }

@@ -118,6 +118,11 @@ namespace oomph{
 															DenseMatrix<double> &jacobian,
 															unsigned flag);
 
+		inline void return_initial_membrane_potential(double &v, const unsigned &cell_type=0);
+
+		//Return the initial condition for the nth variable and cell_typeth cell type
+		inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type=0);
+
 		//The membrane capacitance
 		double cm() const {return Cm;}
 	

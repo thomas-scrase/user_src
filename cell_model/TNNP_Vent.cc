@@ -568,4 +568,67 @@ namespace oomph{
 		Na_i_residual(state, residuals);
 		K_i_residual(state, residuals);
 	}
+
+	inline void TNNPVent::return_initial_membrane_potential(double &v, const unsigned &cell_type){
+		v = -86.2;
+	}
+
+	//Return the initial condition for the nth variable and cell_typeth cell type
+	inline bool TNNPVent::return_initial_value(const unsigned &n, double &v, const unsigned &cell_type){
+		switch(n){
+			case 0 : v = 0.00007;
+					break;
+			case 1 : v = 1.3;
+					break;
+			case 2 : v = 0.00007;
+					break;
+			case 3 : v = 7.67;
+					break;
+		    case 4 : v = 138.3;
+					break;
+		    case 5 : v = 0.0;
+					break;
+		    case 6 : v = 0.75;
+					break;
+		    case 7 : v = 0.75;
+					break;
+		    case 8 : v = 0.0;
+					break;
+		    case 9 : v = 1.0;
+					break;
+		    case 10 : v = 0.0;
+					break;
+		    case 11 : v = 1.0;
+					break;
+		    case 12 : v = 0.0;
+					break;
+		    case 13 : v = 0.0;
+					break;
+		    case 14 : v = 1.0;
+					break;
+		    case 15 : v = 1.0;
+					break;
+		    case 16 : v = 1.0;
+					break;
+		    case 17 : v = 1.0;
+					break;
+		    case 18 : v = 0.0;
+					break;
+		    case 19 : v = 0.0;
+					break;
+		    case 20 : v = 1.0;
+					break;
+		    case 21 : v = 0.0;
+					break;
+		    case 22 : v = 0.0;
+					break;
+		    case 23 : v = 0.0;
+					break;
+		    case 24 : v = 0.0;
+					break;
+			default : return false;
+		}
+		return true;
+	}
+
 }

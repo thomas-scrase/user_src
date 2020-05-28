@@ -10,9 +10,7 @@
 
 //!!!!!
 //REQUIRED ALTERATIONS
-//	Add no_repeated_cells	-	if the entries in the residual corresponding to the current
-//								nodes cell variables, don't run the cell code, just skip it.
-//								how will this be done though?
+//	Add no_repeated_cells
 
 //!!!!! PERHAPS IMPLEMENT THE DIFFUSION COEFFICIENTS IN THE CELL INTERFACE ELEMENTS
 
@@ -183,9 +181,15 @@ namespace oomph
 		//====================================================================
 		//State container filling functions
 		//====================================================================
-		inline double nodal_cell_variable(const unsigned &l, const unsigned &v) const {
-			return nodal_value(l,min_index_CellInterfaceEquations()+v);
+		inline double nodal_cell_variable(const unsigned &t, const unsigned &l, const unsigned &v) const {
+			return nodal_value(t, l, min_index_CellInterfaceEquations()+v);
 		}
+
+		inline double nodal_cell_variable(const unsigned &l, const unsigned &v) const {
+			return nodal_cell_variable(0, l, v);
+			// return nodal_value(l,min_index_CellInterfaceEquations()+v);
+		}
+
 
 		inline double nodal_cell_variable_derivative(const unsigned &l, const unsigned &d, const unsigned &v) const {
 			// Get the data's timestepper
@@ -336,6 +340,25 @@ namespace oomph
 			{return this->internal_data_pt(IS_index_internal_index)->value(n);}
 		}
 
+
+		//====================================================================
+		//====================================================================
+		//Assign initial conditions at nodes from cell model
+		//====================================================================
+		//====================================================================
+		inline void assign_initial_conditions_from_cell_model(){
+			double current_var;
+			for(unsigned n=0; n < this->nnode(); n++){
+				for(unsigned v=0; v<NUM_VARS;v++){
+					if(cell_model_pt()->return_initial_value(v,current_var,get_cell_type_at_node(n))){
+						this->node_pt(n)->set_value(min_index_CellInterfaceEquations() + v, current_var);
+					}
+					else{
+						this->node_pt(n)->pin(min_index_CellInterfaceEquations() + v);
+					}
+				}
+			}
+		}
 		//====================================================================
 		//====================================================================
 		//Fill in data of state container
@@ -406,6 +429,19 @@ namespace oomph
 			//Fill in is index
 			if(cell_model_pt()->requires_is_index()){
 				state.set_is_index(get_is_index_at_node(l));
+			}
+			//Fill in dt
+			if(cell_model_pt()->requires_dt()){
+				state.set_dt(node_pt(l)->time_stepper_pt()->time_pt()->dt(0));
+			}
+			//Fill in previous time variables
+			if(cell_model_pt()->requires_previous_values()){
+				Vector<double> New_previous_values;
+				New_previous_values.resize(cell_model_pt()->required_storage());
+				for(unsigned i=0; i<cell_model_pt()->required_storage();i++){
+					New_previous_values[i] = nodal_cell_variable(1, l, i);
+				}
+				state.set_previous_variables(New_previous_values);
 			}
 		}
 
