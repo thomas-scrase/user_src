@@ -4,26 +4,28 @@
 
 # Define the sources
 sources =  \
-toms_integral.cc \
-diff_augmented_cell_wrapper.cc
+meta_problem_class.cc \
+optimisation_elements.cc
 # Define the headers
 headers =  \
-toms_integral.h \
-diff_augmented_cell_wrapper.h
+meta_problem_class.h \
+trainable_cell_class.h \
+optimisation_elements.h
+
 
 # Define name of library
-libname = toms_utilities
+libname = cell_training
 
 # Combine headers and sources
 headers_and_sources = $(headers) $(sources)
 
 # Define the library that gets placed in lib directory
 #-----------------------------------------------------
-lib_LTLIBRARIES = libtoms_utilities.la
+lib_LTLIBRARIES = libcell_training.la
 
 # Sources that the library depends on: 
 #-------------------------------------
-libtoms_utilities_la_SOURCES = $(headers_and_sources)
+libcell_training_la_SOURCES = $(headers_and_sources)
 
 # The library's include headers:
 #-------------------------------
@@ -33,7 +35,7 @@ libtoms_utilities_la_SOURCES = $(headers_and_sources)
 include_HEADERS = $(libname).h 
 
 #Here's the subdirectory where the actual header files are placed
-library_includedir=$(includedir)/toms_utilities
+library_includedir=$(includedir)/cell_training
 
 #These are the header files that are to be placed in subdirectory
 library_include_HEADERS=$(headers)# $(incl_cc_files) $(templates)

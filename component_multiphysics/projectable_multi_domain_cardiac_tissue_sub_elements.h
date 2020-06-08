@@ -7,14 +7,12 @@
 #endif
 
 //Include the storage_augmented_cell_elements header
-#include "storage_augmented_cell_elements.h"
+#include "diff_augmented_cell_wrapper.h"
 
 //For the custom integration scheme
 #include "../toms_utilities/toms_integral.h"
 
 //Monodomain elements
-// #include "../monodomain/monodomain_elements.h"
-// #include "../monodomain/refineable_monodomain_elements.h"
 #include "../cell_membrane_potential/cell_membrane_potential_elements.h"
 
 //Solid elements for the external solid element for geometric data
@@ -46,14 +44,14 @@ namespace oomph{
 	//	be projected onto it.
 	//Adds storage for membrane current interpolation weights,
 	//	and functions to suitably interpolate it within the element.
-	template<class BASE_MONO_ELEMENT, class EXT_CELL_ELEMENT>
+	template<class BASE_MEMBRANE_POTENTIAL_ELEMENT, class EXT_CELL_ELEMENT>
 	class MonoElementWithExternalInterpolatedMembraneCurrent :
-		public virtual BASE_MONO_ELEMENT,
+		public virtual BASE_MEMBRANE_POTENTIAL_ELEMENT,
 		public virtual ElementWithExternalElement
 	{
 	public:
 		MonoElementWithExternalInterpolatedMembraneCurrent()	:
-		BASE_MONO_ELEMENT()
+		BASE_MEMBRANE_POTENTIAL_ELEMENT()
 		{
 
 			//set the integration scheme to a suitable one which includes integration points at the nodes of the element
@@ -180,12 +178,12 @@ namespace oomph{
 				this->internal_data_pt(Projected_interpolation_weights_membrane_current_index)->pin(l*n_node + l);
 				//get the integral point associated with the node
 				ipt_node = ipt_at_node(l);
-				EXT_CELL_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node));
+				DiffAugmentedCell<EXT_CELL_ELEMENT>* ext_elmt_pt = dynamic_cast<DiffAugmentedCell<EXT_CELL_ELEMENT>*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node));
 				//loop over the other nodes in the element
 				for(unsigned l1=0; l1 < n_node; l1++){
 					//get the external element associated with that node
 					ipt_node_1 = ipt_at_node(l1);
-					EXT_CELL_ELEMENT* ext_elmt_pt_1 = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node_1));
+					DiffAugmentedCell<EXT_CELL_ELEMENT>* ext_elmt_pt_1 = dynamic_cast<DiffAugmentedCell<EXT_CELL_ELEMENT>*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node_1));
 					//If the first node is not associated wtih an external element pin the other nodes weight associated with it
 					if(!ext_elmt_pt){this->internal_data_pt(Projected_interpolation_weights_membrane_current_index)->pin(l1*n_node + l);}
 
@@ -203,7 +201,7 @@ namespace oomph{
 			//get the itegral point of the node
 			unsigned ipt_node = ipt_at_node(n);
 			//The external element the node is within
-			EXT_CELL_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node));
+			DiffAugmentedCell<EXT_CELL_ELEMENT>* ext_elmt_pt = dynamic_cast<DiffAugmentedCell<EXT_CELL_ELEMENT>*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node));
 			//if there is an external element then return the value in that element at that point
 			if(ext_elmt_pt!=0){
 				return ext_elmt_pt->interpolated_membrane_current_CellInterface(external_element_local_coord(external_cell_mesh_interaction_index,ipt_node));
@@ -217,7 +215,7 @@ namespace oomph{
 
 			for(unsigned l=0; l < this->nnode(); l++){
 				ipt_node = ipt_at_node(l);
-				ext_elmt_pt = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node));
+				ext_elmt_pt = dynamic_cast<DiffAugmentedCell<EXT_CELL_ELEMENT>*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node));
 				//if the node we are looping over has no external element or it is this node, skip it.
 				if(l==n  || !ext_elmt_pt)	continue;
 				//otherwise we want to add the external value at this node to our interpolated value
@@ -248,7 +246,7 @@ namespace oomph{
 		//		otherwise we use the itnerpolated value from the nodes and projected nodes
 		inline double external_membrane_current_at_integral_point(const unsigned& ipt) const {
 			//The external element the ipt is within
-			EXT_CELL_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(external_cell_mesh_interaction_index, ipt));
+			DiffAugmentedCell<EXT_CELL_ELEMENT>* ext_elmt_pt = dynamic_cast<DiffAugmentedCell<EXT_CELL_ELEMENT>*>(external_element_pt(external_cell_mesh_interaction_index, ipt));
 			//if there is an external element then return the value in that element at that point
 			if(ext_elmt_pt!=0){
 				return ext_elmt_pt->interpolated_membrane_current_CellInterface(external_element_local_coord(external_cell_mesh_interaction_index,ipt));
@@ -278,9 +276,9 @@ namespace oomph{
 			source = 0.0;
 
 			//Get contribution from source function
-			if(BASE_MONO_ELEMENT::Source_fct_pt!=0){
+			if(BASE_MEMBRANE_POTENTIAL_ELEMENT::Source_fct_pt!=0){
 				//Get source strength
-				(*BASE_MONO_ELEMENT::Source_fct_pt)(x,source);
+				(*BASE_MEMBRANE_POTENTIAL_ELEMENT::Source_fct_pt)(x,source);
 			}
 
 			//add the source from the external cell element at the integral point
@@ -353,7 +351,7 @@ namespace oomph{
 		 			//get the itegral point of the node
 					unsigned ipt_node = ipt_at_node(l);
 					//The external element the node is in
-					EXT_CELL_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node));
+					DiffAugmentedCell<EXT_CELL_ELEMENT>* ext_elmt_pt = dynamic_cast<DiffAugmentedCell<EXT_CELL_ELEMENT>*>(external_element_pt(external_cell_mesh_interaction_index, ipt_node));
 
 		 			//IF THE NODE IS NOT INSIDE AN EXTERNAL ELEMENT THEN IT MUST USE THE PROJECTED REPRESENTATION
 		 			if(ext_elmt_pt==0){
@@ -404,7 +402,7 @@ namespace oomph{
 		{
 		   	//Call the generic residuals function with flag set to 0 and using
 		   	//a dummy matrix
-			BASE_MONO_ELEMENT::fill_in_contribution_to_residuals(residuals);
+			BASE_MEMBRANE_POTENTIAL_ELEMENT::fill_in_contribution_to_residuals(residuals);
 
 			this->residual_for_projection_of_membrane_current(residuals,
 															GeneralisedElement::Dummy_matrix,
@@ -415,7 +413,7 @@ namespace oomph{
 												DenseMatrix<double> &jacobian)
 		{	
 			//Contribution from cell element
-			// BASE_MONO_ELEMENT::fill_in_contribution_to_jacobian(residuals,
+			// BASE_MEMBRANE_POTENTIAL_ELEMENT::fill_in_contribution_to_jacobian(residuals,
 			// 													jacobian);
 			// //Contribution from projecting to solid mesh
 			// this->residual_for_projection_of_membrane_current(residuals,
@@ -444,7 +442,7 @@ namespace oomph{
 	//	be projected onto it.
 	//Adds storage for membrane potential interpolation weights,
 	//	and functions to suitably interpolate it within the element.
-	template<class BASE_CELL_ELEMENT, class EXT_MONO_ELEMENT>
+	template<class BASE_CELL_ELEMENT, class EXT_MEMBRANE_POTENTIAL_ELEMENT>
 	class CellElementWithExternalInterpolatedMembranePotential :
 		public virtual BASE_CELL_ELEMENT,
 		public virtual ElementWithExternalElement
@@ -584,12 +582,12 @@ namespace oomph{
 				this->internal_data_pt(Projected_interpolation_weights_membrane_potential_index)->pin(l*n_node + l);
 				//get the integral point associated with the node
 				ipt_node = ipt_at_node(l);
-				EXT_MONO_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_MONO_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node));
+				EXT_MEMBRANE_POTENTIAL_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_MEMBRANE_POTENTIAL_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node));
 				//loop over the other nodes in the element
 				for(unsigned l1=0; l1 < n_node; l1++){
 					//get the external element associated with that node
 					ipt_node_1 = ipt_at_node(l1);
-					EXT_MONO_ELEMENT* ext_elmt_pt_1 = dynamic_cast<EXT_MONO_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node_1));
+					EXT_MEMBRANE_POTENTIAL_ELEMENT* ext_elmt_pt_1 = dynamic_cast<EXT_MEMBRANE_POTENTIAL_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node_1));
 					//If the first node is not associated wtih an external element pin the other nodes weight associated with it
 					if(!ext_elmt_pt){this->internal_data_pt(Projected_interpolation_weights_membrane_potential_index)->pin(l1*n_node + l);}
 
@@ -608,7 +606,7 @@ namespace oomph{
 			//get the itegral point of the node
 			unsigned ipt_node = ipt_at_node(n);
 			//The external element the node is within
-			EXT_MONO_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_MONO_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node));
+			EXT_MEMBRANE_POTENTIAL_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_MEMBRANE_POTENTIAL_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node));
 			//if there is an external element then return the value in that element at that point
 			if(ext_elmt_pt!=0){
 				return ext_elmt_pt->vm_index_BaseCellMembranePotential(external_element_local_coord(external_mono_mesh_interaction_index,ipt_node));
@@ -622,7 +620,7 @@ namespace oomph{
 
 			for(unsigned l=0; l < this->nnode(); l++){
 				ipt_node = ipt_at_node(l);
-				ext_elmt_pt = dynamic_cast<EXT_MONO_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node));
+				ext_elmt_pt = dynamic_cast<EXT_MEMBRANE_POTENTIAL_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node));
 				//if the node we are looping over has no external element or it is this node, skip it.
 				if(l==n  || !ext_elmt_pt)	continue;
 				//otherwise we want to add the external value at this node to our interpolated value
@@ -739,7 +737,7 @@ namespace oomph{
 		 			//get the itegral point of the node
 					unsigned ipt_node = ipt_at_node(l);
 					//The external element the node is in
-					EXT_MONO_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_MONO_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node));
+					EXT_MEMBRANE_POTENTIAL_ELEMENT* ext_elmt_pt = dynamic_cast<EXT_MEMBRANE_POTENTIAL_ELEMENT*>(external_element_pt(external_mono_mesh_interaction_index, ipt_node));
 
 		 			//IF THE NODE IS NOT INSIDE AN EXTERNAL ELEMENT THEN IT MUST USE THE PROJECTED REPRESENTATION
 		 			if(ext_elmt_pt==0){

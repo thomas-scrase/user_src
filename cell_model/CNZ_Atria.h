@@ -111,6 +111,12 @@ namespace oomph{
 			//Not dividing by the membrane capacitance. I am moving dependence on Cm to the monodomain element
 		}
 
+		virtual inline void custom_output(CellState &state, Vector<double> &output)
+		{
+			//Intentionally does nothing
+			// std::cout << "Calling base cnz custom output" << std::endl;
+		}
+
 		//Fill in the generic residual and jacobian contribution for the cell variables associated with the node passed
 		//	Defined in .cc
 		void fill_in_generic_residual_contribution_cell_base(CellState &state,

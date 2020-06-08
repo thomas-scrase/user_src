@@ -3,6 +3,9 @@
 namespace oomph{
 	CellModelBase::CellModelBase() : Mutation_pt(0)
 	{
+		//Most cell models are too complicated to have an analytic jacobian matrix, exceptions include explicit timestepping models
+		Model_Calculates_Jacobian_Entries = false;
+
 		//set the default values for requests - minimises data transfer for default values while
 		//	keeping most commonly used data
 		Required_Derivatives = 1; //number of required derivatives

@@ -52,7 +52,6 @@ namespace oomph{
 		   throw OomphLibError(error_message,
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
-		   return 0.0;
 		}
 
 		virtual inline double membrane_current(CellState &state)
@@ -63,7 +62,13 @@ namespace oomph{
 		   throw OomphLibError(error_message,
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
-		   return 0.0;
+		}
+
+		virtual inline void custom_output(CellState &state, Vector<double> &output)
+		{
+			throw OomphLibError("Custom output has not been implemented yet for this cell model.",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
 		}
 
 		// Calculate the sub residual and sub jacobian objects
@@ -106,6 +111,7 @@ namespace oomph{
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
 
+		const bool model_calculates_jacobian_entries() const {return Model_Calculates_Jacobian_Entries;}
 		
 		//Access functions for request checks
 		const unsigned required_storage() const {return Required_Storage;}
@@ -130,6 +136,10 @@ namespace oomph{
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
 	protected:
+
+		//Does the cell model calculate entries of the jacobian matrix
+		bool Model_Calculates_Jacobian_Entries;
+
 		//====================================================================
 		//Mutation type
 		//	Used in switch function with the following correspondence:
@@ -203,6 +213,11 @@ namespace oomph{
 		{
 			//zero to not affect the monodomain solution
 			return 1.0;
+		}
+
+		virtual inline void custom_output(CellState &state, Vector<double> &output)
+		{
+			//Intentionally returns nothing
 		}
 
 		void fill_in_generic_residual_contribution_cell_base(CellState &state,
@@ -287,6 +302,11 @@ namespace oomph{
 			return -(potential_forcing_function(state) - state.var(0,0));
 		}
 
+		virtual inline void custom_output(CellState &state, Vector<double> &output)
+		{
+			//Intentionally does nothing
+		}
+
 		void fill_in_generic_residual_contribution_cell_base(CellState &state,
 															Vector<double> &residuals,
 															DenseMatrix<double> &jacobian,
@@ -341,6 +361,8 @@ namespace oomph{
 	public:
 		//Constructor
 		ExplicitTimeStepCellModelBase(){
+			//Jacobian is simply identity
+			Model_Calculates_Jacobian_Entries = true;
 			Requires_dt = true;
 			Requires_previous_values = true;
 		}
@@ -374,12 +396,35 @@ namespace oomph{
 			//create vector for the next state of the cell variables
 			Vector<double> new_state;
 			new_state.resize(this->Required_Storage);
-			//calculate the next time values of the cell variables
-			explicit_timestep(state, new_state);
+			//set new_state = cell variables at previous timestep
+			for(unsigned i=0; i<this->Required_Storage; i++){
+				new_state[i] = state.previous_variables(i);
+			}
+
+			unsigned N = 1;
+			if(state.dt() > intrinsic_dt){
+				//The smallest integer N such that Ndt_new = dt_old and dt_new < dt_intrinsic
+				N = std::floor(state.dt()/intrinsic_dt)+1;
+				//set state dt = dt/N
+				double dt_new = state.dt()/N;
+				state.set_dt(dt_new);
+			}
+
+			//solve the explicit time step problem N times
+			for(unsigned i=0; i<N; i++){
+				//calculate the next time values of the cell variables
+				explicit_timestep(state, new_state);
+			}
+
 			//contribute to the residuals: explicit calculated current value - what the node thinks the current value is
 			for(unsigned i=0; i<this->Required_Storage; i++){
 				residuals[i] -= new_state[i] - state.var(0,i);
+				//Contribution to jacobian is just identity since new_state[i] is not dependent on the current state in time, but the previous one
+				if(flag){
+					jacobian(i,i) = 1.0;
+				}
 			}
+
 		}
 
 		//The explicit time step taken by the original cell model
@@ -391,6 +436,12 @@ namespace oomph{
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
+
+	protected:
+		//The largest dt which ensures convergence of the method,
+		//	must be implemented by the user who defined the cell
+		//	model
+		double intrinsic_dt;
 
 	};
 
@@ -465,6 +516,16 @@ namespace oomph{
 			}
 			else{
 				return CELL_MODEL_2::membrane_current(state);
+			}
+		}
+
+		virtual inline void custom_output(CellState &state, Vector<double> &output)
+		{
+			if(Identify_Correct_Cell_Model(state.cell_type())){
+				CELL_MODEL_1::custom_output(state, output);
+			}
+			else{
+				CELL_MODEL_2::custom_output(state, output);
 			}
 		}
 

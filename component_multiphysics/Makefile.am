@@ -3,12 +3,10 @@
 #-----------------------
 
 # Define the sources
-sources = \
-	storage_augmented_cell_elements.cc
+sources = multi_domain_cardiac_tissue_sub_elements.cc
 	
 # Define the headers
 headers = \
-	storage_augmented_cell_elements.h \
 	multi_domain_cardiac_tissue_sub_elements.h \
 	projectable_multi_domain_cardiac_tissue_sub_elements.h
 

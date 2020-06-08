@@ -2,15 +2,15 @@
 
 namespace oomph
 {
-
+	//Only ever output 2 nplot points
 	template <unsigned DIM, unsigned NUM_VARS>
 	void CellInterfaceEquations<DIM, NUM_VARS>::output(std::ostream &outfile, const unsigned &nplot){
-		// std::cout << "Entered output" << std::endl;
+		// std::cout << "BOOM" << std::endl;
 		//Vector of local coordinates
  		Vector<double> s(DIM);
 
 		//Tecplot header info
- 		outfile << tecplot_zone_string(nplot);
+ 		outfile << tecplot_zone_string(2);
 
  		//Get the number of nodes
  		const unsigned n_node = this->nnode();
@@ -18,10 +18,9 @@ namespace oomph
  		//Preallocate the shape function
  		Shape psi(n_node);
 
-		unsigned num_plot_points=nplot_points(nplot);
- 		for (unsigned iplot=0;iplot<num_plot_points;iplot++){
+ 		for(unsigned l=0; l<n_node; l++){
  			//Get local coordinates of plot point
- 			get_s_plot(iplot,nplot,s);
+ 			local_coordinate_of_node(l,s);
 
  			//Get Eulerian coordinate of plot point
 			Vector<double> x(DIM);
@@ -33,7 +32,16 @@ namespace oomph
 			//Get the shape function
 			(void)this->shape(s,psi);
 
+			// outfile << nodal_vm(l) << " ";
+
 			outfile << interpolated_membrane_current_CellInterface(s) << " ";
+
+			Vector<double> custom_output;
+			get_nodal_cell_custom_output(l, custom_output);
+
+			for(unsigned i=0; i<custom_output.size(); i++){
+				outfile << custom_output[i] << " ";
+			}
 
 			//output active strain
 			outfile << get_interpolated_cell_active_strain(s) << " ";
@@ -135,10 +143,10 @@ namespace oomph
 
 
 					if(flag){
-						// for(unsigned var1=0; var1<cell_model_pt()->Required_storage(); var1++){
-						// 	jacobian(local_eqn[var], local_eqn[var1]) += jacobian_sub(var, var1);
-						// }
-						jacobian(local_eqn[var], local_eqn[var]) += jacobian_sub(var, var);
+						for(unsigned var1=0; var1<cell_model_pt()->required_storage(); var1++){
+							jacobian(local_eqn[var], local_eqn[var1]) += jacobian_sub(var, var1);
+						}
+						// jacobian(local_eqn[var], local_eqn[var]) += jacobian_sub(var, var);
 					}
 				}
 			}

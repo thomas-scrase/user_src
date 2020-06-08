@@ -112,13 +112,6 @@ namespace oomph{
 		double GKs_ABh = 1.0;
 		GKs_ABh          =  1.0 -  (state.ab_index() - A) * x;   // Apical Cells: 1.0; Basal Cells: 2.1/5.6
 		state.set_iks_current(GKs_ABh * get_Gks(state) * state.var(0,10) * state.var(0,10) * (state.vm() - state.eks()));  // with apicalbasal heterogeneity wit direct scaling factor, by haibo
-		
-		// std::cout << "IKs current " << state.iks() << std::endl;
-		// std::cout << "\tGKs_ABh " << GKs_ABh << std::endl;
-		// std::cout << "\tget_GKs " << get_Gks(state) << std::endl;
-		// std::cout << "\tstate.var(0,10) " << state.var(0,10) << std::endl;	
-		// std::cout << "\tstate.vm() " << state.vm() << std::endl;
-		// std::cout << "\tstate.eks() " << state.eks() << std::endl;
 	}
 
 	void TNNPVent::IK1_current( CellState &state) 

@@ -12,8 +12,6 @@
 //REQUIRED ALTERATIONS
 //	Add no_repeated_cells
 
-//!!!!! PERHAPS IMPLEMENT THE DIFFUSION COEFFICIENTS IN THE CELL INTERFACE ELEMENTS
-
 //Header file for CellInterface elements
 #ifndef OOMPH_CELL_INTERFACE
 #define OOMPH_CELL_INTERFACE
@@ -469,8 +467,6 @@ namespace oomph
 		/// n_plot^DIM plot points
 		void output(FILE* file_pt, const unsigned &n_plot);
 
-
-
 		//====================================================================
 		//Access functions
 		//====================================================================
@@ -622,24 +618,14 @@ namespace oomph
 		                                   DenseMatrix<double> &jacobian)
 		{
 
-			// this->fill_in_contribution_to_residuals(residuals);
-			//Call the generic routine with the flag set to 1
-			// fill_in_generic_residual_contribution_cell_interface(residuals,jacobian,GeneralisedElement::Dummy_matrix,1);
-			// DenseMatrix<double> temp_jacobian(jacobian.nrow());
-			// FiniteElement::fill_in_contribution_to_jacobian(residuals,temp_jacobian);
-
-			// const unsigned n_node = nnode();
-			// for(unsigned l=0;l<n_node;l++){
-			// 	Vector<int> local_eqn(cell_model_pt()->Required_storage());
-			// 	for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
-			// 		local_eqn[var] = nodal_local_eqn(l, min_index_CellInterfaceEquations() + var);
-
-			// 		if(local_eqn[var]>=0){
-			// 			jacobian(local_eqn[var], local_eqn[var]) += temp_jacobian(local_eqn[var], local_eqn[var]);
-			// 		}
-			// 	}
-			// }
-			FiniteElement::fill_in_contribution_to_jacobian(residuals,jacobian);
+			if(cell_model_pt()->model_calculates_jacobian_entries()){
+				//if the cell model is capable, allow it to calculate the jacobian
+				fill_in_generic_residual_contribution_cell_interface(residuals,jacobian,GeneralisedElement::Dummy_matrix,1);
+			}
+			else{
+				//Otherwise perform fill in procedure using finite differencing
+				FiniteElement::fill_in_contribution_to_jacobian(residuals,jacobian);
+			}
 		}
 
 		/// Add the element's contribution to its residuals vector,
@@ -655,11 +641,10 @@ namespace oomph
 
 
 		//====================================================================
-		//Interpolated total membrane current
+		//Interpolated active strain
 		//====================================================================
 		inline double get_interpolated_cell_active_strain(const Vector<double> &s) const
 		{
-			// std::cout << "in get_interpolated_cell_active_strain" << std::endl;
 			//number of nodes in the element
 			unsigned n_node = nnode();
 			//The local and global coordinates of the node being considered
@@ -686,25 +671,27 @@ namespace oomph
 			return interpolated_active_strain;
 		}
 
+		//====================================================================
+		//Nodal cell model custom output
+		//====================================================================
+		inline void get_nodal_cell_custom_output(const unsigned &l, Vector<double> &output) const
+		{
+			CellState state;
+
+			fill_state_container_at_node(state, l);
+
+			cell_model_pt()->custom_output(state,output);
+		}
+
 		//return the membrane current at the nth node
 		inline double membrane_current_at_node_CellInterface(const unsigned &l) const
 		{
-			// std::cout << "in membrane_current_at_node_CellInterface" << std::endl;
 			double nodal_membrane_current = 0.0;
 
 			//Construct the state container
 			CellState state;
 
 			fill_state_container_at_node(state, l);
-
-			// std::cout << "Filled in container" << std::endl;
-			for(unsigned v = 0; v < cell_model_pt()->required_storage(); v++){
-				for(unsigned d = 0; d < cell_model_pt()->required_derivatives()+1; d++){
-					// std::cout << "deriv " << d << " of var " << v << " " << state.var(d,v) << std::endl;
-				}
-			}
-
-			// std:: cout << "vm in state " << state.vm() << std::endl;
 
 			//Add nodal contribution to interpolated current
 			nodal_membrane_current += cell_model_pt()->membrane_current(state);
