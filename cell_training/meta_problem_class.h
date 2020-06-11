@@ -6,93 +6,100 @@
 	#include <oomph-lib-config.h>
 #endif
 
+//includes for making directories
+#include <iostream>
+#include <stdio.h>
+// #include <io.h>
+
 #include "../generic/problem.h"
 #include "../meshes/one_d_mesh.h"
 
-#include "../cell_model/cell_model.h"
-#include "trainable_cell_class.h"
+#include "trainable_element.h"
 
 #include "sub_problem_class.h"
 
+//MetaProblemBase is in here
 #include "optimisation_elements.h"
 
+//for sorting vector by index
+#include <numeric>
+#include <algorithm>
+
 namespace oomph{
+
+	//JacobianMetaProblem is broken, will probably be removed shortly
+
 	//Uses oomph lib residual and jacobian fill in to optimise the cell parameters
 	//	Benefits from improved convergence
 	//	Drawbacks that problem is easy to make singular
-	class JacobianMetaProblem : public Problem
-	{
-	public:
-		JacobianMetaProblem(){
-			//Make our one and only optimisation mesh
-			OptimisationMeshPt = new OneDMesh<QOptimisationElement>(1,1.0);
-		}
+	// class JacobianMetaProblem : public Problem
+	// {
+	// public:
+	// 	JacobianMetaProblem(){
+	// 		//Make our one and only optimisation mesh
+	// 		OptimisationMeshPt = new OneDMesh<QOptimisationElement>(1,1.0);
+	// 		//create the meta problem directory
+	// 		current_iter=0;
+	// 		Number_Of_Sub_Problems = 0;
+	// 	}
 
-		~JacobianMetaProblem(){
-			delete OptimisationMeshPt;
-			//delete the sub problems
-			for(unsigned i=0; i<Number_Of_Sub_Problems; i++){
-				delete Sub_Problem_Pts[i];
-			}
-		}
+	// 	~JacobianMetaProblem(){
+	// 		delete OptimisationMeshPt;
+	// 		//delete the sub problems
+	// 		for(unsigned i=0; i<Number_Of_Sub_Problems; i++){
+	// 			delete Sub_Problem_Pts[i];
+	// 		}
+	// 	}
 
-		void setup_optimisation(const unsigned &n_values);
+	// 	void setup_optimisation(const unsigned &n_values);
 
-		//Communicator with the optimisation element
-		void communicate_sub_problem_error_to_optimisation_element(Vector<double> &residual);
+	// 	//Communicator with the optimisation element
+	// 	void communicate_sub_problem_error_to_optimisation_element(Vector<double> &residual);
 
-		//Add a sub problem 
-		void add_sub_problem_pt(SubProblem* sub_prob_pt);
+	// 	//Add a sub problem 
+	// 	void add_sub_problem_pt(SubProblem* sub_prob_pt);
 
-		//Assign cell model pt to sub problems
-		void pass_cell_model_pt_to_sub_problems();
+	// 	//Assign cell model pt to sub problems
+	// 	void pass_cell_model_pt_to_sub_problems();
 
-		//Actions before newton solve
-		void actions_before_newton_solve();
+	// 	//Actions before newton solve
+	// 	void actions_before_newton_solve();
 
-		OptimisationEquations* optimisation_equation_pt(){return dynamic_cast<OptimisationEquations*>(OptimisationMeshPt->element_pt(0));}
+	// 	//After a solve we want to record the current variables and performance etc so we do that
+	// 	void actions_after_newton_solve();
 
-		//return a const pointer to our private cell model
-		CellModelBase* cell_model_pt() const {return Cell_Model_Pt;}
-
-		//return a non-const pointer to our private cell model (i.e. for setting it)
-		CellModelBase* cell_model_pt() {return Cell_Model_Pt;}
-
-		//send inform the optimisation elements if and how to calculate the cost due to
-		//	variables lying outside of a range
-		//Flag, add range of Internal_Data_Pt values to the residual
-		void send_add_internal_data_range_to_optimisation_elements();
-		//The Mean of the internal data
-		void send_internal_data_mean_to_optimisation_elements();
-		//The permitted range aroung the mean value
-		void send_internal_data_percentage_range_to_optimisation_elements();
-
-	protected:
-		//Our one and only optimisation mesh
-		OneDMesh<QOptimisationElement>* OptimisationMeshPt;
-
-	private:
-
-		unsigned N_Variables;
-
-		Vector<SubProblem*> Sub_Problem_Pts;
-
-		unsigned Number_Of_Sub_Problems;
-
-		Vector<double> Sub_Problem_Error;
-
-		CellModelBase* Cell_Model_Pt;
+	// 	OptimisationEquations* optimisation_equation_pt(){return dynamic_cast<OptimisationEquations*>(OptimisationMeshPt->element_pt(0));}
 
 
-		//inform the optimisation elements if and how to calculate the cost due to
-		//	variables lying outside of a range
-		//Flag, add range of Internal_Data_Pt values to the residual
-		std::vector<bool> Add_Internal_Data_Range;
-		//The Mean of the internal data
-		Vector<double> Internal_Data_Mean;
-		//The permitted range aroung the mean value
-		Vector<double> Internal_Data_Percentage_Range;
-	};
+	// protected:
+
+	// private:
+
+	// 	//add dependent element
+	// 	void add_trainable_element_as_dependent(TrainableElement* dependent_element);
+
+	// 	//add all trainable elements from a particular problem as dependent elements
+	// 	void add_all_trainable_elements_as_dependents(Problem* problem_pt);		
+
+	// 	//send a particular optimisation element to all dependent trainable elements
+	// 	void push_optimisation_element_to_dependent_elements(OptimisationEquations &node);
+
+
+	// 	//Our one and only optimisation mesh
+	// 	OneDMesh<QOptimisationElement>* OptimisationMeshPt;
+
+	// 	unsigned current_iter;
+
+	// 	unsigned N_Variables;
+
+	// 	Vector<SubProblem*> Sub_Problem_Pts;
+
+	// 	unsigned Number_Of_Sub_Problems;
+
+	// 	Vector<double> Sub_Problem_Error;
+
+	// 	Vector<TrainableElement*> Dependent_Elements;
+	// };
 
 
 
@@ -104,48 +111,59 @@ namespace oomph{
 	//	Benefits from improved efficiency
 	//	Drawbacks: does not use oomph lib problem class so cannot use
 	//		automatic convergence checking and error checks etc
-	class NelderMeadMetaProblemClass
+	class NelderMeadMetaProblemClass : public Problem,
+									public MetaProblemBase
 	{
 	public:
 
-		NelderMeadMetaProblemClass(){}
+		NelderMeadMetaProblemClass(){
+			current_iter = 0;
+			Number_Of_Sub_Problems = 0;
+		}
 
 		~NelderMeadMetaProblemClass();
 
 		//Setup the simplex, construct n+1 optimisation equations each with n internal data
 		void setup_optimisation(const unsigned &n_values);
 
+		virtual void set_initial_simplex(const Vector<double>& min_values, const Vector<double>& max_values);
+
+		//run the nelder-mead simplex algorithm until convergence
+		void run_algorithm(std::ostream &outfile);
+
 		//Add a sub problem 
 		void add_sub_problem_pt(SubProblem* sub_prob_pt);
 
-		//Assign cell model pt to sub problems
-		void pass_cell_model_pt_to_sub_problems();
+		//report on the nodes
+		void output(const unsigned &iteration, std::ostream &outfile);
 
-		//return a const pointer to our private cell model
-		CellModelBase* cell_model_pt() const {return Cell_Model_Pt;}
+		double n_variables() const {return N_Variables;}
 
-		//return a non-const pointer to our private cell model (i.e. for setting it)
-		CellModelBase* cell_model_pt() {return Cell_Model_Pt;}
+		void get_sub_problem_contribution_to_node(OptimisationEquations &node, Vector<double> &contribution);
 
-		//send inform the optimisation elements if and how to calculate the cost due to
-		//	variables lying outside of a range
-		//Flag, add range of Internal_Data_Pt values to the residual
-		void send_add_internal_data_range_to_optimisation_elements();
-		//The Mean of the internal data
-		void send_internal_data_mean_to_optimisation_elements();
-		//The permitted range aroung the mean value
-		void send_internal_data_percentage_range_to_optimisation_elements();
+		//get the cost incurred by the values of the variables in the optimisation element passed
+		//used as VariableValuesContribution for the optimisation elements
+		virtual void get_cost_of_variables(OptimisationEquations &optimisation_equations, Vector<double> &costs);
+
 
 	protected:
 
 
+
 	private:
 
-		//run the nelder-mead simplex algorithm until convergence
-		void run_algorithm();
+		OptimisationEquations* simplex_node(const unsigned &n){return Simplex_nodes[n];}
 
-		//perform one iteration of the nelder mead simplex algorithm
-		//void perform_nelder_mead_simplex_iteration(double& total_error);
+		//add dependent element
+		void add_trainable_element_as_dependent(TrainableElement* dependent_element);
+
+		//add all trainable elements from all sub problems
+		void add_all_trainable_elements_from_sub_problems_as_dependents();	
+
+		// void send_contribution_functions_as_pointers_to_optimisation_elements();
+
+		//send a particular optimisation element to all dependent trainable elements
+		void push_optimisation_element_to_dependent_elements(OptimisationEquations &node);
 
 		void evaluate_quality_of_simplex(Vector<double>& node_qualities);
 
@@ -166,6 +184,7 @@ namespace oomph{
 		void shrink_node(OptimisationEquations &node, OptimisationEquations &x0);
 		void replace_node(OptimisationEquations &node, OptimisationEquations &replacement_node);
 
+		unsigned current_iter;
 
 		//Optimisation equations used as a container for each node of the simplex
 		//	used so that only one extra cell model base is needed
@@ -179,24 +198,13 @@ namespace oomph{
 
 		Vector<double> Sub_Problem_Error;
 
-		CellModelBase* Cell_Model_Pt;
-
+		Vector<TrainableElement*> Dependent_Elements;
 
 		//Parameters for operation of the simplex algorithm
 		double alpha = 1.0;
 		double gamma = 2.0;
 		double rho = 0.5;
 		double sigma = 0.5;
-
-
-		//inform the optimisation elements if and how to calculate the cost due to
-		//	variables lying outside of a range
-		//Flag, add range of Internal_Data_Pt values to the residual
-		std::vector<bool> Add_Internal_Data_Range;
-		//The Mean of the internal data
-		Vector<double> Internal_Data_Mean;
-		//The permitted range aroung the mean value
-		Vector<double> Internal_Data_Percentage_Range;
 	};
 
 }//end namespace

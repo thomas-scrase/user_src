@@ -9,8 +9,9 @@ optimisation_elements.cc
 # Define the headers
 headers =  \
 meta_problem_class.h \
-trainable_cell_class.h \
-optimisation_elements.h
+trainable_element.h \
+optimisation_elements.h \
+sub_problem_class.h
 
 
 # Define name of library

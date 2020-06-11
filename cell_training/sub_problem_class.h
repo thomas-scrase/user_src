@@ -18,7 +18,8 @@
 
 #include "../generic/problem.h"
 
-#include "../cell_model/cell_model.h"
+#include "trainable_element.h"
+
 
 namespace oomph{
 	class SubProblem	:	public Problem
@@ -30,18 +31,91 @@ namespace oomph{
 		//Perform the simulation the problem is designed to do,
 		// compare result to experimental_data and return
 		// comparrison
-		double run();
+		virtual double run(){
+			throw OomphLibError("run has not been implemented for sub problem yet\nYour implementation must ensure the problem is reset completely before beign re-run.\nIt is also stressed that find_all_trainable_elements() should be called for this element before\nthe coordinator problem locates all dependent elements",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+		}
 
-		void assign_cell_model_pt(CellModelBase* new_cell_model_pt){
-			Cell_Model_Pt = new_cell_model_pt;
+		//return a vector of pointers to elements within this problem with the trainable element
+		void get_all_trainable_elements(Vector<TrainableElement*> &trainable_elements){
+			// std::cout << "get_all_trainable_elements" << std::endl;
+			// std::cout << "this " << this << std::endl;
+			// std::cout << "Problem_Trainable_Elements size " << Problem_Trainable_Elements.size() << std::endl;
+				
+			//add all non-global mesh trainable elements to the vector
+			for(unsigned i=0; i<Problem_Trainable_Elements.size(); i++){
+				trainable_elements.push_back(Problem_Trainable_Elements[i]);
+			}
+
+			//get the trainable elements from the global mesh
+			Vector<TrainableElement*> trainable_elements_from_global_mesh;
+			find_all_trainable_elements_in_global_mesh(trainable_elements_from_global_mesh);
+			for(unsigned i=0; i<trainable_elements_from_global_mesh.size(); i++){
+				trainable_elements.push_back(trainable_elements_from_global_mesh[i]);
+			}
+
+			// for(unsigned i=0; i<trainable_elements.size(); i++){
+			// 	std::cout << "trainable_elements[" << i << "] " << trainable_elements[i] << std::endl;
+			// }
+
+			// std::cout << "trainable_elements size " << trainable_elements.size() << std::endl;
 		}
 
 	protected:
 
-		CellModelBase* Cell_Model_Pt;
+		void add_trainable_element(TrainableElement* candidate_element_pt){
+			Problem_Trainable_Elements.push_back(candidate_element_pt);
+		}
 
 	private:
 
+		//a helper function intended to be used within find_all_trainable_elements() to
+		//	automatically get all trainable elements found inside the global mesh
+		void find_all_trainable_elements_in_global_mesh(Vector<TrainableElement*> &trainable_elements_from_global_mesh){
+			//get the global mesh
+			Mesh* mesh_pt = this->mesh_pt();
+			//if there is no global mesh then return
+			if(mesh_pt==NULL){return;}
+			//get the number of elements in the mesh
+			unsigned n_element = mesh_pt->nelement();
+			//loop over them
+			for(unsigned e=0; e<n_element; e++){
+				//attempt to cast the element to a trainable element
+				TrainableElement* candidate_element_pt = dynamic_cast<TrainableElement*>(mesh_pt->element_pt(e));
+				//if the cast was successfull
+				if(candidate_element_pt!=NULL){
+					// //add the element as a dependent element
+					// //make a backup
+					// Vector<TrainableElement*> temp_dependent_elements(trainable_elements_from_global_mesh.size());
+					// for(unsigned i=0; i<trainable_elements_from_global_mesh.size(); i++){
+					// 	temp_dependent_elements[i] = trainable_elements_from_global_mesh[i];
+					// }
+					// //resize the trainable_elements_from_global_mesh vector to fit the new element
+					// trainable_elements_from_global_mesh.resize(trainable_elements_from_global_mesh.size()+1);
+					// //copy from the backup to the original
+					// for(unsigned i=0; i<temp_dependent_elements.size(); i++){
+					// 	trainable_elements_from_global_mesh[i] = temp_dependent_elements[i];
+					// }
+					// //add the new element
+					// trainable_elements_from_global_mesh[temp_dependent_elements.size()] = candidate_element_pt;
+					trainable_elements_from_global_mesh.push_back(candidate_element_pt);
+				}
+			}
+		}
+
+		// //finds all elements in this problem which can be cast to TrainableElement, implemented
+		// //	as broken to ensure each sub problem is set up correctly.
+		// void find_all_trainable_elements(){
+		// 	throw OomphLibError("find_all_trainable_elements has not been implemented for sub problem yet.",
+		// 						OOMPH_CURRENT_FUNCTION,
+		// 						OOMPH_EXCEPTION_LOCATION);
+		// }
+
+		//all trainable elemnts which are not in the global mesh
+		Vector<TrainableElement*> Problem_Trainable_Elements;
+
+		
 	};
 
 }//end namespace

@@ -23,7 +23,39 @@
 #include "../generic/Telements.h"
 #include "../generic/error_estimator.h"
 
+
 namespace oomph{
+
+	//forward declare OptimisationEquations so that MetaProblemBase can be defined
+	class OptimisationEquations;
+
+	//I exist solely to remove circular dependency, OptimisationEquations require these two functions but if
+	//	they have a pointer to NelderMeadProblemClass then it's a pain to compile becase NelderMeadProblemClass
+	//	contains references to OptimisationEquations
+	//Implemented as borken to ensure these functions are overloaded
+	class MetaProblemBase
+	{
+	public:
+
+		MetaProblemBase(){}
+
+
+		virtual void get_sub_problem_contribution_to_node(OptimisationEquations &node, Vector<double> &contribution){
+			throw OomphLibError("get_sub_problem_contribution_to_node has been called but not defined, this should never happen",
+						OOMPH_CURRENT_FUNCTION,
+						OOMPH_EXCEPTION_LOCATION);
+		}
+
+		//get the cost incurred by the values of the variables in the optimisation element passed
+		//used as VariableValuesContribution for the optimisation elements
+		virtual void get_cost_of_variables(OptimisationEquations &optimisation_equations, Vector<double> &costs){
+			throw OomphLibError("get_cost_of_variables has been called but not defined, this should never happen",
+						OOMPH_CURRENT_FUNCTION,
+						OOMPH_EXCEPTION_LOCATION);
+		}
+	};
+
+
 
 	#define opt_heav(a) ((a) < (0.) ? (0.0) : (1.0))
 
@@ -31,9 +63,9 @@ namespace oomph{
 	{
 	public:
 
-		typedef void (*ResidualContributionFromExternalSourceFctPt) (Vector<double> &residual);
-
-		OptimisationEquations()	{	}
+		OptimisationEquations(MetaProblemBase* owner_problem_pt) : 	OwnerProblemPt(owner_problem_pt),
+																	Internal_Data_Pt(0),
+																	N_Internal_Data(0)	{	}
 
 		/// Broken copy constructor
 		OptimisationEquations(const OptimisationEquations& dummy){ 
@@ -49,47 +81,32 @@ namespace oomph{
 		inline unsigned required_nvalue(const unsigned &n) const {return 0;}
 
 		void create_internal_data(const unsigned &n_data){
+			// std::cout << "create_internal_data" << std::endl;
 			Internal_Data_Pt = this->add_internal_data(new Data(n_data), true);
 			N_Internal_Data = n_data;
-
-			//Resize the bools and mean and relative errors used to calculate contribution to the residual from dof value
-			Add_Internal_Data_Range.resize(N_Internal_Data);
-			Internal_Data_Mean.resize(N_Internal_Data);
-			Internal_Data_Percentage_Range.resize(N_Internal_Data);
-
-			for(unsigned i=0; i<Add_Internal_Data_Range.size(); i++){
-				//Default bools to false
-				Add_Internal_Data_Range[i] = false;
-				//Default means to zero
-				Internal_Data_Mean[i] = 0.0;
-				//Default percentage range to zero
-				Internal_Data_Percentage_Range[i] = 0.0;
-			}
+			// std::cout << this << N_Internal_Data << std::endl;
 		}
 
 		//return the ith internal data value
 		double get_internal_data(const unsigned &i){
 			return this->internal_data_pt(Internal_Data_Pt)->value(i);
 		}
-
-		void set_internal_data(const unsigned &i, double &value){
+		//set the ith internal data value
+		void set_internal_data(const unsigned &i, const double &value){
 			this->internal_data_pt(Internal_Data_Pt)->set_value(i, value);
 		}
-
-		inline void turn_on_relative_error_contribution(const unsigned &i){
-			Add_Internal_Data_Range[i] = true;
-		}
-
-		inline void turn_off_relative_error_contribution(const unsigned &i){
-			Add_Internal_Data_Range[i] = false;
-		}
-
-		inline void set_variable_mean(const unsigned &i, const double &mean){
-			Internal_Data_Mean[i] = mean;
-		}
-
-		inline void set_variable_permitted_relative_error(const unsigned &i, const double &permitted_error){
-			Internal_Data_Percentage_Range[i] = permitted_error;
+		//pack all internal data into a vector
+		void get_all_internal_data(Vector<double> &parameters){
+			// std::cout << this << std::endl;
+			// std::cout << N_Internal_Data << std::endl;
+			// std::cout << "get_all_internal_data" << std::endl;
+			// std::cout << N_Internal_Data << std::endl;
+			parameters.resize(N_Internal_Data);
+			// std::cout << "resized" << std::endl;
+			for(unsigned i=0; i<N_Internal_Data; i++){
+				// std::cout << "paramter " << i << std::endl;
+				parameters[i] = get_internal_data(i);
+			}
 		}
 
 		//====================================================================
@@ -125,21 +142,69 @@ namespace oomph{
 			FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 		}
 
-		//Access function to external source
-		ResidualContributionFromExternalSourceFctPt& get_external_contribution_to_residual()
-			{return Get_External_Contribution_To_Residual;}
-
 
 		//overload to make element non-abstract
-		void output(std::ostream &outfile) override {}
-		void output(std::ostream &outfile, const unsigned &nplot) override {}
-		void output(FILE* file_pt) override {}
-		void output(FILE* file_pt, const unsigned &n_plot) override {}
-		void output_fct(std::ostream &outfile, const unsigned &nplot, FiniteElement::SteadyExactSolutionFctPt exact_soln_pt) override {}
-		void output_fct(std::ostream &outfile, const unsigned &nplot, const double& time, FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt) override {}
-		void shape(const Vector<double> &s, Shape &psi) const override {}
+		void output(std::ostream &outfile) override;
+		//all of these throw errors, it makes no sense to call them in the context of these elements
+		void output(std::ostream &outfile, const unsigned &nplot) override {
+			throw OomphLibError("Broken output fct",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+		}
+		void output(FILE* file_pt) override {
+			throw OomphLibError("Broken output fct",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+		}
+		void output(FILE* file_pt, const unsigned &n_plot) override {
+			throw OomphLibError("Broken output fct",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+		}
+		void output_fct(std::ostream &outfile, const unsigned &nplot, FiniteElement::SteadyExactSolutionFctPt exact_soln_pt) override {
+			throw OomphLibError("Broken output fct",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+		}
+		void output_fct(std::ostream &outfile, const unsigned &nplot, const double& time, FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt) override {
+			throw OomphLibError("Broken output fct",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+		}
+		void shape(const Vector<double> &s, Shape &psi) const override {
+			throw OomphLibError("Broken output fct",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+		}
 
-		inline double total_residual_from_data_outside_of_range();
+
+		//NOTE: the following two functions are separate for the (admittedly rare) case in which the oomph-lib
+		//	newton solver is used for the solving. In such a case the variable_value_contribution must be
+		//	split out among the residual entries
+		//ENDNOTE
+
+		//function called to get external source contribution
+		void external_source_contribution(Vector<double> &residual){
+			if(OwnerProblemPt==NULL){
+				throw OomphLibError("WARNING: OwnerProblemPt has not been set for this optimisation_equation\n",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+			}
+			else{
+				OwnerProblemPt->get_sub_problem_contribution_to_node(*this, residual);
+			}
+		}
+		//function called to get contribution from values of variables
+		void variable_values_contribution(Vector<double> &residual){
+			if(OwnerProblemPt==NULL){
+				throw OomphLibError("WARNING: OwnerProblemPt has not been set for this optimisation_equation\n",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+			}
+			else{
+				OwnerProblemPt->get_cost_of_variables(*this, residual);
+			}
+		}
 
 	protected:
 		//the fill in residual function for the element
@@ -147,30 +212,15 @@ namespace oomph{
   			Vector<double> &residuals, DenseMatrix<double> &jacobian, 
   			DenseMatrix<double> &mass_matrix, unsigned flag);
 
-
 	private:
 
-		ResidualContributionFromExternalSourceFctPt Get_External_Contribution_To_Residual;
-
-		virtual inline void residual_from_comparrison_to_experiment(Vector<double> &residual){
-			//call the function pointer to an external source
-			Get_External_Contribution_To_Residual(residual);
-		}
-
-		virtual inline void residual_from_data_outside_of_range(const double &x, const double &x_mean, const double &relative_range, double &residual);
-
-		//Pointer to the internal datas
+		//Index of pointer to the internal datas
 		unsigned Internal_Data_Pt;
 		//The number of internal data
 		unsigned N_Internal_Data;
 
-
-		//Flag, add range of Internal_Data_Pt values to the residual
-		std::vector<bool> Add_Internal_Data_Range;
-		//The Mean of the internal data
-		Vector<double> Internal_Data_Mean;
-		//The permitted range aroung the mean value
-		Vector<double> Internal_Data_Percentage_Range;
+		//The problem to which this optimisation element belongs
+		MetaProblemBase* OwnerProblemPt;
 	};
 
 
