@@ -117,8 +117,8 @@ namespace oomph{
 	public:
 
 		NelderMeadMetaProblemClass(){
-			current_iter = 0;
 			Number_Of_Sub_Problems = 0;
+			Acceptable_Edge_Length = Default_Acceptable_Edge_Length;
 		}
 
 		~NelderMeadMetaProblemClass();
@@ -131,11 +131,14 @@ namespace oomph{
 		//run the nelder-mead simplex algorithm until convergence
 		void run_algorithm(std::ostream &outfile);
 
+		//run the algorithm with probabilistic restarts
+		void run_algorithm_with_restarts(std::ostream &outfile);
+
 		//Add a sub problem 
 		void add_sub_problem_pt(SubProblem* sub_prob_pt);
 
 		//report on the nodes
-		void output(const unsigned &iteration, std::ostream &outfile);
+		void output(const unsigned &iteration, Vector<double> &Node_Qualities, std::ostream &outfile);
 
 		double n_variables() const {return N_Variables;}
 
@@ -145,12 +148,17 @@ namespace oomph{
 		//used as VariableValuesContribution for the optimisation elements
 		virtual void get_cost_of_variables(OptimisationEquations &optimisation_equations, Vector<double> &costs);
 
+		//set the acceptable length the largest edge of the simplex can have
+		void set_acceptable_edge_length(const double &new_acceptable_edge_length){Acceptable_Edge_Length = new_acceptable_edge_length;}
+
 
 	protected:
 
 
 
 	private:
+
+		double termination_tolerance(){return Acceptable_Edge_Length;}
 
 		OptimisationEquations* simplex_node(const unsigned &n){return Simplex_nodes[n];}
 
@@ -160,8 +168,6 @@ namespace oomph{
 		//add all trainable elements from all sub problems
 		void add_all_trainable_elements_from_sub_problems_as_dependents();	
 
-		// void send_contribution_functions_as_pointers_to_optimisation_elements();
-
 		//send a particular optimisation element to all dependent trainable elements
 		void push_optimisation_element_to_dependent_elements(OptimisationEquations &node);
 
@@ -170,9 +176,11 @@ namespace oomph{
 		void evaluate_quality_of_node(OptimisationEquations &node, double &quality);
 
 		//determines if program should terminate or not, also records error of current step
-		virtual bool terminate(Vector<double> &node_qualities, Vector<double> &error_time_series);
+		virtual bool terminate(Vector<double> &node_qualities);
 
 		virtual double error_from_node_qualities(Vector<double> &node_qualities);
+
+		double simplex_maximum_edge_length();
 
 		void sort_nodes(const Vector<double> &node_qualities, Vector<unsigned> &sorted_node_indexes);
 
@@ -183,8 +191,6 @@ namespace oomph{
 
 		void shrink_node(OptimisationEquations &node, OptimisationEquations &x0);
 		void replace_node(OptimisationEquations &node, OptimisationEquations &replacement_node);
-
-		unsigned current_iter;
 
 		//Optimisation equations used as a container for each node of the simplex
 		//	used so that only one extra cell model base is needed
@@ -205,6 +211,11 @@ namespace oomph{
 		double gamma = 2.0;
 		double rho = 0.5;
 		double sigma = 0.5;
+
+		//The convergence tolerance
+		double Acceptable_Edge_Length;
+		//And it's default value
+		static double Default_Acceptable_Edge_Length;
 	};
 
 }//end namespace

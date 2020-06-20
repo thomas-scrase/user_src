@@ -210,10 +210,10 @@ public:
     {return Boundary_source_fct_pt;}
 
 
- /// Peclet number
+ /// membrane capacitance
  const double &cm() const {return *Cm_pt;}
 
- /// Pointer to Peclet number
+ /// Pointer to membrane capacitance
  double* &cm_pt() {return Cm_pt;}
 
  /// \short Get source term at (Eulerian) position x. This function is
@@ -363,16 +363,13 @@ protected:
     OOMPH_EXCEPTION_LOCATION);
  }
   
- /// Pointer to global Peclet number
+ /// Pointer to global capacitance
  double *Cm_pt;
 
  /// Pointer to source function:
  BaseCellMembranePotentialSourceFctPt Source_fct_pt;
-
+ /// Pointer to boundary source function
  BaseCellMembranePotentialBoundarySourceFctPt Boundary_source_fct_pt;
-
- /// Storage for fibre orientation
- // Vector<double> Undeformed_fibre_orientation;
 
  /// \short Boolean flag to indicate if ALE formulation is disabled when 
  /// time-derivatives are computed. Only set to false if you're sure

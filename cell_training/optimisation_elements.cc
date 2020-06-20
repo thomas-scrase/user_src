@@ -2,6 +2,7 @@
 
 namespace oomph{
 
+	//we take the absolute values of the contributions to prevent destructive interference between them
 	void OptimisationEquations::fill_in_generic_residual_contribution_optimisation(
 	  			Vector<double> &residuals, DenseMatrix<double> &jacobian, 
 	  			DenseMatrix<double> &mass_matrix, unsigned flag)
@@ -18,18 +19,15 @@ namespace oomph{
 		Vector<double> contribution_from_external_source;
 		external_source_contribution(contribution_from_external_source);
 
-		// std::cout << "contribution_from_external_source.size() " << contribution_from_external_source.size() << std::endl;
-		// std::cout << "residuals.size() " << residuals.size() << std::endl;
 		//Loop over the external residual contributions and distribute them over the residual entires
 		//	this is required for the case of the oomph-lib newton solver is used and the residual entries
 		//	are required to have non-identical derivatives wrt the dofs
 		for(unsigned i=0; i<contribution_from_external_source.size(); i++){
-			// std::cout << "i " << i << std::endl;
 			//local equations haven't been set up so maybe just get change all fill in generic residual things
 			//	to other function names and remove all possibility of the elements being used as normal oomph
 			//	elements
 			// int local_eqn = internal_local_eqn(Internal_Data_Pt,i%N_Internal_Data);
-			residuals[i%N_Internal_Data] += contribution_from_external_source[i];
+			residuals[i%N_Internal_Data] += std::abs(contribution_from_external_source[i]);
 		}
 
 		//Get the residual contribution from variable values
@@ -40,7 +38,7 @@ namespace oomph{
 		//	contribution_from_variables_values should be of size N_Internal_Data
 		//	but to be sure we loop over its size and take %N_Internal_Data
 		for(unsigned i=0; i<contribution_from_variables_values.size(); i++){
-			residuals[i%N_Internal_Data] += contribution_from_variables_values[i];
+			residuals[i%N_Internal_Data] += std::abs(contribution_from_variables_values[i]);
 		}
 
 	}

@@ -353,14 +353,18 @@ namespace oomph{
 	//	are lost, since an explicit scheme is used, the residual no longer
 	//	represents the error in the solution but instead the difference between
 	//	the value computed by the explicit timestepping function and the current
-	//	value at the node.
+	//	value at the node. Further, the entire explicit timestep is required
+	//	to be computed when calculating active strain and membrane current which
+	//	is likely to reduce efficieny
+	//Benefits though include a very easily invertible jacobian, since only
+	//	diagonal entries are filled.
 	//====================================================================
 	//====================================================================
 	class ExplicitTimeStepCellModelBase : public CellModelBase
 	{
 	public:
 		//Constructor
-		ExplicitTimeStepCellModelBase(){
+		ExplicitTimeStepCellModelBase() : CellModelBase() {
 			//Jacobian is simply identity
 			Model_Calculates_Jacobian_Entries = true;
 			Requires_dt = true;
@@ -371,7 +375,11 @@ namespace oomph{
 		{
 			Vector<double> DummyVector;
 			DummyVector.resize(this->Required_Storage);
-			//Compute the cell model explicit timestep
+			//set DummyVector = cell variables at previous timestep
+			for(unsigned i=0; i<this->Required_Storage; i++){
+				DummyVector[i] = state.previous_variables(i);
+			}
+			//Compute the cell model explicit timestep with a dummy vector
 			explicit_timestep(state, DummyVector);
 			//Return the calculated cell model strain
 			return state.cell_model_strain();
@@ -381,10 +389,14 @@ namespace oomph{
 		{
 			Vector<double> DummyVector;
 			DummyVector.resize(this->Required_Storage);
+			//set DummyVector = cell variables at previous timestep
+			for(unsigned i=0; i<this->Required_Storage; i++){
+				DummyVector[i] = state.previous_variables(i);
+			}
 			//Compute the cell model explicit timestep
 			explicit_timestep(state, DummyVector);
 			//Return the caclulated cell model current
-		   return state.cell_membrane_current();
+			return state.cell_membrane_current();
 		}
 
 		// Calculate the sub residual and sub jacobian objects
@@ -393,7 +405,7 @@ namespace oomph{
 															DenseMatrix<double> &jacobian,
 															unsigned flag)
 		{
-			//create vector for the next state of the cell variables
+			//create vector for the previous state of the cell variables
 			Vector<double> new_state;
 			new_state.resize(this->Required_Storage);
 			//set new_state = cell variables at previous timestep
@@ -401,6 +413,9 @@ namespace oomph{
 				new_state[i] = state.previous_variables(i);
 			}
 
+			//Work out whether a smaller dt is required by the explicit time stepper
+			//	if so, set dt to the largest value smaller than the current dt
+			//	which divides the original dt by an integer number
 			unsigned N = 1;
 			if(state.dt() > intrinsic_dt){
 				//The smallest integer N such that Ndt_new = dt_old and dt_new < dt_intrinsic
@@ -418,6 +433,7 @@ namespace oomph{
 
 			//contribute to the residuals: explicit calculated current value - what the node thinks the current value is
 			for(unsigned i=0; i<this->Required_Storage; i++){
+				// std::cout << "residual and jacobian " << i << std::endl;
 				residuals[i] -= new_state[i] - state.var(0,i);
 				//Contribution to jacobian is just identity since new_state[i] is not dependent on the current state in time, but the previous one
 				if(flag){

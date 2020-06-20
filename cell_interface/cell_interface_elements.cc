@@ -32,7 +32,7 @@ namespace oomph
 			//Get the shape function
 			(void)this->shape(s,psi);
 
-			// outfile << nodal_vm(l) << " ";
+			outfile << nodal_vm(l) << " ";
 
 			outfile << interpolated_membrane_current_CellInterface(s) << " ";
 
@@ -40,6 +40,7 @@ namespace oomph
 			get_nodal_cell_custom_output(l, custom_output);
 
 			for(unsigned i=0; i<custom_output.size(); i++){
+				// std::cout << "we're trying to output now" << std::endl;
 				outfile << custom_output[i] << " ";
 			}
 

@@ -995,38 +995,12 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 
   //Insert tensor A into a tensor of size (dim, 2) just to ensure that if A is a strange shape then the law still runs
   DenseMatrix<double> A_C(dim, 2, 0.0);                                              //(ROWS , COLUMNS)
-  // std::cout << A.ncol() << "\t" << A.nrow() << std::endl;
-  // std::cout << A_C.ncol() << "\t" << A_C.nrow() << std::endl;
+
   for(int i=0; i<dim && i<A.nrow(); i++){
     for(int j=0; j<2 && j<A.ncol(); j++){
       A_C(i,j) = A(i,j);
     }
   }
-
-  // CHECK IF THE A_C is correct
-  // if( abs(A_C(0,0) - 1.0)>1e-12 || abs(A_C(1,1) - 1.0)>1e-12 ){
-  //   std::ostringstream error_message_ss;
-  //   error_message_ss << "A_C(0 , 0) = " << A_C(0,0) << "\n" << "A_C(1 , 1) = " << A_C(1,1);
-  //   throw OomphLibError(
-  //     error_message_ss.str(),
-  //     OOMPH_CURRENT_FUNCTION,
-  //     OOMPH_EXCEPTION_LOCATION);
-  // }
-   
-
-  // //CHECK IF THE COPYING ACROSS WAS DONE CORRECTLY
-  // for(int i=0; i<dim; i++){
-  //   for(int j=0; j<2; j++){
-  //     if(A_C(i,j) != A(i,j)){
-  //       std::ostringstream error_message_ss;
-  //       error_message_ss << "A_C(" << i << "," << j << ") != A(" << i << "," << j << "). " << A_C(i,j) << " != " << A(i,j) << ".";
-  //       throw OomphLibError(
-  //         error_message_ss.str(),
-  //         OOMPH_CURRENT_FUNCTION,
-  //         OOMPH_EXCEPTION_LOCATION);
-  //     }
-  //   }
-  // }
 
   //Calculate invariants
   double I1 = 0.0;
@@ -1096,41 +1070,6 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
    sigma_dev(i,j) = sigma_dev(j,i);
   }
  }
- 
- // std::cout << "A: " << std::endl;
- //  for(unsigned i=0;i<dim;i++){
- //   for(unsigned j=0;j<dim;j++){
- //    std::cout << A(i,j) << "\t";
- //   }
- //   std::cout << std::endl;
- //  }  
- //  std::cout << std::endl;
-
- // std::cout << "Invariants: " << std::endl;
- // std::cout << I1 << "\t" << I4f << "\t" << I4s << "\t" << I8fs << std::endl;
-
- // std::cout << "2nd deviatoric: " << std::endl;
- // for(unsigned i=0;i<dim;i++){
- //  for(unsigned j=0;j<dim;j++){
- //   std::cout << sigma_dev(i,j) << "\t";
- //  }
- //  std::cout << std::endl;
- // }
-
- // std::cout << "2nd: " << std::endl;
- // for(unsigned i=0;i<dim;i++){
- //  for(unsigned j=0;j<dim;j++){
- //   std::cout << sigma(i,j) << "\t";
- //  }
- //  std::cout << std::endl;
- // }
- // throw OomphLibError(
- // "Checking why this is so broken",
- // OOMPH_CURRENT_FUNCTION,
- // OOMPH_EXCEPTION_LOCATION);
-
-
-
  }
 
 

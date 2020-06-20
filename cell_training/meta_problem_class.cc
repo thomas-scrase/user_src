@@ -71,20 +71,19 @@ namespace oomph{
 
 
 
+	//Default variables used by the class
+	double NelderMeadMetaProblemClass::Default_Acceptable_Edge_Length = 1e-4;
+
+
 
 
 	///Functions for the Nelder-Mead simplex meta problem
 
 	//Destructor
 	NelderMeadMetaProblemClass::~NelderMeadMetaProblemClass(){
-		//delete the sub problems
+		//delete the simplex
 		for(unsigned i=0; i<N_Variables+1; i++){
 			delete Simplex_nodes[i];
-		}
-
-		//delete the simplex nodes
-		for(unsigned i=0; i<Number_Of_Sub_Problems; i++){
-			delete Sub_Problem_Pts[i];
 		}
 	}
 
@@ -103,7 +102,7 @@ namespace oomph{
 			//make the nodes
 			Simplex_nodes[i] = new OptimisationEquations(this);
 			//give the nodes the number of variables so they can properly set themselves up
-			Simplex_nodes[i]->create_internal_data(N_Variables);
+			// Simplex_nodes[i]->create_internal_data(N_Variables);
 		}
 
 		add_all_trainable_elements_from_sub_problems_as_dependents();
@@ -171,179 +170,28 @@ namespace oomph{
 	}
 
 	//report on the nodes
-	void NelderMeadMetaProblemClass::output(const unsigned &iteration, std::ostream &outfile){
-		// std::cout << "NelderMeadMetaProblemClass::output" << std::endl;
+	void NelderMeadMetaProblemClass::output(const unsigned &iteration, Vector<double> &Node_Qualities,  std::ostream &outfile){
 		outfile << "Results from iteration " << iteration << std::endl;
 		for(unsigned i=0; i<N_Variables+1; i++){
 			Simplex_nodes[i]->output(outfile);
-			double node_quality;
-			evaluate_quality_of_node(*Simplex_nodes[i], node_quality);
-			outfile << "\t" << node_quality << std::endl;
+			outfile << "\t" << Node_Qualities[i] << std::endl;
 		}
 	}
 
-
-	void NelderMeadMetaProblemClass::run_algorithm(std::ostream &outfile){
-		Vector<double> Error; //error at each timestep
-		unsigned iteration = 0;
-		Vector<double> Node_Qualities(N_Variables+1);
-		unsigned best_node_index;
-		unsigned worst_node_index;
-		unsigned second_worst_node_index;
-		Vector<unsigned> Sorted_node_indexes(N_Variables+1);
-
-		
-
-		//evaluate entire simplex
-		evaluate_quality_of_simplex(Node_Qualities);
-		std::cout << "node qualities\t";
-		for(unsigned i=0; i<Node_Qualities.size(); i++){
-			std::cout << Node_Qualities[i] << "\t";
-		}
-		std::cout << std::endl;
-
-		//rely on calculations from previous run, this way only nodes which are changed
-		//	need to be reevaluated
-
-		while(!terminate(Node_Qualities, Error)){
-
-			//report on the state of the simplex
-			output(iteration, outfile);
-
-
-			//sort indexes from best to worst
-			sort_nodes(Node_Qualities, Sorted_node_indexes);
-
-			best_node_index = Sorted_node_indexes[0];
-			worst_node_index = Sorted_node_indexes[N_Variables];
-			second_worst_node_index = Sorted_node_indexes[N_Variables-1];
-
-			//make x0
-			OptimisationEquations x0(this);
-			x0.create_internal_data(N_Variables);
-			fill_in_x0(x0, Sorted_node_indexes);
-
-			//make xr
-			OptimisationEquations xr(this);
-			xr.create_internal_data(N_Variables);
-			fill_in_xr(xr, x0, *Simplex_nodes[second_worst_node_index]);
-			//evaluate quality of xr
-			double xr_quality;
-			evaluate_quality_of_node(xr, xr_quality);
-
-			std::cout << "Node_Qualities[best_node_index] " << Node_Qualities[best_node_index] << std::endl;
-			std::cout << "xr_quality " << xr_quality << std::endl;
-			std::cout << "Node_Qualities[second_worst_node_index] " << Node_Qualities[second_worst_node_index] << std::endl;
-
-			if(Node_Qualities[best_node_index] <= xr_quality && xr_quality <= Node_Qualities[second_worst_node_index]){
-				replace_node(*Simplex_nodes[worst_node_index], xr);
-				//calculate the quality of the new node
-				double new_worst_node_quality;
-				evaluate_quality_of_node(*Simplex_nodes[worst_node_index],new_worst_node_quality);
-				//record quality for the new worst node
-				Node_Qualities[worst_node_index] = new_worst_node_quality;
-				//return to the beginning of the loop
-				continue;
-			}
-
-			//if the reflected node quality is better than that of the best node
-			if(xr_quality < Node_Qualities[best_node_index]){
-				//make xe
-				OptimisationEquations xe(this);
-				xe.create_internal_data(N_Variables);
-				fill_in_xe(xe, x0, xr);
-				//evaluate quality of xe
-				double xe_quality;
-				evaluate_quality_of_node(xe, xe_quality);
-
-				std::cout << "xe_quality " << xe_quality << std::endl;
-
-				//if the expansion node is better than the reflected node replace the worst node with the expansion node
-				if(xe_quality < xr_quality){replace_node(*Simplex_nodes[worst_node_index], xe);}
-				//else replace the worst node with the reflected node
-				else{replace_node(*Simplex_nodes[worst_node_index], xr);}
-				//calculate the quality of the new node
-				double new_worst_node_quality;
-				evaluate_quality_of_node(*Simplex_nodes[worst_node_index],new_worst_node_quality);
-				//record quality for the new worst node
-				Node_Qualities[worst_node_index] = new_worst_node_quality;
-				//return to the beginning of the loop
-				continue;
-			}
-
-
-			//make xc
-			OptimisationEquations xc(this);
-			xc.create_internal_data(N_Variables);
-			fill_in_xc(xc, x0, *Simplex_nodes[worst_node_index]);
-			//evaluate quality of xc
-			double xc_quality;
-			evaluate_quality_of_node(xc, xc_quality);
-
-			std::cout << "xc_quality " << xc_quality << std::endl;
-
-			//if the contraction node is better than the worst node replace then worst node with the contracted node
-			if(xc_quality < Node_Qualities[worst_node_index]){
-				replace_node(*Simplex_nodes[worst_node_index], xc);
-				//calculate the quality of the new node
-				double new_worst_node_quality;
-				evaluate_quality_of_node(*Simplex_nodes[worst_node_index],new_worst_node_quality);
-				//record quality for the new worst node
-				Node_Qualities[worst_node_index] = new_worst_node_quality;
-				continue;
-			}
-
-
-			//shrink all points towards best
-			for(unsigned i=1; i<N_Variables+1; i++){
-				unsigned node_index = Sorted_node_indexes[i];
-				shrink_node(*Simplex_nodes[node_index],*Simplex_nodes[best_node_index]);
-				//calculate the quality of the new node
-				double new_node_quality;
-				evaluate_quality_of_node(*Simplex_nodes[node_index],new_node_quality);
-				//record quality for the new node
-				Node_Qualities[node_index] = new_node_quality;
-			}
-
-		}
-		//terminate the program
-
-		//report on the state of the simplex
-		output(iteration, outfile);
-
-	}
 
 	//add dependent element
 	void NelderMeadMetaProblemClass::add_trainable_element_as_dependent(TrainableElement* dependent_element){
-		// std::cout << "add_trainable_element_as_dependent" << std::endl;
-		//make a backup
-		// Vector<TrainableElement*> temp_dependent_elements(Dependent_Elements.size());
-		// for(unsigned i=0; i<Dependent_Elements.size(); i++){
-		// 	temp_dependent_elements[i] = Dependent_Elements[i];
-		// }
-		// //resize the Dependent_Elements vector to fit the new element
-		// Dependent_Elements.resize(Dependent_Elements.size()+1);
-		// //copy from the backup to the original
-		// for(unsigned i=0; i<temp_dependent_elements.size(); i++){
-		// 	Dependent_Elements[i] = temp_dependent_elements[i];
-		// }
-		// //add the new element
-		// Dependent_Elements[temp_dependent_elements.size()] = dependent_element;
 		Dependent_Elements.push_back(dependent_element);
-		// std::cout << Dependent_Elements.size() << std::endl;
 	}
 
 	//add all trainable elements from all sub problems
 	void NelderMeadMetaProblemClass::add_all_trainable_elements_from_sub_problems_as_dependents(){
-		// std::cout << "add_all_trainable_elements_from_sub_problems_as_dependents" << std::endl;
 		//loop over the sub problems
 		for(unsigned i=0; i< Sub_Problem_Pts.size(); i++){
 			//a temporary vector
 			Vector<TrainableElement*> trainable_elements_from_sub_problem;
 			//get the list of trainable elements from the problem
-			// std::cout << Sub_Problem_Pts[i] << std::endl;
 			Sub_Problem_Pts[i]->get_all_trainable_elements(trainable_elements_from_sub_problem);
-			// std::cout << "trainable_elements_from_sub_problem " << trainable_elements_from_sub_problem.size() << std::endl;
 			//loop over the elements
 			for(unsigned j=0; j<trainable_elements_from_sub_problem.size(); j++){
 				//add them all
@@ -356,18 +204,16 @@ namespace oomph{
 	//send a particular optimisation element to all dependent trainable elements
 	//	performed before sub problems are run
 	void NelderMeadMetaProblemClass::push_optimisation_element_to_dependent_elements(OptimisationEquations &node){
-		// std::cout << "push_optimisation_element_to_dependent_elements" << std::endl;
 		for(unsigned i=0; i<Dependent_Elements.size(); i++){
-			// std::cout << "\t" << i << std::endl;
 			Dependent_Elements[i]->set_parameter_source_pt(node);
 		}
 	}
 
 
 	void NelderMeadMetaProblemClass::evaluate_quality_of_simplex(Vector<double>& node_qualities){
-		// std::cout << "evaluate_quality_of_simplex" << std::endl;
-		double quality;
+		double quality=0.0;
 		for(unsigned n=0; n < N_Variables+1; n++){
+			quality=0.0;
 			evaluate_quality_of_node(*Simplex_nodes[n], quality);
 			node_qualities[n] = quality;
 		}
@@ -375,31 +221,28 @@ namespace oomph{
 	
 
 	void NelderMeadMetaProblemClass::evaluate_quality_of_node(OptimisationEquations &node, double &quality){
-		// std::cout << "evaluate_quality_of_node" << std::endl;
+		//push the node to all dependent elements
+		push_optimisation_element_to_dependent_elements(node);
 		//declare the residal vector we will be filling in using the optimisation equations element
-		Vector<double> residuals(N_Variables);
+		Vector<double> residuals(N_Variables, 0.0);
 		//populate the residuals vector
 		node.fill_in_contribution_to_residuals(residuals);
 		//condense the residuals into a single number and pass it to quality
-		for(unsigned i=0; i<residuals.size(); i++){quality += residuals[i];}
+		for(unsigned i=0; i<residuals.size(); i++){
+			quality += residuals[i];
+		}
 	}
 
 
 	//push the optimisation element to and run the sub problems and get their norms
 	// used as ExternalSourceContribution of the optimisation elements
 	void NelderMeadMetaProblemClass::get_sub_problem_contribution_to_node(OptimisationEquations &node, Vector<double> &contribution){
-		// std::cout << "get_sub_problem_contribution_to_node" << std::endl;
-		//push the node to all dependent elements
-		push_optimisation_element_to_dependent_elements(node);
 		//resize the contribution vector to the number of sub problems
 		contribution.resize(Sub_Problem_Pts.size());
-		// std::cout << "contribution.size() " << contribution.size() << std::endl;
 		//run each of the problems and add their norm to the contribution vector
 		for(unsigned i=0; i<Sub_Problem_Pts.size(); i++){
 			contribution[i] = Sub_Problem_Pts[i]->run();
 		}
-
-		// std::cout << "contribution.size() " << contribution.size() << std::endl;
 	}
 
 	//get the cost incurred by the values of the variables in the optimisation element passed
@@ -409,46 +252,54 @@ namespace oomph{
 	}
 
 
-	bool NelderMeadMetaProblemClass::terminate(Vector<double> &node_qualities, Vector<double> &error_time_series){
-		// std::cout << "NelderMeadMetaProblemClass::terminate" << std::endl;
-		// for(unsigned i=0; i<node_qualities.size(); i++){
-		// 	std::cout << node_qualities[i] << std::endl;
-		// }
+	bool NelderMeadMetaProblemClass::terminate(Vector<double> &node_qualities){
 		//get the measure we are using as the error, by default this is the minimum node quality
-		double new_error = error_from_node_qualities(node_qualities);
-		// std::cout << "error_from_node_qualities " << new_error << std::endl;
-
-		Vector<double> new_error_time_series;
-		new_error_time_series.resize(error_time_series.size()+1);
-
-		for(unsigned i=0; i<error_time_series.size(); i++){
-			new_error_time_series[i] = error_time_series[i];
-		}
-
-		new_error_time_series[error_time_series.size()] = new_error;
-
-		if(new_error < 1e-9){
+		// double simplex_maximum_edge_length = error_from_node_qualities(node_qualities);
+		
+		double Simplex_Maximum_Edge_Length = simplex_maximum_edge_length();
+		
+		if(std::abs(Simplex_Maximum_Edge_Length) < termination_tolerance()){
 			return true;
+		}
+		else{
+			return false;
 		}
 	}
 
 	//the total error, default to the minimum node quality
 	double NelderMeadMetaProblemClass::error_from_node_qualities(Vector<double> &node_qualities){
-		// std::cout << "NelderMeadMetaProblemClass::error_from_node_qualities" << std::endl;
-		// return *std::min_element(node_qualities.begin(), node_qualities.end());
 		double min_val = node_qualities[0];
 		for(unsigned i=1; i<node_qualities.size(); i++){
-			if(node_qualities[i] < min_val){min_val = node_qualities[i];}
+			if(std::abs(node_qualities[i]) < std::abs(min_val)){
+				min_val = node_qualities[i];
+			}
 		}
-		// std::cout << min_val << std::endl;
 		return min_val;
 	}
+
+
+	double NelderMeadMetaProblemClass::simplex_maximum_edge_length(){
+		double max_length = 0.0;
+		//loop over all edges and get their lengths
+		for(unsigned node1=0; node1<N_Variables+1; node1++){
+			for(unsigned node2=node1+1; node2<N_Variables+1; node2++){
+				double length = 0.0;
+				for(unsigned index=0; index<N_Variables; index++){
+					length += Simplex_nodes[node1]->get_internal_data(index) - Simplex_nodes[node2]->get_internal_data(index);
+				}
+				if(std::abs(length) > max_length){max_length = std::abs(length);}
+			}
+		}
+		return max_length;
+	}
+
+
 
 	void NelderMeadMetaProblemClass::sort_nodes(const Vector<double> &node_qualities, Vector<unsigned> &sorted_node_indexes){
 		//index sorting algorithm
 		sorted_node_indexes.resize(node_qualities.size());
-		for(unsigned i=0; i<node_qualities.size(); i++){sorted_node_indexes[i] = 0;}
-		stable_sort(sorted_node_indexes.begin(), sorted_node_indexes.end(), [node_qualities](size_t i1, size_t i2) {return node_qualities[i1] < node_qualities[i2];});
+		for(unsigned i=0; i<node_qualities.size(); i++){sorted_node_indexes[i] = i;}
+		stable_sort(sorted_node_indexes.begin(), sorted_node_indexes.end(), [node_qualities](size_t i1, size_t i2) {return std::abs(node_qualities[i1]) < std::abs(node_qualities[i2]);});
 	}
 
 
@@ -504,5 +355,139 @@ namespace oomph{
 			node.set_internal_data(var, val);
 		}
 	}
+
+	//run the algorithm to completion
+	void NelderMeadMetaProblemClass::run_algorithm(std::ostream &outfile){
+		unsigned iteration = 0;
+		Vector<double> Node_Qualities(N_Variables+1);
+		unsigned best_node_index;
+		unsigned worst_node_index;
+		unsigned second_worst_node_index;
+		Vector<unsigned> Sorted_node_indexes(N_Variables+1);
+
+		//evaluate entire simplex
+		evaluate_quality_of_simplex(Node_Qualities);
+
+		//rely on calculations from previous run, this way only nodes which are changed
+		//	need to be reevaluated
+
+		while(!terminate(Node_Qualities)){
+			iteration++;
+
+			//report on the state of the simplex
+			output(iteration, Node_Qualities, outfile);
+
+
+			//sort indexes from best to worst
+			sort_nodes(Node_Qualities, Sorted_node_indexes);
+			outfile << std::endl << "Sorted indices: ";
+			for(unsigned i=0; i<N_Variables+1; i++){
+				outfile << "\t" << Sorted_node_indexes[i] << " (" << Node_Qualities[Sorted_node_indexes[i]] << ")\t";
+			}
+			outfile << std::endl;
+
+			best_node_index = Sorted_node_indexes[0];
+			worst_node_index = Sorted_node_indexes[N_Variables];
+			second_worst_node_index = Sorted_node_indexes[N_Variables-1];
+
+			//make x0
+			OptimisationEquations x0(this);
+			// x0.create_internal_data(N_Variables);
+			fill_in_x0(x0, Sorted_node_indexes);
+
+			//make xr
+			OptimisationEquations xr(this);
+			// xr.create_internal_data(N_Variables);
+			fill_in_xr(xr, x0, *Simplex_nodes[worst_node_index]);
+			//evaluate quality of xr
+			double xr_quality=0.0;
+			evaluate_quality_of_node(xr, xr_quality);
+
+			if(Node_Qualities[best_node_index] <= xr_quality && xr_quality <= Node_Qualities[second_worst_node_index]){
+				replace_node(*Simplex_nodes[worst_node_index], xr);
+				//calculate the quality of the new node
+				//record quality for the new worst node
+				Node_Qualities[worst_node_index] = xr_quality;
+				//return to the beginning of the loop
+				outfile << "Replaced node " << worst_node_index << " for xr" << std::endl;
+				continue;
+			}
+
+			//if the reflected node quality is better than that of the best node
+			if(xr_quality < Node_Qualities[best_node_index]){
+				//make xe
+				OptimisationEquations xe(this);
+				// xe.create_internal_data(N_Variables);
+				fill_in_xe(xe, x0, xr);
+				//evaluate quality of xe
+				double xe_quality=0.0;
+				evaluate_quality_of_node(xe, xe_quality);
+
+				//if the expansion node is better than the reflected node replace the worst node with the expansion node
+				if(xe_quality < xr_quality){
+					replace_node(*Simplex_nodes[worst_node_index], xe);
+					outfile << "Replaced node " << worst_node_index << " for xe" << std::endl;
+					Node_Qualities[worst_node_index] = xe_quality;
+				}
+				//else replace the worst node with the reflected node
+				else{
+					replace_node(*Simplex_nodes[worst_node_index], xr);
+					outfile << "Replaced node " << worst_node_index << " for xr" << std::endl;
+					Node_Qualities[worst_node_index] = xr_quality;
+				}
+				//return to the beginning of the loop
+				continue;
+			}
+
+
+			//make xc
+			OptimisationEquations xc(this);
+			// xc.create_internal_data(N_Variables);
+			fill_in_xc(xc, x0, *Simplex_nodes[worst_node_index]);
+			//evaluate quality of xc
+			double xc_quality=0.0;
+			evaluate_quality_of_node(xc, xc_quality);
+
+			//if the contraction node is better than the worst node replace then worst node with the contracted node
+			if(xc_quality < Node_Qualities[worst_node_index]){
+				replace_node(*Simplex_nodes[worst_node_index], xc);
+				outfile << "Replaced node " << worst_node_index << " for xc" << std::endl;
+				//calculate the quality of the new node
+				// double new_worst_node_quality;
+				// evaluate_quality_of_node(*Simplex_nodes[worst_node_index],new_worst_node_quality);
+				//record quality for the new worst node
+				Node_Qualities[worst_node_index] = xc_quality;
+				continue;
+			}
+
+
+			//shrink all points towards best
+			for(unsigned i=1; i<N_Variables+1; i++){
+				unsigned node_index = Sorted_node_indexes[i];
+				shrink_node(*Simplex_nodes[node_index],*Simplex_nodes[best_node_index]);
+				//calculate the quality of the new node
+				double new_node_quality=0.0;
+				evaluate_quality_of_node(*Simplex_nodes[node_index],new_node_quality);
+				//record quality for the new node
+				Node_Qualities[node_index] = new_node_quality;
+			}
+			outfile << "Shrank all nodes towards " << best_node_index << std::endl;
+
+		}
+		//terminate the program
+
+		//report on the state of the simplex
+		outfile << "Simplex at end of program" << std::endl;
+		output(iteration, Node_Qualities, outfile);
+
+	}
+
+
+
+
+		//run the algorithm with probabilistic restarts
+		void NelderMeadMetaProblemClass::run_algorithm_with_restarts(std::ostream &outfile){
+			
+		}
 
 }	//end namespace

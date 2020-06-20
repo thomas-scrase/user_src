@@ -1,11 +1,6 @@
 //Optimisation elements.
-//In jacobian type meta problems a single Q optimisation element is used
-//	to solve for the parameters using the usual oomph lib system
-
-//In nelder mead type meta problems the optimisation equations are used only
-// to store the values of the parameters at each node in the simplex, this is
-// so a single trainable cell type class is required to be inherited from for
-// a cell type to be trainable
+// These elements are not intended for user use. They exist only in the optimisation framework
+//  developed and shouldn't be created by the user.
 
 
 #ifndef OOMPH_OPTIMISATION_ELEMENTS_HEADER
@@ -53,6 +48,12 @@ namespace oomph{
 						OOMPH_CURRENT_FUNCTION,
 						OOMPH_EXCEPTION_LOCATION);
 		}
+
+		virtual double n_variables() const{
+			throw OomphLibError("n_variables() has not been reimplemented for some reason.",
+						OOMPH_CURRENT_FUNCTION,
+						OOMPH_EXCEPTION_LOCATION);
+		}
 	};
 
 
@@ -65,7 +66,11 @@ namespace oomph{
 
 		OptimisationEquations(MetaProblemBase* owner_problem_pt) : 	OwnerProblemPt(owner_problem_pt),
 																	Internal_Data_Pt(0),
-																	N_Internal_Data(0)	{	}
+																	N_Internal_Data(0)
+		{
+			Internal_Data_Pt = this->add_internal_data(new Data(owner_problem_pt->n_variables()), true);
+			N_Internal_Data = owner_problem_pt->n_variables();
+		}
 
 		/// Broken copy constructor
 		OptimisationEquations(const OptimisationEquations& dummy){ 
@@ -80,13 +85,6 @@ namespace oomph{
 		//We don't need any values at the nodes
 		inline unsigned required_nvalue(const unsigned &n) const {return 0;}
 
-		void create_internal_data(const unsigned &n_data){
-			// std::cout << "create_internal_data" << std::endl;
-			Internal_Data_Pt = this->add_internal_data(new Data(n_data), true);
-			N_Internal_Data = n_data;
-			// std::cout << this << N_Internal_Data << std::endl;
-		}
-
 		//return the ith internal data value
 		double get_internal_data(const unsigned &i){
 			return this->internal_data_pt(Internal_Data_Pt)->value(i);
@@ -97,14 +95,8 @@ namespace oomph{
 		}
 		//pack all internal data into a vector
 		void get_all_internal_data(Vector<double> &parameters){
-			// std::cout << this << std::endl;
-			// std::cout << N_Internal_Data << std::endl;
-			// std::cout << "get_all_internal_data" << std::endl;
-			// std::cout << N_Internal_Data << std::endl;
 			parameters.resize(N_Internal_Data);
-			// std::cout << "resized" << std::endl;
 			for(unsigned i=0; i<N_Internal_Data; i++){
-				// std::cout << "paramter " << i << std::endl;
 				parameters[i] = get_internal_data(i);
 			}
 		}
@@ -225,21 +217,21 @@ namespace oomph{
 
 
 
-	class QOptimisationElement :
-	public virtual QElement<1, 2>,
-	public virtual OptimisationEquations
-	{
-	public:
-		//provide unique final overrider
-		void output(std::ostream &outfile){OptimisationEquations::output(outfile);}
-		void output(std::ostream &outfile, const unsigned &nplot){OptimisationEquations::output(outfile, nplot);}
-		void output(FILE* file_pt){OptimisationEquations::output(file_pt);}
-		void output(FILE* file_pt, const unsigned &n_plot){OptimisationEquations::output(file_pt, n_plot);}
-		void output_fct(std::ostream &outfile, const unsigned &nplot, FiniteElement::SteadyExactSolutionFctPt exact_soln_pt){OptimisationEquations::output_fct(outfile, nplot, exact_soln_pt);}
-		void output_fct(std::ostream &outfile, const unsigned &nplot, const double& time, FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt){OptimisationEquations::output_fct(outfile, nplot, time, exact_soln_pt);}
-		void shape(const Vector<double> &s, Shape &psi) const override {}
+	// class QOptimisationElement :
+	// public virtual QElement<1, 2>,
+	// public virtual OptimisationEquations
+	// {
+	// public:
+	// 	//provide unique final overrider
+	// 	void output(std::ostream &outfile){OptimisationEquations::output(outfile);}
+	// 	void output(std::ostream &outfile, const unsigned &nplot){OptimisationEquations::output(outfile, nplot);}
+	// 	void output(FILE* file_pt){OptimisationEquations::output(file_pt);}
+	// 	void output(FILE* file_pt, const unsigned &n_plot){OptimisationEquations::output(file_pt, n_plot);}
+	// 	void output_fct(std::ostream &outfile, const unsigned &nplot, FiniteElement::SteadyExactSolutionFctPt exact_soln_pt){OptimisationEquations::output_fct(outfile, nplot, exact_soln_pt);}
+	// 	void output_fct(std::ostream &outfile, const unsigned &nplot, const double& time, FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt){OptimisationEquations::output_fct(outfile, nplot, time, exact_soln_pt);}
+	// 	void shape(const Vector<double> &s, Shape &psi) const override {}
 
-	};
+	// };
 
 
 }

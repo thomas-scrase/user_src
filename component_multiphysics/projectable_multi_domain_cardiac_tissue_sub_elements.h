@@ -7,7 +7,7 @@
 #endif
 
 //Include the storage_augmented_cell_elements header
-#include "diff_augmented_cell_wrapper.h"
+#include "../toms_utilities/diff_augmented_cell_wrapper.h"
 
 //For the custom integration scheme
 #include "../toms_utilities/toms_integral.h"

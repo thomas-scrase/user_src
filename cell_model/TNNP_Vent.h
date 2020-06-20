@@ -62,8 +62,6 @@ namespace oomph{
 		virtual inline void custom_output(CellState &state, Vector<double> &output) override
 		{
 			//Intentionally does nothing
-			// THIS IS NOT BEING CALLED
-			// std::cout << "Calling base tnnp custom output" << std::endl;
 		}
 
 		//Fill in the generic residual and jacobian contribution for the cell variables associated with the node passed

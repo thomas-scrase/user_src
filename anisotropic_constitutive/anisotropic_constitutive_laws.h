@@ -1004,7 +1004,7 @@ public:
    const DenseMatrix<double> &A, const Vector<double> &lambda,
    DenseMatrix<double> &sigma);
 
-  //INCOMPRESSIBLE SOLID BECAUSE SOFT TISSUE IS INCOMPRESSIBLE
+  //INCOMPRESSIBLE SOLID BECAUSE SOFT TISSUE IS APPROXIMATELY INCOMPRESSIBLE
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A, const Vector<double> &lambda,

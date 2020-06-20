@@ -1,3 +1,14 @@
+//LIC// An element with capacity to communicate with OptimisationEquations elements found in meta problems
+//LIC//	 includes function for extracting parameters for use in computation.
+//LIC//	 NOTE set_parameter_source_pt is not intended for use by the user, it should never be called by
+//LIC//  any functions written by the user. It is called by meta problems to which this element implicitly
+//LIC//	 belongs.
+//LIC//	When a daughter element of TrainableElement is used in simulation, a pointer to it must be passed
+//LIC//  to the sub problem to which it belongs so that it may be passed to the meta problem which implicitly
+//LIC//  owns it, this is either performed automatically if the element is used in the global mesh, or through
+//LIC//  calling add_trainable_element(TrainableElement* candidate_trainable_element), in the sub problems
+//LIC//  constructor
+
 #ifndef OOMPH_TRAINABLE_CELL_HEADER
 #define OOMPH_TRAINABLE_CELL_HEADER
 
@@ -20,11 +31,11 @@ namespace oomph{
 		}
 
 		void extract_parameters_from_parameter_source(Vector<double> &parameters){
-			std::cout << "extract_parameters_from_parameter_source" << std::endl;
 			if(Parameter_Source_Pt==NULL){
-				throw OomphLibError("Parameter_Source_Pt is null",
-						OOMPH_CURRENT_FUNCTION,
-						OOMPH_EXCEPTION_LOCATION);
+				// throw OomphLibError("Parameter_Source_Pt is null",
+				// 		OOMPH_CURRENT_FUNCTION,
+				// 		OOMPH_EXCEPTION_LOCATION);
+				return;
 			}
 			Parameter_Source_Pt->get_all_internal_data(parameters);
 		}
