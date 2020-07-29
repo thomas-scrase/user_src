@@ -1,15 +1,9 @@
 #include "Explicit_TNNP_Vent.h"
 
 namespace oomph{
-	ExplicitTNNPVent::ExplicitTNNPVent() : ExplicitTimeStepCellModelBase(){
-		this->Required_Storage = 25;
+	ExplicitTNNPVent::ExplicitTNNPVent() : CellModelBase(){
 
-		intrinsic_dt = 0.02;
-
-		//Overload the requests which are not the default value
-		Requires_AB_Index = true;
-		Requires_RV_Index = true;
-		Requires_IS_Index = true;
+		Intrinsic_dt = 0.02;
 
 		// constants
 		TTCell_Ko = 5.4;
@@ -62,9 +56,13 @@ namespace oomph{
 		TTCell_inversevssF2 = 1.0 / (2.0 * TTCell_Vss *TTCell_F);
 	}
 
+	//return the initial membrane potential for the cell_typeth cell type
+	inline void ExplicitTNNPVent::return_initial_membrane_potential(double &v, const unsigned &cell_type){
+		v = -86.2;
+	}
 
 	//Return the initial condition for the nth variable and cell_typeth cell type
-	inline bool ExplicitTNNPVent::return_initial_value(const unsigned &n, double &v, const unsigned &cell_type){
+	inline bool ExplicitTNNPVent::return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type){
 		switch(n){
 			case 0 : v = 0.00007;
 					break;
@@ -119,14 +117,34 @@ namespace oomph{
 			default : return false;
 		}
 		return true;
-	}
+	}//End get initial conditions
 
+
+	inline unsigned ExplicitTNNPVent::required_nodal_variables(const unsigned &cell_type){return 25;}
+	//the model does not require derivatives to be provided, it's
+	//	explicit and calculates them itself
+	inline unsigned ExplicitTNNPVent::required_derivatives(){return 0;}
+	//The model has three black box parameters
+	inline unsigned ExplicitTNNPVent::required_black_box_parameters(){return 3;}
+	
+	//a virtual function to extract black box nodal parameters from the cell state
+	//	we implement this as virtual so that in the case this class is used in a
+	//	combined cell model class. Then it can be overloaded so that black box nodal
+	//	parameters associated with each model have a unique index
+	inline void ExplicitTNNPVent::extract_black_box_parameters_ExplicitTNNPVent(double &abindex,
+																	double &isindex,
+																	double &rvindex,
+																	CellState &Cellstate){
+		abindex = Cellstate.get_black_box_nodal_parameters(0);
+		isindex = Cellstate.get_black_box_nodal_parameters(1);
+		rvindex = Cellstate.get_black_box_nodal_parameters(2);
+	}
 
 	void ExplicitTNNPVent::explicit_timestep(CellState &Cellstate, Vector<double> &new_state){
 		//make a vector of size two to avoid having to rewrite a load of code
 		Vector<double> state;
 		state.resize(2);
-		state[0]  	  = Cellstate.vm(); // -86.2;
+		state[0]  	  = Cellstate.get_vm(); // -86.2;
 		state[1]      = new_state[0]; // 0.00007;
 		double CaSR   = new_state[1]; // 1.3;
 		double CaSS   = new_state[2]; // 0.00007;
@@ -153,13 +171,19 @@ namespace oomph{
 		double wt_C2  = new_state[23];  // 0.0;
 		double wt_I   = new_state[24];  // 0.0;
 
-		double ABIndex = Cellstate.ab_index();
-		unsigned m_celltype = Cellstate.cell_type();
-		double IS_Index = Cellstate.is_index();
-		double RV_Index = Cellstate.rv_index();
-		double dt = Cellstate.dt();
+		unsigned m_celltype = Cellstate.get_cell_type();
+
+		double ABIndex;
+		double IS_Index;
+		double RV_Index;
+		extract_black_box_parameters_ExplicitTNNPVent(ABIndex,IS_Index,RV_Index,Cellstate);
+		double dt = Cellstate.get_dt();
+
+		// std::cout << ABIndex << " " << IS_Index << " " << RV_Index << " " << dt << std::endl;
 
 		// std::cout << ABIndex << "\t" << m_celltype << "\t" << IS_Index << "\t" << RV_Index << "\t" << dt << std::endl;
+
+		// std::exit(0);
 
 		/*  default values for ABIndex = 0.0 (Value set 0 == Apical Cells)
 		    and ABIndex ranges from 0.0 -> 1.0 */
@@ -312,6 +336,7 @@ namespace oomph{
 
 		double Ena = TTCell_RTONF * (log((TTCell_Nao / Nai)));
 		double Eks = TTCell_RTONF * (log((Ischemia_TTCell_Ko + TTCell_pKNa * TTCell_Nao) / (Ki + TTCell_pKNa * Nai)));
+		// std::cout << TTCell_RTONF << "\t" << TTCell_Cao << "\t" << state[1] << std::endl;
 		double Eca = 0.5 * TTCell_RTONF * (log((TTCell_Cao / state[1])));
 		double Ak1 = 0.1 / (1. + exp(0.06 * (state[0] - Ek - 200)));
 		double Bk1 = (3.0 * exp(0.0002 * (state[0] - Ek + 100)) + exp(0.1 * (state[0] - Ek - 10))) / (1. + exp(-0.5 * (state[0] - Ek)));
@@ -384,11 +409,18 @@ namespace oomph{
 		}
 		// cout << Gto << endl;
 		/* Ito */
+		double Ito = GTo_ABh * Gto * sr * ss * (state[0] - Ek);
 		ss = S_INF - (S_INF - ss) * exp(-dt / TAU_S);
 		sr = R_INF - (R_INF - sr) * exp(-dt / TAU_R);
-		double Ito = GTo_ABh * Gto * sr * ss * (state[0] - Ek);
+		
 
 		/* INa */
+		double GNa = 14.838;
+		if (m_celltype == 104 or m_celltype == 101)
+		{
+			// GNa *= 1.5;  // tranmural hereterogeneity includes INa
+		}
+		double INa = Acidosis_factor * GNa * sm * sm * sm * sh * sj * (state[0] - Ena);
 		// double AM = 1. / (1. + exp((-60. - state[0]) / 5.));
 		// double BM = 0.1 / (1. + exp((state[0] + 35.) / 5.)) + 0.10 / (1. + exp((state[0] - 50.) / 200.));
 		double TAU_M = (1. / (1. + exp((-60. - state[0]) / 5.))) * ( 0.1 / (1. + exp((state[0] + 35.) / 5.)) + 0.10 / (1. + exp((state[0] - 50.) / 200.))) ;
@@ -421,12 +453,8 @@ namespace oomph{
 		sm = M_INF - (M_INF - sm) * exp(-dt / TAU_M);
 		sh = H_INF - (H_INF - sh) * exp(-dt / TAU_H);
 		sj = J_INF - (J_INF - sj) * exp(-dt / TAU_J);
-		double GNa = 14.838;
-		if (m_celltype == 104 or m_celltype == 101)
-		{
-			// GNa *= 1.5;  // tranmural hereterogeneity includes INa
-		}
-		double INa = Acidosis_factor * GNa * sm * sm * sm * sh * sj * (state[0] - Ena);
+		
+		
 
 		/* IKr */  // CalculateTTIKr
 		/*double Xr1_INF;
@@ -448,6 +476,7 @@ namespace oomph{
 		// CalculateMarkovIKr();
 
 		/* Marcov IKr Model */
+		double Gkr = 0.153;
 		double m_epiMidRatio = 1.5;
 		double epi_factor   = 1.8 * m_epiMidRatio;
 		double endo_factor  = 1.8;
@@ -461,8 +490,6 @@ namespace oomph{
 		double wt_ai = 0.11 * 0.439     * exp(1.7 *  -0.02352 * (state[0] + 25. - AB_IKr_ActVhalf)) * (4.5 / Ischemia_TTCell_Ko);
 		double wt_bi = 0.4 *  0.656     * exp(      0.000942 * (state[0] - AB_IKr_ActVhalf)) * ((pow((4.5 / Ischemia_TTCell_Ko), 0.3)));
 		double wt_mu = (wt_ai * wt_b2) / wt_bi;
-
-		double Gkr = 0.153;
 		if (m_celltype == 102 or m_celltype == 105)
 			Gkr = 0.0135 * pow(Ischemia_TTCell_Ko, 0.59) * endo_factor;
 		else if (m_celltype == 101 or m_celltype == 104)
@@ -470,7 +497,12 @@ namespace oomph{
 		else
 			Gkr = 0.0135 * pow(Ischemia_TTCell_Ko, 0.59) * epi_factor;
 
-		{	double wt_dC3 = (wt_b * wt_C2) - (wt_a * wt_C3);
+		double IKr = Gkr * wt_O * (state[0] - Ek);
+
+		
+
+		{	
+			double wt_dC3 = (wt_b * wt_C2) - (wt_a * wt_C3);
 			double wt_dC2 = -((wt_b + wt_a1) * wt_C2) + (wt_a * wt_C3) + (wt_b1 * wt_C1);
 			double wt_dC1 = -((wt_b1 + wt_a2 + wt_a2) * wt_C1) + (wt_a1 * wt_C2) + (wt_b2 * wt_O) + (wt_mu * wt_I);
 			double wt_dO  =  -((wt_b2 + wt_bi) * wt_O) + (wt_a2 * wt_C1) + (wt_ai * wt_I);
@@ -482,13 +514,14 @@ namespace oomph{
 			wt_C3 += dt * wt_dC3;
 			wt_I  += dt * wt_dI;
 		}
-		double IKr = Gkr * wt_O * (state[0] - Ek);
+		
 		
 		//An addition so we can output the currents
-		Cellstate.set_ikr_current(IKr);
+		Cellstate.set_new_general_cell_model_data(IKr);
 		//////////////////
 
 		/* IKs */
+		double IKs = GKs_ABh * Gks * sxs * sxs * (state[0] - Eks);  // with apicalbasal heterogeneity wit direct scaling factor, by haibo
 		double Xs_INF = 1. / (1. + exp((-5. - state[0]) / 14.));
 		// double Axs = (1400. / (sqrt(1. + exp((5. - state[0]) / 6))));
 		// double Bxs = (1. / (1. + exp((state[0] - 35.) / 15.)));
@@ -496,13 +529,16 @@ namespace oomph{
 		TAU_Xs = TauKs_ABh * TAU_Xs;
 		sxs = Xs_INF - (Xs_INF - sxs) * exp(-dt / TAU_Xs);
 
-		double IKs = GKs_ABh * Gks * sxs * sxs * (state[0] - Eks);  // with apicalbasal heterogeneity wit direct scaling factor, by haibo
+		
 		
 		//An addition so we can output the currents
-		Cellstate.set_iks_current(IKs);
+		Cellstate.set_new_general_cell_model_data(IKs);
 		//////////////////
 
 		/* ICaL */
+		double ICaL = Acidosis_factor * TTCell_GCaL * sd * sf * sf2 * sfcass * 4 * (state[0] - 15) * (TTCell_F * TTCell_F / (TTCell_R * TTCell_T)) *
+		              (0.25 * exp(2 * (state[0] - 15) * TTCell_F / (TTCell_R * TTCell_T)) * CaSS - TTCell_Cao) / (exp(2 * (state[0] - 15) * TTCell_F / (TTCell_R * TTCell_T)) - 1.);
+
 		double D_INF = 1. / (1. + exp((-8 - state[0]) / 7.5));
 		double Ad = 1.4 / (1. + exp((-35 - state[0]) / 13)) + 0.25;
 		double Bd = 1.4 / (1. + exp((state[0] + 5) / 5));
@@ -528,9 +564,7 @@ namespace oomph{
 		double TAU_FCaSS = 80. / (1 + (CaSS / 0.05) * (CaSS / 0.05)) + 2.;
 		sfcass = FCaSS_INF - (FCaSS_INF - sfcass) * exp(-dt / TAU_FCaSS);
 
-		double ICaL = Acidosis_factor * TTCell_GCaL * sd * sf * sf2 * sfcass * 4 * (state[0] - 15) * (TTCell_F * TTCell_F / (TTCell_R * TTCell_T)) *
-		              (0.25 * exp(2 * (state[0] - 15) * TTCell_F / (TTCell_R * TTCell_T)) * CaSS - TTCell_Cao) / (exp(2 * (state[0] - 15) * TTCell_F / (TTCell_R * TTCell_T)) - 1.);
-
+		
 		//INaL gates
 
 		// double mNaL_INF, hNaL_INF, TAU_mNaL, TAU_hNaL;
@@ -543,6 +577,7 @@ namespace oomph{
 
 
 		/*INaL was taken from ORd 2011 model. */
+		INaL = (1 + 10 * IS_Index) * GNaL * mNaL * hNaL * (state[0] - Ena) ;
 		double TMP_INF = 1.0 / (1.0 + exp((-(state[0] + 42.85)) / 5.264));
 
 		mNaL = TMP_INF - (TMP_INF - mNaL) * exp(-dt / TAU_M);  // double tmL = TAU_M;
@@ -554,7 +589,7 @@ namespace oomph{
 		hLp = hLssp - (hLssp - hLp) * exp(-dt / thLp);*/
 		// double fINaLp = (1.0 / (1.0 + KmCaMK / CaMKa));
 
-		INaL = (1 + 10 * IS_Index) * GNaL * mNaL * hNaL * (state[0] - Ena) ;
+		
 
 
 
@@ -562,6 +597,7 @@ namespace oomph{
 
 
 		double IbNa = TTCell_GbNa * (state[0] - Ena);
+		// std::cout << TTCell_GbCa << "\t" << state[0] << "\t" << Eca << std::endl;
 		double IbCa = TTCell_GbCa * (state[0] - Eca);
 		double IpK = TTCell_GpK * rec_ipK * (state[0] - Ek);
 		double IpCa = TTCell_GpCa * state[1] / (TTCell_KpCa + state[1]);
@@ -645,11 +681,11 @@ namespace oomph{
 		new_state[23]  = wt_C2  ;
 		new_state[24]  = wt_I   ;
 
-		/*FILE * out = fopen("INaL.dat", "a+");
-		fprintf(out, "%f %f\n", t, INaL);
-		fclose(out);*/
-		Cellstate.set_cell_membrane_current(IKr + IKs + IK1 + Ito + INa + IbNa + ICaL + IbCa + INaK + INaCa + IpCa + IpK + INaL /*+ Istim*/ + IKATP);
-		// std::cout << "reached end" << std::endl;
+		Cellstate.set_active_strain(state[1]);
+
+		// std::cout << IKr << "\t" << IKs<< "\t" << IK1<< "\t" << Ito<< "\t" << INa<< "\t" << IbNa << "\t" <<ICaL << "\t" <<IbCa<< "\t" << INaK<< "\t" << INaCa << "\t" <<IpCa << "\t" <<IpK << "\t" <<INaL /*+ Istim*/<< "\t" << IKATP;
+		// std::exit(0);
+		Cellstate.set_membrane_current(IKr + IKs + IK1 + Ito + INa + IbNa + ICaL + IbCa + INaK + INaCa + IpCa + IpK + INaL /*+ Istim*/ + IKATP);
 	}
 
 } //end namespace

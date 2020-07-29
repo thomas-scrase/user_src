@@ -15,6 +15,11 @@
   #include <oomph-lib-config.h>
 #endif
 
+#ifdef OOMPH_HAS_MPI
+//mpi headers
+#include "mpi.h"
+#endif
+
 //OOMPH-LIB includes
 #include "../generic/nodes.h"
 #include "../generic/oomph_utilities.h"
@@ -30,40 +35,93 @@
 
 namespace oomph{
 
+	//The base cell model class. By default it is implemented as entirely broken.
+	//	This ensures that whowever is making a new cell model specifies all the
+	//	necessary members
+	//====================================================================
+	//====================================================================
+	//By default this is an explicit time-stepping cell model
+	//	Base for cell models which make explicit time steps, benefits from
+	//	needing to make comparatively few changes to already hard coded cell
+	//	models when compared to a full convert to oomph-lib style computation.
+	//Drawbacks are that benefits of oomph-lib's automatic error computation
+	//	are lost, since an explicit scheme is used, the residual no longer
+	//	represents the error in the solution but instead the difference between
+	//	the value computed by the explicit timestepping function and the current
+	//	value at the node. Further, the entire explicit timestep is required
+	//	to be computed when calculating active strain and membrane current which
+	//	is likely to reduce efficieny
+	//Benefits though include a very easily invertible jacobian, since only
+	//	diagonal entries are filled and ease of use by the user
+	//====================================================================
+	//====================================================================
 	class CellModelBase
 	{
 	public:
-		CellModelBase();
+		CellModelBase()	:	Mutation_pt(0), Intrinsic_dt(0.0) {}
 
 		virtual ~CellModelBase()	{}
 
 		//Is the passed cell type compatible with this cell model
 		virtual inline bool compatible_cell_types(const unsigned& cell_type){
-			throw OomphLibError("Cell types compatible with this model have not been defined",
+			throw OomphLibError("Cell types compatible with this model have not been defined yet",
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
 
-		virtual inline double active_strain(CellState &state)
-		{
-			std::string error_message =
-		    "Active strain has not been implemented for this cell model yet.";
-		    
-		   throw OomphLibError(error_message,
-		                       OOMPH_CURRENT_FUNCTION,
-		                       OOMPH_EXCEPTION_LOCATION);
-		}
-
+		//Return the total membrane current when requested by the interace element
+		//	default implementation assumes an explicit timestepping method, implemented
+		//	as virtual to allow a user to implement an implicit method
 		virtual inline double membrane_current(CellState &state)
 		{
-			std::string error_message =
-		    "Membrane current has not been implemented for this cell model yet.";
-		    
-		   throw OomphLibError(error_message,
+			Vector<double> DummyVector;
+			DummyVector.resize(required_nodal_variables());
+			//set DummyVector = cell variables at previous timestep
+			for(unsigned i=0; i<required_nodal_variables(); i++){
+				DummyVector[i] = state.get_previous_variables(i);
+				// DummyVector[i] = state.get_var(0,i);
+			}
+			// state.set_dt(0.0);
+			//Compute the cell model explicit timestep
+			// std::cout << DummyVector[0] << std::endl;
+			explicit_timestep(state, DummyVector);
+
+			// std::cout << state.get_membrane_current();
+			// std::exit(0);
+			//Return the caclulated cell model current
+			return state.get_membrane_current();
+		}
+
+
+		//Return the active strain when requested by the interace element
+		//	default implementation assumes an explicit timestepping method, implemented
+		//	as virtual to allow a user to implement an implicit method
+		virtual inline double active_strain(CellState &state)
+		{
+			Vector<double> DummyVector;
+			DummyVector.resize(required_nodal_variables());
+			//set DummyVector = cell variables at previous timestep
+			for(unsigned i=0; i<required_nodal_variables(); i++){
+				DummyVector[i] = state.get_previous_variables(i);
+				// DummyVector[i] = state.get_var(0,i);
+			}
+			// state.set_dt(0.0);
+			//Compute the cell model explicit timestep with a dummy vector
+			explicit_timestep(state, DummyVector);
+			//Return the calculated cell model strain
+			return state.get_active_strain();
+		}
+
+		//return the membrane capacitane of the model for the provided state
+		virtual inline double cm(CellState &state) {
+			throw OomphLibError("Membrane capacitance has not been implemented for this cell model yet.",
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
-
+		
+		//Get the custom output for the cell model, this could be specific ion currents, 
+		//	conductances, whatever the user wants. By default it is broken, in an explicit
+		//	method it should make use of the Cell State General_cell_model_data
 		virtual inline void custom_output(CellState &state, Vector<double> &output)
 		{
 			throw OomphLibError("Custom output has not been implemented yet for this cell model.",
@@ -71,13 +129,68 @@ namespace oomph{
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
 
-		// Calculate the sub residual and sub jacobian objects
+		// Calculate the sub residual and sub jacobian objects.
+		// By default this is assumes the cell model to be an explicit method. however
+		// it mplemented as virtual to allow for overloading when a user wants to implement a explicit model
 		virtual inline void fill_in_generic_residual_contribution_cell_base(CellState &state,
 																			Vector<double> &residuals,
 																			DenseMatrix<double> &jacobian,
 																			unsigned flag)
 		{
-			throw OomphLibError("fill_in_generic_residual_contribution_cell_base has not been implemented for this cell model yet.",
+			//create vector for the previous state of the cell variables
+			Vector<double> new_state;
+			new_state.resize(required_nodal_variables());
+			//set new_state = cell variables at previous timestep
+			for(unsigned i=0; i<required_nodal_variables(); i++){
+				new_state[i] = state.get_previous_variables(i);
+			}
+
+			//Work out whether a smaller dt is required by the explicit time stepper
+			//	if so, set dt to the largest value smaller than the current dt
+			//	which divides the original dt by an integer number
+			unsigned N = 1;
+			if(state.get_dt() > Intrinsic_dt){
+				//The smallest integer N such that Ndt_new = dt_old and dt_new < dt_intrinsic
+				N = std::floor(state.get_dt()/Intrinsic_dt)+1;
+				//set state dt = dt/N
+				double dt_new = state.get_dt()/N;
+				state.set_dt(dt_new);
+			}
+
+			// std::cout << "solving " << N << " times, with step of " << state.get_dt() << " for a total step length of " << N*state.get_dt() << std::endl;
+
+			//solve the explicit time step problem N times
+			for(unsigned i=0; i<N; i++){
+				// std::cout << "Solving cell model with dt=" << state.get_dt() << std::endl;
+				//calculate the next time values of the cell variables
+				explicit_timestep(state, new_state);
+			}
+
+			//contribute to the residuals: explicit calculated current value - what the node thinks the current value is
+			for(unsigned i=0; i<required_nodal_variables(); i++){
+				// std::cout << "residual and jacobian " << i << std::endl;
+				residuals[i] = -( new_state[i] - state.get_var(0,i) );
+				// if(residuals[i]>1e-9){std::cout << residuals[i] << std::endl;}
+				//Contribution to jacobian is just identity since new_state[i] is not dependent on the current state in time, but the previous one
+				if(flag){
+					jacobian(i,i) = 1.0;
+				}
+			}
+		}
+
+		//The explicit time step taken by the cell model, this is used by default.
+		//New state is the cell state variables to be found, it is also the previous
+		//	timestep in the weakly coupled timestepping method, at each stage
+		//	new_state[i] = new_state[i] + dt*f(new_state);
+		//	is calculated.
+		//In the case of an implicit cell model this function will not be called.
+		// Instead, fill in residual and jacobian procedure will be overridden
+		// to perform the necessary calculations
+		virtual void explicit_timestep(CellState &state, Vector<double> &new_state){
+			std::string error_message = "Explicit_timestep has not been implemented for this Cell Model yet\n";
+			error_message += ". In order to use this cell model you must overload this function to a suitably modified version of your cell model time stepper.\n";
+			error_message += "For details on requirements see Thomas M A Scrase PhD Thesis.";
+			throw OomphLibError(error_message,
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
@@ -100,45 +213,43 @@ namespace oomph{
 		//	is used by the cell model, false if it is not and the variable
 		//	should be pinned
 		//====================================================================
-		inline void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){
+		virtual inline void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){
 			throw OomphLibError("Initial membrane potential has not been implemented for this cell model yet",
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
-		virtual inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type=0){
+		//if the requested variable number has no default initial state, then it is assumed to not be
+		//	useful and is pinned by the cell interface element
+		virtual inline bool return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type=0){
 			throw OomphLibError("Initial conditions have not been implemented for this cell model yet",
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
 
-		const bool model_calculates_jacobian_entries() const {return Model_Calculates_Jacobian_Entries;}
+		virtual inline bool model_calculates_jacobian_entries() {return true;}
 		
-		//Access functions for request checks
-		const unsigned required_storage() const {return Required_Storage;}
-		inline unsigned required_derivatives() const {return Required_Derivatives;}
-		bool requires_vm() const {return Requires_Vm;}
-		bool requires_strain() const{return Requires_Strain;}
-		bool requires_na_o() const{return Requires_Na_o;}
-		bool requires_k_o() const{return Requires_K_o;}
-		bool requires_ca_o() const{return Requires_Ca_o;}
-		bool requires_cell_type() const{return Requires_Cell_Type;}
-		bool requires_fibrosis() const{return Requires_Fibrosis;}
-		bool requires_ab_index() const{return Requires_AB_Index;}
-		bool requires_rv_index() const{return Requires_RV_Index;}
-		bool requires_is_index() const{return Requires_IS_Index;}
-		bool requires_dt() const{return Requires_dt;}
-		bool requires_previous_values() const{return Requires_previous_values;}
-
-		
-		virtual double cm() const {
-			throw OomphLibError("Membrane capacitance has not been implemented for this cell model yet.",
+		//How many nodal variables does the cell model need?
+		//Cell type is provided as an argument so that interface element can
+		//	provide the correct amount of storage for each node and so that combined
+		//	cell model class can pick the correct cell model required nodal variables
+		virtual inline unsigned required_nodal_variables(const unsigned &cell_type=0) {
+			throw OomphLibError("The amount of storage required for this model to function has not been defined for this cell model yet",
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
+		virtual inline unsigned required_derivatives() {
+			throw OomphLibError("The number of derivatives required for this model to function has not been defined for this cell model yet",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+		}
+		
+		virtual inline unsigned required_black_box_parameters() {
+			throw OomphLibError("The number of black box nodal parameters required for this model to function has not been defined for this cell model yet",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+		}
+	
 	protected:
-
-		//Does the cell model calculate entries of the jacobian matrix
-		bool Model_Calculates_Jacobian_Entries;
 
 		//====================================================================
 		//Mutation type
@@ -147,319 +258,15 @@ namespace oomph{
 		//====================================================================
 		unsigned *Mutation_pt;
 
-		//The number of tracked variables required by the model
-		unsigned Required_Storage;
-
-
-		//Bools and unsigneds for what data to request from the cell interface element
-		unsigned Required_Derivatives; //number of required derivatives
-		bool Requires_Vm; //does the model require membrane potential
-		bool Requires_Strain; //does the model require strain
-		bool Requires_Na_o; //does the model require external sodium concentration
-		bool Requires_K_o; //does the model require external potassium concentration
-		bool Requires_Ca_o; //does the model require external calcium concentration
-		bool Requires_Cell_Type; //does the model require cell type
-		bool Requires_Fibrosis; //does the model require fibrosis type?
-		bool Requires_AB_Index; //does the model require ab index
-		bool Requires_RV_Index; //does the model require rv index
-		bool Requires_IS_Index; //does the model require is index
-
-		bool Requires_dt; //does the model use an explicit time-stepping method and hence require the temporal increment
-		bool Requires_previous_values; //does the model require the previous time values of variables? Generally used by explicit time stepping methods
-	};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	//====================================================================
-	//====================================================================
-	//Begin the Zero Cell model:
-	// an empty cell class for testing if linking between the
-	// monodomain elements and cell model interface elements
-	// is working correctly.
-	//====================================================================
-	//====================================================================
-	class ZeroCell	:	public CellModelBase
-	{
-	public:
-		ZeroCell() : CellModelBase()
-		{
-			this->Required_Storage = 1;
-		}
-
-		virtual ~ZeroCell()	{}
-
-		bool compatible_cell_types(const unsigned& cell_type){return true;}
-
-		virtual double active_strain(CellState &state) const
-		{
-			return 0.0;
-		}
-
-		inline double membrane_current(CellState &state)
-		{
-			//zero to not affect the monodomain solution
-			return 1.0;
-		}
-
-		virtual inline void custom_output(CellState &state, Vector<double> &output)
-		{
-			//Intentionally returns nothing
-		}
-
-		void fill_in_generic_residual_contribution_cell_base(CellState &state,
-															Vector<double> &residuals,
-															DenseMatrix<double> &jacobian,
-															unsigned flag)
-		{
-			//some function which behaves
-			residuals[0] += state.var(1,0) + state.var(0,0)*(state.var(0,0)+1.0);
-			if(flag){
-				jacobian(0, 0) += state.time_stepper_weights(1,0) + 2*state.var(0,0)+1.0;
-			}
-		}
-
-		inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type=0){
-			switch(n){
-				case 0 : {
-					v = 1.0;
-					return true;
-				}
-				default : {
-					return false;
-				}
-			}
-		}
-
-		double cm() const {return 1.0;}
-	};
-
-
-
-
-
-
-
-
-
-
-
-
-	//====================================================================
-	//====================================================================
-	//Begin the FitzHugh-Nagumo Cell model:
-	// a deprecated cell class for testing if linking between the
-	// monodomain elements and cell model interface elements
-	// is working correctly, and for demonstrating cell model wrappers
-	// used during modelling.
-	//====================================================================
-	//====================================================================
-	class FitzHughNagumo	:	public CellModelBase
-	{
-	public:
-		FitzHughNagumo() : CellModelBase()
-		{
-			this->Required_Storage = 1;
-		}
-
-		virtual ~FitzHughNagumo()	{}
-
-		bool compatible_cell_types(const unsigned& cell_type){return true;}
-
-		virtual double active_strain(CellState &state) const
-		{
-			return 0.0;
-		}
-
-		inline virtual double potential_forcing_function(CellState &state) const
-		{
-			return state.vm()*(1.0-state.vm()*state.vm()/3.0);
-			// return 0.0;
-		}
-
-		inline virtual double variable_forcing_function(CellState &state) const
-		{
-			return 0.08*(state.vm() + 0.7 - 0.8*state.var(0,0));
-			// return 10.0*(state.vm() - potential_scaling() + 0.7 - 0.8*var);
-		}
-
-		// The membrane current at the node
-		inline double membrane_current(CellState &state)
-		{
-			return -(potential_forcing_function(state) - state.var(0,0));
-		}
-
-		virtual inline void custom_output(CellState &state, Vector<double> &output)
-		{
-			//Intentionally does nothing
-		}
-
-		void fill_in_generic_residual_contribution_cell_base(CellState &state,
-															Vector<double> &residuals,
-															DenseMatrix<double> &jacobian,
-															unsigned flag)
-		{
-			//some function which behaves
-			int var_ind = 0;
-			residuals[0] += state.var(1,0) - variable_forcing_function(state);
-			if(flag){
-				jacobian(0, 0) += state.time_stepper_weights(1,0) + 2.0*state.var(0,0)+1.0;
-			}
-		}
-
-		virtual inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type=0){
-			switch(n){
-				case 0 : {
-					v = 0.0;
-					return true;
-				}
-				default : {
-					return false;
-				}
-			}
-		}
-
-		double cm() const {return 1.0;}
-
-		// double const potential_scaling() const {return -77.079842;}
-	};
-
-
-
-
-
-
-
-	//====================================================================
-	//====================================================================
-	//Explicit time-stepping cell model base
-	//	Base for cell models which make explicit time steps, benefits from
-	//	needing to make comparatively few changes to already hard coded cell
-	//	models when compared to a full convert to oomph-lib style computation.
-	//Drawbacks are that benefits of oomph-lib's automatic error computation
-	//	are lost, since an explicit scheme is used, the residual no longer
-	//	represents the error in the solution but instead the difference between
-	//	the value computed by the explicit timestepping function and the current
-	//	value at the node. Further, the entire explicit timestep is required
-	//	to be computed when calculating active strain and membrane current which
-	//	is likely to reduce efficieny
-	//Benefits though include a very easily invertible jacobian, since only
-	//	diagonal entries are filled.
-	//====================================================================
-	//====================================================================
-	class ExplicitTimeStepCellModelBase : public CellModelBase
-	{
-	public:
-		//Constructor
-		ExplicitTimeStepCellModelBase() : CellModelBase() {
-			//Jacobian is simply identity
-			Model_Calculates_Jacobian_Entries = true;
-			Requires_dt = true;
-			Requires_previous_values = true;
-		}
-
-		double active_strain(CellState &state)
-		{
-			Vector<double> DummyVector;
-			DummyVector.resize(this->Required_Storage);
-			//set DummyVector = cell variables at previous timestep
-			for(unsigned i=0; i<this->Required_Storage; i++){
-				DummyVector[i] = state.previous_variables(i);
-			}
-			//Compute the cell model explicit timestep with a dummy vector
-			explicit_timestep(state, DummyVector);
-			//Return the calculated cell model strain
-			return state.cell_model_strain();
-		}
-
-		double membrane_current(CellState &state)
-		{
-			Vector<double> DummyVector;
-			DummyVector.resize(this->Required_Storage);
-			//set DummyVector = cell variables at previous timestep
-			for(unsigned i=0; i<this->Required_Storage; i++){
-				DummyVector[i] = state.previous_variables(i);
-			}
-			//Compute the cell model explicit timestep
-			explicit_timestep(state, DummyVector);
-			//Return the caclulated cell model current
-			return state.cell_membrane_current();
-		}
-
-		// Calculate the sub residual and sub jacobian objects
-		void fill_in_generic_residual_contribution_cell_base(CellState &state,
-															Vector<double> &residuals,
-															DenseMatrix<double> &jacobian,
-															unsigned flag)
-		{
-			//create vector for the previous state of the cell variables
-			Vector<double> new_state;
-			new_state.resize(this->Required_Storage);
-			//set new_state = cell variables at previous timestep
-			for(unsigned i=0; i<this->Required_Storage; i++){
-				new_state[i] = state.previous_variables(i);
-			}
-
-			//Work out whether a smaller dt is required by the explicit time stepper
-			//	if so, set dt to the largest value smaller than the current dt
-			//	which divides the original dt by an integer number
-			unsigned N = 1;
-			if(state.dt() > intrinsic_dt){
-				//The smallest integer N such that Ndt_new = dt_old and dt_new < dt_intrinsic
-				N = std::floor(state.dt()/intrinsic_dt)+1;
-				//set state dt = dt/N
-				double dt_new = state.dt()/N;
-				state.set_dt(dt_new);
-			}
-
-			//solve the explicit time step problem N times
-			for(unsigned i=0; i<N; i++){
-				//calculate the next time values of the cell variables
-				explicit_timestep(state, new_state);
-			}
-
-			//contribute to the residuals: explicit calculated current value - what the node thinks the current value is
-			for(unsigned i=0; i<this->Required_Storage; i++){
-				// std::cout << "residual and jacobian " << i << std::endl;
-				residuals[i] -= new_state[i] - state.var(0,i);
-				//Contribution to jacobian is just identity since new_state[i] is not dependent on the current state in time, but the previous one
-				if(flag){
-					jacobian(i,i) = 1.0;
-				}
-			}
-
-		}
-
-		//The explicit time step taken by the original cell model
-		virtual void explicit_timestep(CellState &state, Vector<double> &new_state){
-			std::string error_message = "Explicit_timestep has not been implemented for this ExplicitTimeStepCellModel type cell model yet\n";
-			error_message += ". In order to use this cell model you must overload this function to a suitably modified version of your cell model time stepper.\n";
-			error_message += "For details on requirements see Thomas M A Scrase PhD Thesis.";
-			throw OomphLibError(error_message,
-		                       OOMPH_CURRENT_FUNCTION,
-		                       OOMPH_EXCEPTION_LOCATION);
-		}
-
-	protected:
 		//The largest dt which ensures convergence of the method,
 		//	must be implemented by the user who defined the cell
 		//	model
-		double intrinsic_dt;
-
+		double Intrinsic_dt;
 	};
+
+
+
+
 
 
 
@@ -475,10 +282,7 @@ namespace oomph{
 								public CELL_MODEL_2
 	{
 	public:
-		CombinedCellModel() :	CELL_MODEL_1(), CELL_MODEL_2()
-		{
-			this->Required_Storage = std::max(CELL_MODEL_1::Required_Storage, CELL_MODEL_2::Required_Storage);
-		}
+		CombinedCellModel() :	CELL_MODEL_1(), CELL_MODEL_2(){ }
 
 		//Identify the cell model which is to be used in the subsequent computation:
 		//	by default this function will simply check if the passed cell type compatible
@@ -488,7 +292,7 @@ namespace oomph{
 		//	Implemented as virtual so that user defined cell type distributions over
 		//	the cell models can be used
 		//		i.e. both models are of atria type but right atrium is to be computed
-		//		by CELL_MODEL_2 and the rest is to be computed by CELL_MODEL_1
+		//		by CELL_MODEL_2 and the rest are to be computed by CELL_MODEL_1
 		virtual inline bool Identify_Correct_Cell_Model(const unsigned& cell_type){
 			#ifdef DPARANOID
 			if(CELL_MODEL_1::compatible_cell_types(cell_type) and CELL_MODEL_2::compatible_cell_types(cell_type)){
@@ -513,11 +317,20 @@ namespace oomph{
 		                       OOMPH_EXCEPTION_LOCATION);
 
 		}
-
-
+		//return the correct model's membrane current
+		double membrane_current(CellState &state)
+		{
+			if(Identify_Correct_Cell_Model(state.get_cell_type())){
+				return CELL_MODEL_1::membrane_current(state);
+			}
+			else{
+				return CELL_MODEL_2::membrane_current(state);
+			}
+		}
+		//return the correct model's active strain
 		double active_strain(CellState &state)
 		{
-			if(Identify_Correct_Cell_Model(state.cell_type())){
+			if(Identify_Correct_Cell_Model(state.get_cell_type())){
 				return CELL_MODEL_1::active_strain(state);
 			}
 			else{
@@ -525,19 +338,19 @@ namespace oomph{
 			}
 		}
 
-		double membrane_current(CellState &state)
-		{
-			if(Identify_Correct_Cell_Model(state.cell_type())){
-				return CELL_MODEL_1::membrane_current(state);
+		//return the correct model's membrane capacitance
+		double cm(CellState &state) {
+			if(Identify_Correct_Cell_Model(state.get_cell_type())){
+				return CELL_MODEL_1::cm(state);
 			}
 			else{
-				return CELL_MODEL_2::membrane_current(state);
+				return CELL_MODEL_2::cm(state);
 			}
 		}
 
-		virtual inline void custom_output(CellState &state, Vector<double> &output)
+		inline void custom_output(CellState &state, Vector<double> &output)
 		{
-			if(Identify_Correct_Cell_Model(state.cell_type())){
+			if(Identify_Correct_Cell_Model(state.get_cell_type())){
 				CELL_MODEL_1::custom_output(state, output);
 			}
 			else{
@@ -551,7 +364,7 @@ namespace oomph{
 															DenseMatrix<double> &jacobian,
 															unsigned flag)
 		{
-			if(Identify_Correct_Cell_Model(state.cell_type())){
+			if(Identify_Correct_Cell_Model(state.get_cell_type())){
 				CELL_MODEL_1::fill_in_generic_residual_contribution_cell_base(state,residuals, jacobian, flag);
 			}
 			else{
@@ -559,7 +372,7 @@ namespace oomph{
 			}
 		}
 
-		virtual inline void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){
+		inline void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){
 			if(Identify_Correct_Cell_Model(cell_type)){
 				CELL_MODEL_1::return_initial_membrane_potential(v, cell_type);
 			}
@@ -568,16 +381,387 @@ namespace oomph{
 			}
 		}
 
-		virtual inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type=0){
+		inline bool return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type=0){
 			if(Identify_Correct_Cell_Model(cell_type)){
-				return CELL_MODEL_1::return_initial_value(n, v, cell_type);
+				return CELL_MODEL_1::return_initial_state_variable(n, v, cell_type);
 			}
 			else{
-				return CELL_MODEL_2::return_initial_value(n, v, cell_type);
+				return CELL_MODEL_2::return_initial_state_variable(n, v, cell_type);
 			}
 		}
 
+		
+		//It would be very difficult to write a cell model which performs automatic Jacobian fill in
+		//	via finite differencing for some nodes and not for others. For this reason this flag is
+		//	only set to true if both models can calculate residuals
+		inline bool model_calculates_jacobian_entries() {
+			if(CELL_MODEL_1::model_calculates_jacobian_entries() && CELL_MODEL_2::model_calculates_jacobian_entries()){
+				return true;
+			}
+		 	else{
+		 		return false;
+		 	}
+		}
+		//Return the maximum required storage
+		inline unsigned required_nodal_variables(const unsigned *cell_type=0){
+			return std::max(CELL_MODEL_1::required_nodal_variables(),CELL_MODEL_2::required_nodal_variables());
+			// if(Identify_Correct_Cell_Model(cell_type)){
+			// 	CELL_MODEL_1::required_nodal_variables();
+			// }
+			// else{
+			// 	CELL_MODEL_2::required_nodal_variables();
+			// }
+		}
+		//return the maximum number of required derivatives
+		inline unsigned required_derivatives(const unsigned *cell_type=0){
+			if(Identify_Correct_Cell_Model(cell_type)){
+				CELL_MODEL_1::required_derivatives();
+			}
+			else{
+				CELL_MODEL_2::required_derivatives();
+			}
+		}
+		//return the maximum number of required black box parameters
+		inline unsigned required_black_box_parameters(){
+			return std::max(CELL_MODEL_1::required_black_box_parameters(),CELL_MODEL_2::required_black_box_parameters());
+		}
 	};
+
+
+
+
+
+
+
+
+
+
+	//========================================================================================================================================
+	//Begin some example cell model classes to demonstrate implementation
+	//========================================================================================================================================
+
+	//====================================================================
+	//====================================================================
+	//Begin the Zero Cell model using default explicit timestepping:
+	// an empty cell class for testing if things are working properly
+	//====================================================================
+	//====================================================================
+	class ZeroCellExplicit	:	public CellModelBase
+	{
+	public:
+		ZeroCellExplicit(){
+			//what is the intrinsic timestep of the model? This will generally be found through careful
+			//	analysis - choose a dt run a number of single cell simulations for various stimulus procedures
+			// 	try halving the value of dt, if the value changes, keep going. Repeat until you get a dt
+			//	for which a stable solution emerges
+			Intrinsic_dt = 0.5;
+		}
+
+		//All cell types are compatible with this model
+		bool compatible_cell_types(const unsigned& cell_type){return true;}
+
+		//The membrane capacitance of this cell model
+		double cm(CellState &state) {return 1.0;}
+
+		void custom_output(CellState &state, Vector<double> &output) {
+			//Intentionally returns nothing
+		}
+
+		//we just write out the explicit timestepping method, the default
+		//	implementation of the base cell model class handles the residual
+		//	and jacobian fill in procedure
+		void explicit_timestep(CellState &state, Vector<double> &new_state){
+			//dy/dt = -y*(y+1)
+			//y = y - dt*y*(y+1)
+			new_state[0] = new_state[0] - state.get_dt()*new_state[0]*(new_state[0]-1.0);
+
+			//at the end of the explicit timestep function we inform the Cell state container
+			//	what the membrane current and active strain are
+			state.set_membrane_current(state.get_var(0,0));
+			state.set_active_strain(pow(state.get_var(0,0),2.0));
+		}
+
+		//Return the initial membrane potential
+		void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){v=1.0;}
+		//Return the initial conditions of the model
+		bool return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type=0){
+			switch(n){
+				case 0 : {
+					v = 1.0;
+					return true;
+				}
+				default : {
+					return false;
+				}
+			}
+		}
+
+		//the model requires a single variable to be stored at each node
+		inline unsigned required_nodal_variables(const unsigned &cell_type=0) {return 1;}
+		//the model is explicit so doesn't require any derivatives, it approximates them for itself
+		inline unsigned required_derivatives() {return 0;}
+		//the model does not reuqire any extra black-box style nodal parameters
+		inline unsigned required_black_box_parameters() {return 0;}
+	};//end explicit zerocell
+
+
+	//====================================================================
+	//====================================================================
+	//Begin the Zero Cell model using implicit timestepping:
+	// an empty cell class for testing if things are working properly
+	//====================================================================
+	//====================================================================
+	class ZeroCellImplicit	:	public CellModelBase
+	{
+	public:
+		ZeroCellImplicit(){}
+
+		//All cell types are compatible with this model
+		bool compatible_cell_types(const unsigned& cell_type){return true;}
+		//Return a sensible value
+		double membrane_current(CellState &state) {return state.get_var(0,0);}
+		//Return a sensbile value
+		double active_strain(CellState &state) const {return pow(state.get_var(0,0),2.0);}
+		//The membrane capacitance of this cell model
+		double cm(CellState &state) const {return 1.0;}
+		//The custom output for the model, there's nothing special to output so it's left blank
+		void custom_output(CellState &state, Vector<double> &output) {
+			//Intentionally returns nothing
+		}
+		//The model is implicit. we therefore have to overload this function
+		//	to calculate the residuals (and jacobian) analytically
+		void fill_in_generic_residual_contribution_cell_base(CellState &state,
+															Vector<double> &residuals,
+															DenseMatrix<double> &jacobian,
+															unsigned flag)
+		{
+			//R = dy/dt+y*(y+1)
+			residuals[0] += state.get_var(1,0) + state.get_var(0,0)*(state.get_var(0,0)+1.0);
+			if(flag){
+				//J = w + 2*y + 1
+				//where w is the coefficient of y in approximation of dy/dt
+				jacobian(0, 0) += state.get_time_stepper_weight(1,0) + 2*state.get_var(0,0)+1.0;
+			}
+		}
+		//Return the initial membrane potential
+		void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){v=1.0;}
+		//Return the initial conditions of the model
+		bool return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type=0){
+			switch(n){
+				case 0 : {
+					v = 1.0;
+					return true;
+				}
+				default : {
+					return false;
+				}
+			}
+		}
+
+		//the model is simple and so we allow it to calculate the jacobian analytically
+		inline bool model_calculates_jacobian_entries() {return true;}
+		//the model requires a single variable to be stored at each node
+		inline unsigned required_nodal_variables(const unsigned &cell_type=0) {return 1;}
+		//the model requires a single time derivative
+		inline unsigned required_derivatives() {return 1;}
+		//the model does not reuqire any extra black-box style nodal parameters
+		inline unsigned required_black_box_parameters() {return 0;}
+	};//end implicit zerocell
+
+
+
+
+
+
+	//====================================================================
+	//====================================================================
+	//Begin the Explicit FitzHugh-Nagumo Cell model:
+	// a deprecated cell class for testing if linking between the
+	// monodomain elements and cell model interface elements
+	// is working correctly, and for demonstrating cell model wrappers
+	// used during modelling.
+	//====================================================================
+	//====================================================================
+	class FitzHughNagumoExplicit	:	public CellModelBase
+	{
+	public:
+		FitzHughNagumoExplicit() : CellModelBase()
+		{
+			Intrinsic_dt = 0.1;
+		}
+
+		bool compatible_cell_types(const unsigned& cell_type){return true;}
+
+		//The membrane capacitance of this cell model
+		double cm(CellState &state) const {return 1.0;}
+
+		void custom_output(CellState &state, Vector<double> &output)
+		{
+			//Intentionally does nothing
+		}
+
+		//we just write out the explicit timestepping method, the default
+		//	implementation of the base cell model class handles the residual
+		//	and jacobian fill in procedure
+		void explicit_timestep(CellState &state, Vector<double> &new_state){
+			//In complicated cell models it might be useful to give variables meaningful names
+			// before they are used
+			double y = new_state[0];
+			double vm = state.get_vm();
+
+			// dy/dt = forcing_function
+			// y = y + dt*forcing_function
+			new_state[0] = y + state.get_dt()*variable_forcing_function(vm,new_state[0]);
+
+			//set the values of membrane current and active strain
+			state.set_membrane_current((potential_forcing_function(vm,new_state[0])));
+			state.set_active_strain(0.0);
+		}
+
+		//Return the initial membrane potential
+		void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){v=1.0;}
+
+		bool return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type=0){
+			switch(n){
+				case 0 : {
+					v = 0.0;
+					return true;
+				}
+				default : {
+					return false;
+				}
+			}
+		}
+
+
+		//the model requires a single variable to be stored at each node
+		inline unsigned required_nodal_variables(const unsigned &cell_type=0) {return 1;}
+		//the model doesn't require any time derivatives of the variables, it's explicit and calculates them for itself
+		inline unsigned required_derivatives() {return 0;}
+		//the model does not reuqire any extra black-box style nodal parameters
+		inline unsigned required_black_box_parameters() {return 0;}
+
+
+		////Extra functions to compartmentalise the model:
+		//// useful if a mutation affecting for example potential_forcing_function is modelled
+		//// then a cell model class inheriting from this one can be written with very little effort
+		virtual double potential_forcing_function(const double &Vm, const double &var) const
+		{
+			return -(Vm*(1.0-Vm*Vm/3.0)-var);
+		}
+		virtual double variable_forcing_function(const double &Vm, const double &var) const
+		{
+			double a = 0.7;
+			double b = 0.8;
+			double tau = 12.5;
+			return (1/tau)*(Vm + a - b*var);
+		}
+
+	};//end implicit fitzhugh nagumo model
+
+
+	//====================================================================
+	//====================================================================
+	//Begin the Implicit FitzHugh-Nagumo Cell model:
+	// a deprecated cell class for testing if linking between the
+	// monodomain elements and cell model interface elements
+	// is working correctly, and for demonstrating cell model wrappers
+	// used during modelling.
+	//====================================================================
+	//====================================================================
+	//!!!!! change membrane current and active strain to call fill in residual and fill in residual to change membrane
+	//		current and active strain in the cell state container
+	class FitzHughNagumoImplicit	:	public CellModelBase
+	{
+	public:
+		FitzHughNagumoImplicit() : CellModelBase() {	}
+
+		bool compatible_cell_types(const unsigned& cell_type){return true;}
+
+		//because we're writing an implicit method we need to overload membrane current
+	 	double membrane_current(CellState &state)
+		{
+			return -(potential_forcing_function(state.get_vm()) - state.get_var(0,0));
+		}
+
+		//because we're writing an implicit method we need to overload active strain
+		double active_strain(CellState &state) const {return 0.0;}
+
+		//The membrane capacitance of this cell model
+		double cm(CellState &state) const {return 1.0;}
+
+		//we overload the custom output but it does nothing
+		void custom_output(CellState &state, Vector<double> &output)
+		{
+			//Intentionally does nothing
+		}
+
+		//since this is an implicit method we must overload this to calculate the residual
+		//	and jacobian entries
+		void fill_in_generic_residual_contribution_cell_base(CellState &state,
+															Vector<double> &residuals,
+															DenseMatrix<double> &jacobian,
+															unsigned flag)
+		{
+			//In complicated cell models it might be useful to give variables meaningful names
+			// before they are used
+			double vm = state.get_vm();
+
+			int var_ind = 0;
+			residuals[0] += state.get_var(1,0) - variable_forcing_function(vm, state.get_var(0,0));
+		}
+
+		//Return the initial membrane potential
+		void return_initial_membrane_potential(double &v, const unsigned &cell_type=0){v=1.0;}
+
+		bool return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type=0){
+			switch(n){
+				case 0 : {
+					v = 0.0;
+					return true;
+				}
+				default : {
+					return false;
+				}
+			}
+		}
+
+		//the model depends on the variable forcing function below, since this can be overridden by the user
+		//	it is difficult to write an analytic fill in for the jacobian, we therefore set this flag to false
+		//	and the interface element will handle finite differencing for us.
+		inline bool model_calculates_jacobian_entries() {return false;}
+		//the model requires a single variable to be stored at each node
+		inline unsigned required_nodal_variables(const unsigned &cell_type=0) {return 1;}
+		//the model requires a single time derivative
+		inline unsigned required_derivatives() {return 1;}
+		//the model does not reuqire any extra black-box style nodal parameters
+		inline unsigned required_black_box_parameters() {return 0;}
+
+
+		////Extra functions to compartmentalise the model:
+		//// useful if a mutation affecting for example potential_forcing_function is modelled
+		//// then a cell model class inheriting from this one can be written with very little effort
+		virtual double potential_forcing_function(const double &Vm) const
+		{
+			return Vm*(1.0-Vm*Vm/3.0);
+		}
+		virtual double variable_forcing_function(const double &Vm, const double &var) const
+		{
+			return 0.08*(Vm + 0.7 - 0.8*var);
+		}
+
+
+	};//end implicit fitzhugh nagumo model
+
+
+	//========================================================================================================================================
+	//End some example cell model classes to demonstrate implementation
+	//========================================================================================================================================
+
+
+
+
+
 
 
 }

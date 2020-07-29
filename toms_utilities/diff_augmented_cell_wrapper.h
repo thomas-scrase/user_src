@@ -6,6 +6,11 @@
   #include <oomph-lib-config.h>
 #endif
 
+#ifdef OOMPH_HAS_MPI
+//mpi headers
+#include "mpi.h"
+#endif
+
 //OOMPH-LIB headers
 #include "../generic/nodes.h"
 #include "../generic/oomph_utilities.h"
@@ -27,13 +32,13 @@ namespace oomph
 		DiffAugmentedCell()	:	CELL_ELEMENT()
 		{
 			//Make the internal data, nnode comes from CELL_ELEMENT(), data does not contribute to finite differencing
-			unsigned dummy_internal_data_pt = this->add_internal_data(new Data(1), false);
-			this->internal_data_pt(dummy_internal_data_pt)->pin(0);
+			// unsigned dummy_internal_data_pt = this->add_internal_data(new Data(1), false);
+			// this->internal_data_pt(dummy_internal_data_pt)->pin(0);
 			//Make data point for vector
 			unsigned datasize = CELL_ELEMENT::nnode()*CELL_ELEMENT::dim()*CELL_ELEMENT::dim();
 			Preferential_vectors_internal_index = this->add_internal_data(new Data(datasize), false);
 			//Default to zero and pin them
-			for(unsigned i=0;i<CELL_ELEMENT::nnode()*CELL_ELEMENT::dim()*CELL_ELEMENT::dim();i++)
+			for(unsigned i=0;i<datasize;i++)
 			{
 				this->internal_data_pt(Preferential_vectors_internal_index)->set_value(i, 0.0);
 				this->internal_data_pt(Preferential_vectors_internal_index)->pin(i);
@@ -53,7 +58,7 @@ namespace oomph
 		//Setter functions for vectors
 		void set_preferential_vector_at_node(const unsigned &n, const unsigned &vect_ind, const Vector<double> &vector){
 			for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
-				std::cout << "d: " << d << std::endl;
+				// std::cout << "d: " << d << std::endl;
 				this->internal_data_pt(Preferential_vectors_internal_index)->set_value(n*CELL_ELEMENT::dim()*CELL_ELEMENT::dim() + vect_ind*CELL_ELEMENT::dim() + d, vector[d]);
 			}
 		}

@@ -358,6 +358,7 @@ namespace oomph{
 
 	//run the algorithm to completion
 	void NelderMeadMetaProblemClass::run_algorithm(std::ostream &outfile){
+		outfile << "This is the Nelder-Mead Coordinator." << std::endl;
 		unsigned iteration = 0;
 		Vector<double> Node_Qualities(N_Variables+1);
 		unsigned best_node_index;
@@ -409,7 +410,9 @@ namespace oomph{
 				//record quality for the new worst node
 				Node_Qualities[worst_node_index] = xr_quality;
 				//return to the beginning of the loop
-				outfile << "Replaced node " << worst_node_index << " for xr" << std::endl;
+				outfile << "Replaced node " << worst_node_index << " for xr:\t";
+				xr.output(outfile);
+				outfile << std::endl;
 				continue;
 			}
 
@@ -426,13 +429,17 @@ namespace oomph{
 				//if the expansion node is better than the reflected node replace the worst node with the expansion node
 				if(xe_quality < xr_quality){
 					replace_node(*Simplex_nodes[worst_node_index], xe);
-					outfile << "Replaced node " << worst_node_index << " for xe" << std::endl;
+					outfile << "Replaced node " << worst_node_index << " for xe:\t";
+					xe.output(outfile);
+					outfile << std::endl;
 					Node_Qualities[worst_node_index] = xe_quality;
 				}
 				//else replace the worst node with the reflected node
 				else{
 					replace_node(*Simplex_nodes[worst_node_index], xr);
-					outfile << "Replaced node " << worst_node_index << " for xr" << std::endl;
+					outfile << "Replaced node " << worst_node_index << " for xr:\t";
+					xr.output(outfile);
+					outfile << std::endl;
 					Node_Qualities[worst_node_index] = xr_quality;
 				}
 				//return to the beginning of the loop
@@ -451,7 +458,9 @@ namespace oomph{
 			//if the contraction node is better than the worst node replace then worst node with the contracted node
 			if(xc_quality < Node_Qualities[worst_node_index]){
 				replace_node(*Simplex_nodes[worst_node_index], xc);
-				outfile << "Replaced node " << worst_node_index << " for xc" << std::endl;
+				outfile << "Replaced node " << worst_node_index << " for xc:\t";
+				xc.output(outfile);
+				outfile << std::endl;
 				//calculate the quality of the new node
 				// double new_worst_node_quality;
 				// evaluate_quality_of_node(*Simplex_nodes[worst_node_index],new_worst_node_quality);

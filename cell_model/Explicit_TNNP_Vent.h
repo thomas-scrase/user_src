@@ -7,11 +7,16 @@
   #include <oomph-lib-config.h>
 #endif
 
+#ifdef OOMPH_HAS_MPI
+//mpi headers
+#include "mpi.h"
+#endif
+
 #include "cell_model_base.h"
 
 namespace oomph{
 
-	class ExplicitTNNPVent : public ExplicitTimeStepCellModelBase
+	class ExplicitTNNPVent : public CellModelBase
 	{
 	public:
 
@@ -19,9 +24,29 @@ namespace oomph{
 
 		void explicit_timestep(CellState &Cellstate, Vector<double> &new_state);
 
-		inline bool return_initial_value(const unsigned &n, double &v, const unsigned &cell_type);
+		inline void return_initial_membrane_potential(double &v, const unsigned &cell_type=0);
+		inline bool return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type);
 
-		virtual double cm() const {return TTCell_CAPACITANCE;}
+		//this can be overloaded in case the membrane capacitance is dependent on cell type or state parameters
+		virtual double cm(CellState &state) const {return TTCell_CAPACITANCE;}
+
+		inline void custom_output(CellState &state, Vector<double> &output) override {}
+
+		inline bool model_calculates_jacobian_entries() {return true;}
+
+		inline unsigned required_nodal_variables(const unsigned &cell_type=0);
+		inline unsigned required_derivatives();
+		inline unsigned required_black_box_parameters();
+
+
+		//a virtual function to extract black box nodal parameters from the cell state
+		//	we implement this as virtual so that in the case this class is used in a
+		//	combined cell model class. Then it can be overloaded so that black box nodal
+		//	parameters associated with each model have a unique index
+		virtual inline void extract_black_box_parameters_ExplicitTNNPVent(double &abindex,
+																	double &isindex,
+																	double &rvindex,
+																	CellState &Cellstate);
 	protected:
 		// constants for Tent ventricle model
 		//	from TNNP_MarkovIKr_function.h in haibo ni folders

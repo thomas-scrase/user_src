@@ -4,17 +4,12 @@
 # Define the sources
 sources =  \
 cell_state_container.cc \
-cell_model_base.cc \
-CNZ_Atria.cc \
-TNNP_Vent.cc \
 Explicit_TNNP_Vent.cc
 
 # Define the headers
 headers =  \
 cell_state_container.h \
 cell_model_base.h \
-CNZ_Atria.h \
-TNNP_Vent.h \
 Explicit_TNNP_Vent.h
 
 # Define name of library

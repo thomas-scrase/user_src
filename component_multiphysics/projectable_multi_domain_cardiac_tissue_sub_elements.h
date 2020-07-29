@@ -6,6 +6,11 @@
   #include <oomph-lib-config.h>
 #endif
 
+#ifdef OOMPH_HAS_MPI
+//mpi headers
+#include "mpi.h"
+#endif
+
 //Include the storage_augmented_cell_elements header
 #include "../toms_utilities/diff_augmented_cell_wrapper.h"
 

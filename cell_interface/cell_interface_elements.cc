@@ -32,20 +32,19 @@ namespace oomph
 			//Get the shape function
 			(void)this->shape(s,psi);
 
-			outfile << nodal_vm(l) << " ";
+			outfile << get_nodal_membrane_potential(l) << " ";
 
-			outfile << interpolated_membrane_current_CellInterface(s) << " ";
-
-			Vector<double> custom_output;
-			get_nodal_cell_custom_output(l, custom_output);
-
-			for(unsigned i=0; i<custom_output.size(); i++){
-				// std::cout << "we're trying to output now" << std::endl;
-				outfile << custom_output[i] << " ";
-			}
+			outfile << get_nodal_membrane_current(l) << " ";
 
 			//output active strain
-			outfile << get_interpolated_cell_active_strain(s) << " ";
+			outfile << get_nodal_active_stress(l) << " ";
+
+			
+			Vector<double> custom_output;
+			get_nodal_cell_custom_output(l, custom_output);
+			for(unsigned i=0; i<custom_output.size(); i++){
+				outfile << custom_output[i] << " ";
+			}
 			
 			//Loop over the variables
 			for(unsigned var=min_index_CellInterfaceEquations();var<max_index_CellInterfaceEquations();var++){
@@ -81,21 +80,21 @@ namespace oomph
 	{
 		const unsigned n_node = nnode();
 		
-		unsigned ipt_node;
+		// unsigned ipt_node;
 
  	// 	//should the function include contribution from this cell
  	// 	bool compute_this_node;
 
  		//Storage vectors for the local_index and local_eqn numbers for the single cell data
- 		Vector<int> local_eqn(cell_model_pt()->required_storage());
+ 		Vector<int> local_eqn(cell_model_pt()->required_nodal_variables());
 		//Construct the state container
 		CellState state;
 
 		//Loop over the nodes
 		for(unsigned l=0;l<n_node;l++){
-			ipt_node = this->ipt_at_node(l);
+			// ipt_node = this->ipt_at_node(l);
 			// Get the local ind and local eqn of the cell data
-			for(unsigned var=0; var<cell_model_pt()->required_storage(); var++){
+			for(unsigned var=0; var<cell_model_pt()->required_nodal_variables(); var++){
 				local_eqn[var] = nodal_local_eqn(l, min_index_CellInterfaceEquations() + var);
 			}
 
@@ -103,7 +102,7 @@ namespace oomph
 			// // If Ignore_Repeated_Cells is true then check if the cell has already been computed
 			// if(Ignore_Repeated_Cells){
 			// 	//loop over the single cell data
-			// 	for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
+			// 	for(unsigned var=0; var<cell_model_pt()->required_nodal_variables(); var++){
 
 			// 		if(local_eqn[var]>=0){
 			// 			// Check the value of the residuals corresponding to the single cell data
@@ -128,8 +127,8 @@ namespace oomph
 
 
 			//Preallocate memory for the residual and jacobian sub objects
-			Vector<double> residual_sub(cell_model_pt()->required_storage(), 0.0);
-			DenseMatrix<double> jacobian_sub(cell_model_pt()->required_storage(),cell_model_pt()->required_storage(),0.0);
+			Vector<double> residual_sub(cell_model_pt()->required_nodal_variables(), 0.0);
+			DenseMatrix<double> jacobian_sub(cell_model_pt()->required_nodal_variables(),cell_model_pt()->required_nodal_variables(),0.0);
 
 			fill_state_container_at_node(state, l);
 			//get the cell model to update the residual and jacobian entries
@@ -138,13 +137,13 @@ namespace oomph
 																			jacobian_sub,
 																			flag);
 			// Loop over the entries in the residual and jacobian
-			for(unsigned var=0; var<cell_model_pt()->required_storage(); var++){
+			for(unsigned var=0; var<cell_model_pt()->required_nodal_variables(); var++){
 				if(local_eqn[var]>=0){
 					residuals[local_eqn[var]] += residual_sub[var];
 
 
 					if(flag){
-						for(unsigned var1=0; var1<cell_model_pt()->required_storage(); var1++){
+						for(unsigned var1=0; var1<cell_model_pt()->required_nodal_variables(); var1++){
 							jacobian(local_eqn[var], local_eqn[var1]) += jacobian_sub(var, var1);
 						}
 						// jacobian(local_eqn[var], local_eqn[var]) += jacobian_sub(var, var);
@@ -182,7 +181,7 @@ namespace oomph
 	//!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+
 	//IF YOU ADD A NEW CELL MODEL:
 	//		Copy and paste the commented-out commands below, edit the last number (0)
-	//		in the <x,y,z> to reflect the Required_Storage of the new cell model
+	//		in the <x,y,z> to reflect the required_nodal_variables of the new cell model
 	//!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+
 
 	// template class QCellInterfaceElement<1,2>;

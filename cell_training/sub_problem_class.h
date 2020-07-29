@@ -16,6 +16,11 @@
 	#include <oomph-lib-config.h>
 #endif
 
+#ifdef OOMPH_HAS_MPI
+//mpi headers
+#include "mpi.h"
+#endif
+
 #include "../generic/problem.h"
 
 #include "trainable_element.h"

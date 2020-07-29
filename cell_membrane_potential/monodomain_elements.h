@@ -6,6 +6,11 @@
 #ifndef OOMPH_MONODOMAIN
 #define OOMPH_MONODOMAIN
 
+// #ifdef OOMPH_HAS_MPI
+// //mpi headers
+// #include "mpi.h"
+// #endif
+
 #include "cell_membrane_potential_elements.h"
 
 namespace oomph{

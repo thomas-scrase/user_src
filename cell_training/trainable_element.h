@@ -17,6 +17,11 @@
 	#include <oomph-lib-config.h>
 #endif
 
+#ifdef OOMPH_HAS_MPI
+//mpi headers
+#include "mpi.h"
+#endif
+
 #include "optimisation_elements.h"
 
 
@@ -30,7 +35,7 @@ namespace oomph{
 			Parameter_Source_Pt = &new_parameter_source_pt;
 		}
 
-		void extract_parameters_from_parameter_source(Vector<double> &parameters){
+		void extract_parameters_from_parameter_source(Vector<double> &parameters) const {
 			if(Parameter_Source_Pt==NULL){
 				// throw OomphLibError("Parameter_Source_Pt is null",
 				// 		OOMPH_CURRENT_FUNCTION,

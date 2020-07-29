@@ -125,6 +125,7 @@ calculate_contravariant( const DenseMatrix<double> &Gdown,
 
  //Find the dimension of the matrix
  unsigned dim = Gdown.ncol();
+ // std::cout << dim << std::endl;
 
  //If it's not square, I don't know what to do (yet)
 #ifdef PARANOID
@@ -343,7 +344,7 @@ calculate_d_contravariant_dG(const DenseMatrix<double> &Gdown,
 //==========================================================================
 void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A, const Vector<double> &lambda,
+ const DenseMatrix<double> &A,
  const DenseMatrix<double> &sigma,
  RankFourTensor<double> &d_sigma_dG,
  const bool &symmetrize_tensor)
@@ -394,7 +395,7 @@ void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
      G_pls(j,i) = G_pls(i,j);
 
      // Get advanced stress
-     this->calculate_second_piola_kirchhoff_stress(g,G_pls,A,lambda,sigma_pls);
+     this->calculate_second_piola_kirchhoff_stress(g,G_pls,A,sigma_pls);
      
      for(unsigned ii=0;ii<dim;ii++)
       {
@@ -444,7 +445,7 @@ void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
 //========================================================================  
 void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A, const Vector<double> &lambda,
+ const DenseMatrix<double> &A,
  const DenseMatrix<double> &sigma,
  const double &detG,
  const double &interpolated_solid_p,
@@ -500,7 +501,7 @@ void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
      
      // Get advanced stress
      this->calculate_second_piola_kirchhoff_stress(
-      g,G_pls,A,lambda,sigma_dev_pls,Gup_pls,detG_pls);
+      g,G_pls,A,sigma_dev_pls,Gup_pls,detG_pls);
 
 
      // Derivative of determinant of deformed metric tensor
@@ -557,7 +558,7 @@ void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
 //=======================================================================
 void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A, const Vector<double> &lambda,
+ const DenseMatrix<double> &A,
  const DenseMatrix<double> &sigma,
  const double &gen_dil, 
  const double &inv_kappa,
@@ -615,7 +616,7 @@ void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
      
      // Get advanced stress
      this->calculate_second_piola_kirchhoff_stress(
-      g,G_pls,A,lambda,sigma_dev_pls,Gup_pls,gen_dil_pls,inv_kappa_pls);
+      g,G_pls,A,sigma_dev_pls,Gup_pls,gen_dil_pls,inv_kappa_pls);
 
      // Derivative of generalised dilatation
      d_gen_dil_dG(i,j)=(gen_dil_pls-gen_dil)/eps_fd;
@@ -676,7 +677,6 @@ void AnisotropicGeneralisedHookean::
 calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g, 
                                         const DenseMatrix<double> &G,
                                         const DenseMatrix<double> &A,
-                                        const Vector<double> &lambda,
                                         DenseMatrix<double> &sigma)
 {
  //Error checking
@@ -760,7 +760,6 @@ void AnisotropicGeneralisedHookean::
 calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g, 
                                         const DenseMatrix<double> &G,
                                         const DenseMatrix<double> &A,
-                                        const Vector<double> &lambda,
                                         DenseMatrix<double> &sigma_dev, 
                                         DenseMatrix<double> &Gup,
                                         double &gen_dil, 
@@ -774,7 +773,7 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
 
  //Compute deviatoric stress by calling the incompressible
  //version of this function
- calculate_second_piola_kirchhoff_stress(g,G,A,lambda,sigma_dev,Gup,detG);
+ calculate_second_piola_kirchhoff_stress(g,G,A,sigma_dev,Gup,detG);
 
  //Calculate the inverse of the "bulk" modulus
  inv_kappa = (1.0 - 2.0*(*Nu_pt))*(1.0 + (*Nu_pt))/((*E_pt)*(*Nu_pt));
@@ -808,7 +807,6 @@ void AnisotropicGeneralisedHookean::
 calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g, 
                                         const DenseMatrix<double> &G,
                                         const DenseMatrix<double> &A,
-                                        const Vector<double> &lambda,
                                         DenseMatrix<double> &sigma_dev, 
                                         DenseMatrix<double> &Gup,
                                         double &detG)
@@ -888,7 +886,7 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
 void PoleZeroConstitutiveLaw::
 calculate_second_piola_kirchhoff_stress(
   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-  const DenseMatrix<double> &A, const Vector<double> &lambda,
+  const DenseMatrix<double> &A,
   DenseMatrix<double> &sigma)
 {
 //Error checking
@@ -926,7 +924,7 @@ for(unsigned i=0;i<dim;i++)
 
 //calculate the derivative of the strain energy function wrt strain
 DenseMatrix<double> dWdgamma(3);
-Pole_zero_strain_energy_function_pt->derivative(strain, A, lambda, dWdgamma);
+Pole_zero_strain_energy_function_pt->derivative(strain, A, dWdgamma);
 
 //calculate sigma
 for(unsigned i=0;i<dim;i++)
@@ -942,7 +940,7 @@ for(unsigned i=0;i<dim;i++)
 
 void PoleZeroConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A, const Vector<double> &lambda,
+   const DenseMatrix<double> &A,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet)
 {
@@ -956,7 +954,7 @@ void PoleZeroConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 
 void PoleZeroConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G, 
-   const DenseMatrix<double> &A, const Vector<double> &lambda,
+   const DenseMatrix<double> &A,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa)
 {
@@ -975,10 +973,10 @@ void PoleZeroConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 
 void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A, const Vector<double> &lambda,
-   DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
-   double &Gdet)
+   const DenseMatrix<double> &A,  DenseMatrix<double>& sigma_dev,
+   DenseMatrix<double> &G_contra, double &Gdet)
 {
+  // std::cout << "boom" << std::endl;
  //Error checking
  #ifdef PARANOID
   error_checking_in_input(g,G,sigma_dev);
@@ -989,18 +987,32 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
   double detg;
   DenseMatrix<double> gup(dim);
 
+  // for(unsigned i=0; i<G.ncol(); i++){
+  //   for(unsigned j=0; j<G.ncol(); j++){
+  //     std::cout << G(i,j) << " ";
+  //   }
+  //   std::cout << std::endl;
+  // }
+
+  // for(unsigned i=0; i<g.ncol(); i++){
+  //   for(unsigned j=0; j<g.ncol(); j++){
+  //     std::cout << g(i,j) << " ";
+  //   }
+  //   std::cout << std::endl;
+  // }
+
   //Calculate the contravariant Deformed metric tensor 
   Gdet = calculate_contravariant(G,G_contra);
   detg = calculate_contravariant(g,gup);
 
   //Insert tensor A into a tensor of size (dim, 2) just to ensure that if A is a strange shape then the law still runs
-  DenseMatrix<double> A_C(dim, 2, 0.0);                                              //(ROWS , COLUMNS)
+  // DenseMatrix<double> A_C(dim, 2, 0.0);                                              //(ROWS , COLUMNS)
 
-  for(int i=0; i<dim && i<A.nrow(); i++){
-    for(int j=0; j<2 && j<A.ncol(); j++){
-      A_C(i,j) = A(i,j);
-    }
-  }
+  // for(int i=0; i<dim && i<A.nrow(); i++){
+  //   for(int j=0; j<2 && j<A.ncol(); j++){
+  //     A_C(i,j) = A(i,j);
+  //   }
+  // }
 
   //Calculate invariants
   double I1 = 0.0;
@@ -1012,9 +1024,9 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
    for(unsigned j=0;j<dim;j++){
     I1 += gup(i,j)*G(i,j);
 
-    I4f += A_C(i,0)*G(i,j)*A_C(j,0);
-    I4s += A_C(i,1)*G(i,j)*A_C(j,1);
-    I8fs+= A_C(i,0)*G(i,j)*A_C(j,1);
+    I4f += A(i,0)*G(i,j)*A(j,0);
+    I4s += A(i,1)*G(i,j)*A(j,1);
+    I8fs+= A(i,0)*G(i,j)*A(j,1);
 
    }
   }
@@ -1031,12 +1043,10 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 
  for(unsigned i=0;i<dim;i++){
   for(unsigned j=i;j<dim;j++){
-   sigma(i,j) = a*exp(b*(I1-3.0))*gup(i,j)                                                  //PASSIVE
-                + 2.0*af*(I4f-1.0)*exp(bf*pow(I4f-1.0,  2.0))*A_C(i,0)*A_C(j,0)
-                + 2.0*as*(I4s-1.0)*exp(bs*pow(I4s-1.0,  2.0))*A_C(i,1)*A_C(j,1)
-                + afs*I8fs*exp(bfs*pow(I8fs,  2.0))*(A_C(i,0)*A_C(j,1) + A_C(i,1)*A_C(j,0))
-
-                + lambda[0]*A_C(i,0)*A_C(j,0);                                            //ACTIVE
+   sigma(i,j) = a*exp(b*(I1-3.0))*gup(i,j)
+                + 2.0*af*(I4f-1.0)*exp(bf*pow(I4f-1.0,  2.0))*A(i,0)*A(j,0)
+                + 2.0*as*(I4s-1.0)*exp(bs*pow(I4s-1.0,  2.0))*A(i,1)*A(j,1)
+                + afs*I8fs*exp(bfs*pow(I8fs,  2.0))*(A(i,0)*A(j,1) + A(i,1)*A(j,0));
   }
  }
 
@@ -1076,7 +1086,7 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 
 void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A, const Vector<double> &lambda,
+   const DenseMatrix<double> &A,
    DenseMatrix<double> &sigma)
 {
   throw OomphLibError(
@@ -1087,7 +1097,7 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 
 void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A, const Vector<double> &lambda,
+   const DenseMatrix<double> &A,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa)
 {
@@ -1112,7 +1122,7 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 void AnisotropicStrainEnergyFunctionConstitutiveLaw::
 calculate_second_piola_kirchhoff_stress(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A, const Vector<double> &lambda,
+ const DenseMatrix<double> &A,
  DenseMatrix<double> &sigma)
 {
 //Error checking
@@ -1179,7 +1189,7 @@ calculate_second_piola_kirchhoff_stress(
  //Calculate the derivatives of the strain energy function wrt the
  //strain invariants
  Vector<double> dWdI(3,0.0);
- Anisotropic_strain_energy_function_pt->derivatives(I,A,lambda,dWdI);
+ Anisotropic_strain_energy_function_pt->derivatives(I,A,dWdI);
 
 
  //Only bother to compute the tensor B^{ij} (Green & Zerna notation)
@@ -1234,7 +1244,7 @@ calculate_second_piola_kirchhoff_stress(
 void AnisotropicStrainEnergyFunctionConstitutiveLaw::
 calculate_second_piola_kirchhoff_stress(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A, const Vector<double> &lambda,
+ const DenseMatrix<double> &A,
  DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gup, double &detG)
 {
 //Error checking
@@ -1298,7 +1308,7 @@ calculate_second_piola_kirchhoff_stress(
  //Calculate the derivatives of the strain energy function wrt the
  //strain invariants
  Vector<double> dWdI(3,0.0);
- Anisotropic_strain_energy_function_pt->derivatives(I,A,lambda,dWdI);
+ Anisotropic_strain_energy_function_pt->derivatives(I,A,dWdI);
 
  //Only bother to compute the tensor B^{ij} (Green & Zerna notation)
  //if the derivative wrt the second strain invariant is non-zero
@@ -1364,7 +1374,6 @@ void AnisotropicStrainEnergyFunctionConstitutiveLaw::
 calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g, 
                                         const DenseMatrix<double> &G,
                                         const DenseMatrix<double> &A,
-                                        const Vector<double> &lambda,
                                         DenseMatrix<double> &sigma_dev, 
                                         DenseMatrix<double> &Gup,
                                         double &gen_dil, double &inv_kappa)
@@ -1432,7 +1441,7 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
  //Calculate the derivatives of the strain energy function wrt the
  //strain invariants
  Vector<double> dWdI(3,0.0);
- Anisotropic_strain_energy_function_pt->derivatives(I,A,lambda,dWdI);
+ Anisotropic_strain_energy_function_pt->derivatives(I,A,dWdI);
 
  //Only bother to calculate the tensor B^{ij} (Green & Zerna notation)
  //if the derivative wrt the second strain invariant is non-zero

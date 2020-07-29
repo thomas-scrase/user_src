@@ -33,6 +33,11 @@
 #ifndef OOMPH_REFINEABLE_ANISOTROPIC_ELASTICITY_ELEMENTS_HEADER
 #define OOMPH_REFINEABLE_ANISOTROPIC_ELASTICITY_ELEMENTS_HEADER
 
+#ifdef OOMPH_HAS_MPI
+//mpi headers
+#include "mpi.h"
+#endif
+
 //oomph-lib headers
 #include "anisotropic_solid_elements.h"
 #include "../generic/refineable_quad_element.h"
@@ -151,7 +156,6 @@ public:
 
    //changes made to add anisotropy
    this->Anisotropic_matrix_fct_pt = cast_father_element_pt->anisotropic_matrix_fct_pt();
-   this->Anisotropic_vector_fct_pt = cast_father_element_pt->anisotropic_vector_fct_pt();
    //end
    
    // Set pointer to the contitutive law
@@ -380,7 +384,6 @@ void get_Z2_flux(const Vector<double>& s, Vector<double>& flux)
 
    //changes made to add anisotropy
    this->Anisotropic_matrix_fct_pt = cast_father_element_pt->anisotropic_matrix_fct_pt();
-   this->Anisotropic_vector_fct_pt = cast_father_element_pt->anisotropic_vector_fct_pt();
    //end
    
    // Set pointer to the contitutive law
