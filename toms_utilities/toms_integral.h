@@ -19,6 +19,11 @@
   #include <oomph-lib-config.h>
 #endif
 
+#ifdef OOMPH_HAS_MPI
+//mpi headers
+#include "mpi.h"
+#endif
+
 //oomph-lib headers
 #include "../generic/oomph_utilities.h"
 #include "../generic/orthpoly.h"

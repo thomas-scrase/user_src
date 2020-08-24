@@ -403,7 +403,7 @@ namespace oomph{
 		 	}
 		}
 		//Return the maximum required storage
-		inline unsigned required_nodal_variables(const unsigned *cell_type=0){
+		inline unsigned required_nodal_variables(const unsigned &cell_type=0){
 			return std::max(CELL_MODEL_1::required_nodal_variables(),CELL_MODEL_2::required_nodal_variables());
 			// if(Identify_Correct_Cell_Model(cell_type)){
 			// 	CELL_MODEL_1::required_nodal_variables();
@@ -413,7 +413,7 @@ namespace oomph{
 			// }
 		}
 		//return the maximum number of required derivatives
-		inline unsigned required_derivatives(const unsigned *cell_type=0){
+		inline unsigned required_derivatives(const unsigned &cell_type=0){
 			if(Identify_Correct_Cell_Model(cell_type)){
 				CELL_MODEL_1::required_derivatives();
 			}
