@@ -2,10 +2,6 @@
 #define OOMPH_TRUNCATED_ELLIPSOID_DOMAIN_HEADER
 
 
-#ifdef OOMPH_HAS_MPI
-//mpi headers
-#include "mpi.h"
-#endif
 
 
 // Generic oomph-lib includes

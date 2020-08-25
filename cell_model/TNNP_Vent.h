@@ -11,10 +11,6 @@
   #include <oomph-lib-config.h>
 #endif
 
-#ifdef OOMPH_HAS_MPI
-//mpi headers
-#include "mpi.h"
-#endif
 
 #include "cell_model_base.h"
 

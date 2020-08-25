@@ -7,11 +7,6 @@
   #include <oomph-lib-config.h>
 #endif
 
-// #ifdef OOMPH_HAS_MPI
-// //mpi headers
-// #include "mpi.h"
-// #endif
-
 //oomph-lib headers
 #include "../generic/refineable_quad_element.h"
 #include "../generic/refineable_brick_element.h"

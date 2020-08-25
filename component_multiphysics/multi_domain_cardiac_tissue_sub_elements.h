@@ -24,10 +24,6 @@
   #include <oomph-lib-config.h>
 #endif
 
-// #ifdef OOMPH_HAS_MPI
-// //mpi headers
-// #include "mpi.h"
-// #endif
 
 //Generic for the element with external element
 // #include "generic.h"

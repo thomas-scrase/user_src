@@ -33,10 +33,6 @@
 #ifndef OOMPH_REFINEABLE_ANISOTROPIC_ELASTICITY_ELEMENTS_HEADER
 #define OOMPH_REFINEABLE_ANISOTROPIC_ELASTICITY_ELEMENTS_HEADER
 
-#ifdef OOMPH_HAS_MPI
-//mpi headers
-#include "mpi.h"
-#endif
 
 //oomph-lib headers
 #include "anisotropic_solid_elements.h"

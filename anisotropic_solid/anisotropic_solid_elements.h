@@ -42,11 +42,6 @@
   #include <oomph-lib-config.h>
 #endif
 
-// #ifdef OOMPH_HAS_MPI
-// //mpi headers
-// #include "mpi.h"
-// #endif
-
 
 //OOMPH-LIB headers
 #include "../generic/Qelements.h"
