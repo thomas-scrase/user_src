@@ -323,7 +323,7 @@ public:
      interpolated_vm += nodal_value(l,vm_nodal_index)*psi[l];
     }
 
-   return(interpolated_vm);
+   return interpolated_vm;
   }
 
 

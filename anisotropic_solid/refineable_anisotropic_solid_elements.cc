@@ -199,11 +199,13 @@ fill_in_generic_contribution_to_residuals_pvd(Vector<double> &residuals,
    //changes made to add anisotropy
    DenseMatrix<double> A;
    this->anisotropic_matrix(ipt, s, interpolated_xi, A);
+   Vector<double> V;
+   this->driving_strain(ipt, s, interpolated_xi, V);
    //end
 
    //Now calculate the stress tensor from the constitutive law
    DenseMatrix<double> sigma(DIM);
-   this->get_stress(g,G,A,sigma);
+   this->get_stress(g,G,A,V,sigma);
 
    // Get stress derivative by FD only needed for Jacobian
    //-----------------------------------------------------
@@ -243,7 +245,7 @@ fill_in_generic_contribution_to_residuals_pvd(Vector<double> &residuals,
      //Get the "upper triangular" 
      //entries of the derivatives of the stress tensor with
      //respect to G
-     this->get_d_stress_dG_upper(g,G,A,sigma,d_stress_dG);
+     this->get_d_stress_dG_upper(g,G,A,V,sigma,d_stress_dG);
     }
    
 
@@ -929,6 +931,8 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
    //changes made to add anisotropy
    DenseMatrix<double> A;
    this->anisotropic_matrix(ipt, s, interpolated_xi, A);
+   Vector<double> V;
+   this->driving_strain(ipt, s, interpolated_xi, V);
    //end
    
    // Incompressible: Compute the deviatoric part of the stress tensor, the
@@ -936,7 +940,7 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
    // of the deformed covariant metric tensor.
    if(this->Incompressible)
     {
-     this->get_stress(g,G,A,sigma_dev,Gup,detG);
+     this->get_stress(g,G,A,V,sigma_dev,Gup,detG);
      
      // Get full stress
      for (unsigned a=0;a<DIM;a++)
@@ -953,7 +957,7 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
        //Get the "upper triangular" entries of the 
        //derivatives of the stress tensor with
        //respect to G
-       this->get_d_stress_dG_upper(g,G,A,sigma,detG,interpolated_solid_p,
+       this->get_d_stress_dG_upper(g,G,A,V,sigma,detG,interpolated_solid_p,
                                    d_stress_dG,d_detG_dG);
       }
     }
@@ -962,7 +966,7 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
    // the generalised dilatation and the inverse bulk modulus.
    else
     {
-     this->get_stress(g,G,A,sigma_dev,Gup,gen_dil,inv_kappa);
+     this->get_stress(g,G,A,V,sigma_dev,Gup,gen_dil,inv_kappa);
 
      // Get full stress
      for (unsigned a=0;a<DIM;a++)
@@ -979,7 +983,7 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
        //Get the "upper triangular" entries of the derivatives 
        //of the stress tensor with
        //respect to G
-       this->get_d_stress_dG_upper(g,G,A,sigma,gen_dil,inv_kappa,
+       this->get_d_stress_dG_upper(g,G,A,V,sigma,gen_dil,inv_kappa,
                                    interpolated_solid_p,
                                    d_stress_dG,d_gen_dil_dG);
       }

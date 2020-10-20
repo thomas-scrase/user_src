@@ -102,6 +102,12 @@ namespace oomph
                                          const Vector<double>& x,
                                          DenseMatrix<double>& A);
 
+   //Get strains in the DIM directions, it is assumed that these are in the direction of
+   // the vectors of anisotropy
+   typedef void (*DrivingStrainFctPt)(const unsigned& ipt,
+                                      const Vector<double>& s,
+                                      const Vector<double>& x,
+                                      Vector<double>& V);
    //end
 
    
@@ -113,6 +119,7 @@ namespace oomph
     Prestress_fct_pt(0), Anisotropic_constitutive_law_pt(0),
     Lambda_sq_pt(&Default_lambda_sq_value), Unsteady(true), 
     Body_force_fct_pt(0), Anisotropic_matrix_fct_pt(0),
+    Driving_strain_fct_pt(0),
     Evaluate_jacobian_by_fd(false) 
     {}
       
@@ -148,6 +155,10 @@ namespace oomph
    AnisotropicMatrixFctPt& anisotropic_matrix_fct_pt() {return Anisotropic_matrix_fct_pt;}
 
    AnisotropicMatrixFctPt anisotropic_matrix_fct_pt() const {return Anisotropic_matrix_fct_pt;}
+
+   DrivingStrainFctPt& driving_strain_fct_pt() {return Driving_strain_fct_pt;}
+
+   DrivingStrainFctPt driving_strain_fct_pt() const {return Driving_strain_fct_pt;}
    //end
    
 
@@ -295,6 +306,21 @@ namespace oomph
      
     }
 
+   /// \short Evaluate body force at local point ipt
+   // virtual inline void local_body_force(const unsigned& ipt,
+   //                                      const DenseMatrix<double>& g,
+   //                                      const DenseMatrix<double>& G,
+   //                                      Vector<double>& b_l)
+   // {
+   //  //By default there is no local body force, this function is
+   //  //  for adding forcing terms arising locally from other
+   //  //  processes, for example cellular contraction
+   //  for(unsigned i=0; i<DIM; i++){
+   //    b_l[i] = 0.0;
+   //  }
+   // }
+
+
     //changes made to add anisotropy
     virtual inline void anisotropic_matrix(const unsigned& ipt,
                                            const Vector<double> &s,
@@ -315,6 +341,27 @@ namespace oomph
         (*Anisotropic_matrix_fct_pt)(ipt, s, xi, A);
       }
     }
+
+
+    virtual inline void driving_strain(const unsigned& ipt,
+                                       const Vector<double>& s,
+                                       const Vector<double>& xi,
+                                       Vector<double>& V)
+    {
+      if(Driving_strain_fct_pt==0)
+      {
+        V.resize(dim());
+        for(unsigned i=0; i<dim(); i++){
+          V[i] = 0.0;
+        }
+      }
+      else
+      {
+        (*Driving_strain_fct_pt)(ipt, s, xi, V);
+      }
+    }
+
+
     //end
 
 
@@ -430,6 +477,8 @@ namespace oomph
 
    //changes made to add anisotropy
    AnisotropicMatrixFctPt Anisotropic_matrix_fct_pt;
+
+   DrivingStrainFctPt Driving_strain_fct_pt;
    //end
 
    /// Static default value for timescale ratio (1.0 -- for natural scaling) 
@@ -556,6 +605,7 @@ class AnisotropicPVDEquations : public virtual AnisotropicPVDEquationsBase<DIM>
    inline void get_stress(const DenseMatrix<double> &g, 
                           const DenseMatrix<double> &G,
                           const DenseMatrix<double> &A,
+                          const Vector<double> &V,
                           DenseMatrix<double> &sigma)
     {
 #ifdef PARANOID
@@ -574,7 +624,7 @@ class AnisotropicPVDEquations : public virtual AnisotropicPVDEquationsBase<DIM>
       }
 #endif
      this->Anisotropic_constitutive_law_pt
-      ->calculate_second_piola_kirchhoff_stress(g,G,A,sigma);
+      ->calculate_second_piola_kirchhoff_stress(g,G,A,V,sigma);
     } 
 
    /// \short Return the derivatives of the 2nd Piola Kirchhoff stress tensor, 
@@ -584,6 +634,7 @@ class AnisotropicPVDEquations : public virtual AnisotropicPVDEquationsBase<DIM>
    inline void get_d_stress_dG_upper(const DenseMatrix<double> &g, 
                                      const DenseMatrix<double> &G,
                                      const DenseMatrix<double> &A,
+                                     const Vector<double> &V,
                                      const DenseMatrix<double> &sigma,
                                      RankFourTensor<double> &d_sigma_dG)
     {
@@ -604,7 +655,7 @@ class AnisotropicPVDEquations : public virtual AnisotropicPVDEquationsBase<DIM>
 #endif
      //Only bother with the symmetric part by passing false as last entry
      this->Anisotropic_constitutive_law_pt
-      ->calculate_d_second_piola_kirchhoff_stress_dG(g,G,A,sigma,d_sigma_dG,
+      ->calculate_d_second_piola_kirchhoff_stress_dG(g,G,A,V,sigma,d_sigma_dG,
                                                      false);
     } 
 
@@ -1155,6 +1206,7 @@ template<unsigned NNODE_1D>
    inline void get_stress(const DenseMatrix<double> &g, 
                           const DenseMatrix<double> &G,
                           const DenseMatrix<double> &A,
+                          const Vector<double> &V,
                           DenseMatrix<double> &sigma_dev, 
                           DenseMatrix<double> &Gcontra, 
                           double &gen_dil, double &inv_kappa) 
@@ -1176,7 +1228,7 @@ template<unsigned NNODE_1D>
       }
 #endif
      this->Anisotropic_constitutive_law_pt->
-      calculate_second_piola_kirchhoff_stress(g,G,A,sigma_dev,Gcontra,
+      calculate_second_piola_kirchhoff_stress(g,G,A,V,sigma_dev,Gcontra,
                                               gen_dil,inv_kappa);
     }
 
@@ -1189,6 +1241,7 @@ template<unsigned NNODE_1D>
    inline void get_d_stress_dG_upper(const DenseMatrix<double> &g, 
                                      const DenseMatrix<double> &G,
                                      const DenseMatrix<double> &A,
+                                     const Vector<double> &V,
                                      const DenseMatrix<double> &sigma,
                                      const double &gen_dil,                    
                                      const double &inv_kappa,           
@@ -1216,7 +1269,7 @@ template<unsigned NNODE_1D>
      //Only bother with the symmetric part by passing false as last entry
      this->Anisotropic_constitutive_law_pt->
       calculate_d_second_piola_kirchhoff_stress_dG(
-       g,G,A,sigma,gen_dil,inv_kappa,interpolated_solid_p,
+       g,G,A,V,sigma,gen_dil,inv_kappa,interpolated_solid_p,
        d_sigma_dG,d_gen_dil_dG,false);
     }
 
@@ -1263,6 +1316,7 @@ template<unsigned NNODE_1D>
    inline void get_stress(const DenseMatrix<double> &g, 
                           const DenseMatrix<double> &G,
                           const DenseMatrix<double> &A,
+                          const Vector<double> &V,
                           DenseMatrix<double> &sigma_dev, 
                           DenseMatrix<double> &Gcontra, 
                           double &detG)
@@ -1284,7 +1338,7 @@ template<unsigned NNODE_1D>
       }
 #endif
      this->Anisotropic_constitutive_law_pt->
-      calculate_second_piola_kirchhoff_stress(g,G,A,sigma_dev,Gcontra,detG);
+      calculate_second_piola_kirchhoff_stress(g,G,A,V,sigma_dev,Gcontra,detG);
     }
 
    /// \short  Return the derivative of the 2nd Piola Kirchhoff stress 
@@ -1295,6 +1349,7 @@ template<unsigned NNODE_1D>
    inline void get_d_stress_dG_upper(const DenseMatrix<double> &g, 
                                      const DenseMatrix<double> &G,
                                      const DenseMatrix<double> &A,
+                                     const Vector<double> &V,
                                      const DenseMatrix<double> &sigma,
                                      const double &detG,                    
                                      const double &interpolated_solid_p,
@@ -1320,7 +1375,7 @@ template<unsigned NNODE_1D>
      //Only bother with the symmetric part by passing false as last entry
      this->Anisotropic_constitutive_law_pt->
       calculate_d_second_piola_kirchhoff_stress_dG(
-       g,G,A,sigma,detG,interpolated_solid_p,d_sigma_dG,d_detG_dG,false);
+       g,G,A,V,sigma,detG,interpolated_solid_p,d_sigma_dG,d_detG_dG,false);
     }
 
    

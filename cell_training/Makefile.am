@@ -4,14 +4,12 @@
 
 # Define the sources
 sources =  \
-meta_problem_class.cc \
-optimisation_elements.cc
+meta_problem_class.cc
 # Define the headers
 headers =  \
 meta_problem_class.h \
 trainable_element.h \
-optimisation_elements.h \
-sub_problem_class.h
+trainable_problem_class.h
 
 
 # Define name of library

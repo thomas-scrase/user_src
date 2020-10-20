@@ -8,9 +8,6 @@
 //LIC//			- that is unless you want to prescribe membrane potential
 //LIC//====================================================================
 
-//!!!!!
-//REQUIRED ALTERATIONS
-//	Add no_repeated_cells
 
 //Header file for CellInterface elements
 #ifndef OOMPH_CELL_INTERFACE
@@ -21,6 +18,10 @@
 	#include <oomph-lib-config.h>
 #endif
 
+
+//For the custom integration schemes
+#include "../toms_utilities/toms_integral.h"
+
 //OOMPH-LIB headers
 #include "../generic/nodes.h"
 #include "../generic/oomph_utilities.h"
@@ -28,12 +29,10 @@
 #include "../generic/Telements.h"
 #include "../generic/error_estimator.h"
 
+
 //include the cell model library
 #include "../cell_model/cell_model_base.h"
 #include "../cell_model/cell_state_container.h"
-
-//For the custom integration scheme
-#include "../toms_utilities/toms_integral.h"
 
 
 namespace oomph
@@ -56,8 +55,15 @@ namespace oomph
 									Membrane_potential_fct_pt_CellInterface(0),
 									Strain_fct_pt(0),
 									Boundary_source_fct_pt(0),
-									Ignore_Repeated_Cells(true)
-		{	}
+									Cells_Are_Points(true)
+		{
+			//Initialise the number of function pointers for getting the black box
+			//	external data to zero
+			Black_box_external_fct_pts.resize(0);
+			//Initialise the vector of nodes which are computed by this element
+			//	by default we compute them all.
+			Cell_Inds_To_Compute.resize(this->nnode(), 1);
+		}
 
 		CellInterfaceEquations(const CellInterfaceEquations& dummy){BrokenCopy::broken_copy("CellInterfaceEquations");}
 
@@ -65,11 +71,11 @@ namespace oomph
 
 		//Min and max variable indexes for output function and for ease of multiphysics elements
 		virtual inline unsigned min_index_CellInterfaceEquations() const {return 0;}
-		virtual inline unsigned max_index_CellInterfaceEquations() const {return (min_index_CellInterfaceEquations() + cell_model_pt()->required_nodal_variables());}
+		virtual inline unsigned max_index_CellInterfaceEquations() const {return (min_index_CellInterfaceEquations() + NUM_VARS);}
 
 		// Access functions to ignore repeated cells variable
-		void ignore_repeated_cells(){Ignore_Repeated_Cells = true;}
-		void do_not_ignore_repeated_cells(){Ignore_Repeated_Cells = false;}
+		void cells_are_points(){Cells_Are_Points = true;}
+		void cells_are_not_points(){Cells_Are_Points = false;}
 
 		//====================================================================
 		//Handle cell model pt
@@ -102,17 +108,17 @@ namespace oomph
 			return Cell_model_pt;
 		}
 
-		void set_cell_model_pt(CellModelBase* cell_model_pt_){
+		void set_cell_model_pt(CellModelBase* cell_model){
 			// std::cout << "BOOM" << std::endl;
 			//Check if the required number of values from cell_model_pt is the same as that passed to the element constructor
-			if(NUM_VARS!=cell_model_pt_->required_nodal_variables()){
+			if(NUM_VARS!=cell_model->required_nodal_variables()){
 				//throw an error
 				std::string error_message =
 						"The number of variables passed to the QCellInterfaceElement constructor (";
 			    error_message += std::to_string(NUM_VARS);
 			    error_message += ") does not match\n\tthe number defined by the Cell_model_pt (";
-			    error_message += std::to_string(cell_model_pt_->required_nodal_variables());
-			    error_message += ".";
+			    error_message += std::to_string(cell_model->required_nodal_variables());
+			    error_message += ").";
 			    
 			   	throw OomphLibError(error_message,
 			                       	OOMPH_CURRENT_FUNCTION,
@@ -120,25 +126,22 @@ namespace oomph
 			}
 
 			//set the cell_model_pt
-			this->Cell_model_pt = cell_model_pt_;
+			this->Cell_model_pt = cell_model;
 
 			//build the required nodal parameters
 
-			//Create data for cell type and pin them immediately
-			Cell_type_internal_index = this->add_internal_data(new Data(this->nnode()), false);
-			for(unsigned l=0;l<this->nnode();l++)
-			{
-				this->internal_data_pt(Cell_type_internal_index)->pin(l);
+			//Create data for cell type
+			Cell_Type_Data.resize(this->nnode(), 0);
+
+
+			//Create data for black-box nodal parameters
+			Black_Box_Nodal_Parameters.resize(this->nnode());
+			for(unsigned i=0; i<this->nnode(); i++){
+				Black_Box_Nodal_Parameters[i].resize(cell_model->required_black_box_parameters(), 0.0);
 			}
 
-			//Create data for black-box nodal parameters and pin them immediately
-			Black_box_nodal_parameters_internal_index = this->add_internal_data(new Data(this->nnode()*cell_model_pt_->required_black_box_parameters()), false);
-			for(unsigned l=0;l<this->nnode()*cell_model_pt_->required_black_box_parameters();l++)
-			{
-				this->internal_data_pt(Black_box_nodal_parameters_internal_index)->set_value(l,0.0);
-				this->internal_data_pt(Black_box_nodal_parameters_internal_index)->pin(l);
-			}
-		
+			//Resize the black-box external function pointers
+			Black_box_external_fct_pts.resize(cell_model->required_external_data(), 0);
 		}
 
 		//dependent on cell type to allow for distinction between cell models
@@ -148,6 +151,46 @@ namespace oomph
 			return NUM_VARS;
 		}
 
+		unsigned n_computed_node(){
+			unsigned temp = 0;
+			for(unsigned i=0; i<this->nnode(); i++){
+				temp += Cell_Inds_To_Compute[i];
+			}
+			return temp;
+		}
+
+		void do_not_compute_node(const unsigned &n){
+			#ifdef PARANOID
+			if(n>this->nnode()){
+				throw OomphLibError("n > nnode",
+			                       	OOMPH_CURRENT_FUNCTION,
+			                       	OOMPH_EXCEPTION_LOCATION);
+			}
+			#endif
+			Cell_Inds_To_Compute[n] = 0;
+		}
+		void do_compute_node(const unsigned &n){
+			#ifdef PARANOID
+			if(n>this->nnode()){
+				throw OomphLibError("n > nnode",
+			                       	OOMPH_CURRENT_FUNCTION,
+			                       	OOMPH_EXCEPTION_LOCATION);
+			}
+			#endif
+			Cell_Inds_To_Compute[n] = 1;
+		}
+
+		unsigned is_node_computed(const unsigned &n) const {
+			#ifdef PARANOID
+			if(n>this->nnode()){
+				throw OomphLibError("n > nnode",
+			                       	OOMPH_CURRENT_FUNCTION,
+			                       	OOMPH_EXCEPTION_LOCATION);
+			}
+			#endif
+			return Cell_Inds_To_Compute[n];
+		}
+
 		/////////////////////////////////////////////////////////////////////////////////
 		//Get and Set locally stored data which is to be passed to the cell model
 		/////////////////////////////////////////////////////////////////////////////////
@@ -155,7 +198,14 @@ namespace oomph
 		//get the t-th history value of the v-th cell variable associated with the l-th node in the element
 		inline double get_nodal_cell_variable(const unsigned &t, const unsigned &l, const unsigned &v) const {
 			// return get_nodal_value(t, l, min_index_CellInterfaceEquations()+v);
-			return node_pt(l)->value(t,v);
+			return node_pt(l)->value(t,min_index_CellInterfaceEquations() + v);
+		}
+
+		inline void get_nodal_cell_variables(const unsigned &t, const unsigned &l, Vector<double> &v) const {
+			v.resize(cell_model_pt()->required_nodal_variables());
+			for(unsigned i=0; i<cell_model_pt()->required_nodal_variables(); i++){
+				v[i] = get_nodal_cell_variable(t,l, min_index_CellInterfaceEquations() + i);
+			}
 		}
 
 		//get the d-th time derivative of the v-th cell variable associated with the l-th node in the element
@@ -186,33 +236,25 @@ namespace oomph
 		//		TNNPVentricle
 		//		100 LVEPI 101 LVMCELL 102 LVENDO 103 RVEPI 104 RVMCELL 105 RVENDO 106 PFI 107 PFMB 108 PF
 		void set_cell_type(const unsigned &n, const unsigned &cell_type){
-			this->internal_data_pt(Cell_type_internal_index)->set_value(n, cell_type);
+			// this->internal_data_pt(Cell_type_internal_index)->set_value(n, cell_type);
+			Cell_Type_Data[n] = cell_type;
 		}
 		unsigned get_cell_type_at_node(const unsigned &n) const {
-			return this->internal_data_pt(Cell_type_internal_index)->value(n);
+			// return this->internal_data_pt(Cell_type_internal_index)->value(n);
+			return Cell_Type_Data[n];
 		}
 
 		//set the var-th black box nodal parameter associated with the l-th node to value
-		inline void set_black_box_nodal_parameters(const unsigned &l, const unsigned &var, const double &value) const{
-			this->internal_data_pt(Black_box_nodal_parameters_internal_index)
-					->set_value(l*cell_model_pt()->required_black_box_parameters()+var, value);
+		inline void set_black_box_nodal_parameters(const unsigned &l, const unsigned &var, const double &value){
+			Black_Box_Nodal_Parameters[l][var] = value;
 		}
-
-		// //get the black box nodal parameters for the l-th node
-		// inline Vector<double> get_black_box_nodal_parameters(const unsigned &l) const {
-		// 	Vector<double> black_box_parameters(cell_model_pt()->required_black_box_parameters());
-		// 	for(unsigned var=0; var<cell_model_pt()->required_black_box_parameters(); var++){
-		// 		black_box_parameters[var] = this->internal_data_pt(Black_box_nodal_parameters_internal_index)
-		// 										->value(l*cell_model_pt()->required_black_box_parameters()+var);
-		// 	}
-		// }
 
 		//====================================================================
 		//====================================================================
 		//Fill in data of state container
 		//====================================================================
 		//====================================================================
-		void fill_state_container_at_node(CellState &state, const unsigned &l) const {
+		void fill_state_container_at_node(const unsigned &l, CellState &state) const {
 			//Loop through the variables which are requested by the cell model and
 			//	grab the data from the interface element
 
@@ -242,12 +284,7 @@ namespace oomph
 			state.set_cell_type(get_cell_type_at_node(l));
 
 			//fill in black box parameters
-			Vector<double> black_box_parameters(cell_model_pt()->required_black_box_parameters());
-			for(unsigned var=0; var<cell_model_pt()->required_black_box_parameters(); var++){
-				black_box_parameters[var] = this->internal_data_pt(Black_box_nodal_parameters_internal_index)
-												->value(l*cell_model_pt()->required_black_box_parameters()+var);
-			}
-			state.set_black_box_nodal_parameters(black_box_parameters);
+			state.set_black_box_nodal_parameters(Black_Box_Nodal_Parameters[l]);
 
 			//Fill in transmembrane potential
 			state.set_vm(get_nodal_membrane_potential(l));
@@ -261,7 +298,16 @@ namespace oomph
 			state.set_black_box_external_data(black_box_external_data);
 			
 			//Fill in dt
-			state.set_dt(node_pt(l)->time_stepper_pt()->time_pt()->dt(0));
+			// oomph_info << "Time stepper info:" << std::endl;
+			// oomph_info << node_pt(l)->time_stepper_pt() << std::endl;
+			// oomph_info << node_pt(l)->time_stepper_pt()->time_pt() << std::endl;
+			// oomph_info << node_pt(l)->time_stepper_pt()->time_pt()->ndt() << std::endl;
+			// oomph_info << node_pt(l)->time_stepper_pt()->time_pt()->dt(0) << std::endl;
+			// oomph_info << "Done Time stepper info:" << std::endl;
+			if(node_pt(l)->time_stepper_pt()->time_pt()->ndt()){
+				state.set_dt(node_pt(l)->time_stepper_pt()->time_pt()->dt(0));
+			}
+			else{state.set_dt(0.0);}
 
 			//Fill in previous time variables
 			Vector<double> New_previous_values;
@@ -281,13 +327,13 @@ namespace oomph
 		/////////////////////////////////////////////////////////////////////////////////
 
 		//get the membrane current from the cell model at the l-th node
-		inline double get_nodal_membrane_current(const unsigned &l) const
+		inline virtual double get_nodal_membrane_current(const unsigned &l) const
 		{
 			double nodal_membrane_current = 0.0;
 
 			//Construct the state container
 			CellState state;
-			fill_state_container_at_node(state, l);
+			fill_state_container_at_node(l, state);
 
 			//Add nodal contribution to interpolated current
 			nodal_membrane_current += cell_model_pt()->membrane_current(state);
@@ -335,9 +381,11 @@ namespace oomph
 
 
 		//get the active stress from the cell model at the l-th node
-		inline double get_nodal_active_stress(const unsigned &l) const {			
+		virtual inline double get_nodal_active_stress(const unsigned &l) const {
+			// std::cout << "wrong version" << std::endl;
+			// exit(0);		
 			CellState state;
-			fill_state_container_at_node(state, l);
+			fill_state_container_at_node(l, state);
 
 			return cell_model_pt()->active_strain(state);
 		}
@@ -358,8 +406,8 @@ namespace oomph
 
 			//loop over nodes in the element and add their contributions
 			for(unsigned n=0;n<n_node;n++){
-				fill_state_container_at_node(state, n);
-				interpolated_active_stress += cell_model_pt()->active_strain(state)*psi[n];
+				// fill_state_container_at_node(n, state);
+				interpolated_active_stress += get_nodal_active_stress(n)*psi[n];
 			}
 
 			return interpolated_active_stress;
@@ -368,21 +416,21 @@ namespace oomph
 		//get the membrane capacitance from the cell model at the l-th node
 		inline double get_nodal_membrane_capacitance(const unsigned &l){
 			CellState state;
-			fill_state_container_at_node(state, l);
+			fill_state_container_at_node(l, state);
 
 			return cell_model_pt()->cm(state);
 			// return 1.0;
 		}
 
 		//get the interpolated membrane capacitance from the cell model at the local coordinate s
-		inline double get_interpolated_membrane_capacitance(const unsigned &l){
+		inline double get_interpolated_membrane_capacitance(const Vector<double> &s){
 			//number of nodes in the element
 			unsigned n_node = nnode();
 			//The local and global coordinates of the node being considered
-			Vector<double> s_node(DIM);
+			// Vector<double> s_node(DIM);
 			//The values of the shape functions at the position interpolation is being calculated at
 			Shape psi(n_node);
-			shape(s_node,psi);
+			shape(s,psi);
 			//running total of the interpolated active stress
 			double interpolated_membrane_capacitance = 0.0;
 
@@ -390,7 +438,7 @@ namespace oomph
 
 			//loop over nodes in the element and add their contributions
 			for(unsigned n=0;n<n_node;n++){
-				fill_state_container_at_node(state,n);
+				fill_state_container_at_node(n, state);
 				interpolated_membrane_capacitance += cell_model_pt()->cm(state)*psi[n];
 			}
 			// interpolated_membrane_capacitance=1.0;
@@ -421,6 +469,9 @@ namespace oomph
 		//====================================================================
 		//predefined external sources
 		//====================================================================
+		//!!!!! Add to nodal functions: check if cells are points, if they are
+		//	proceed to just take the value at the node, if they are not then
+		//	integrate the value over the element
 
 		//get the membrane potential at the coordinate of the l-th node
 		inline double get_nodal_membrane_potential(const unsigned &l) const {
@@ -516,9 +567,11 @@ namespace oomph
 			Ext_Data.resize(Black_box_external_fct_pts.size());
 			for(unsigned i=0; i<Black_box_external_fct_pts.size(); i++){
 				double val = 0.0;
-				double time=node_pt(0)->time_stepper_pt()->time_pt()->time();
-				(*Black_box_external_fct_pts[i])(time, ipt, s, x, val);
-				Ext_Data[i] = val;
+				if(Black_box_external_fct_pts[i]!=nullptr){
+					double time=node_pt(0)->time_stepper_pt()->time_pt()->time();
+					(*Black_box_external_fct_pts[i])(time, ipt, s, x, val);
+					Ext_Data[i] = val;
+				}
 			}
 		}
 
@@ -541,6 +594,20 @@ namespace oomph
 		CellInterfaceBoundarySourceFctPt boundary_source_fct_pt() const
 			{return Boundary_source_fct_pt;}
 
+		/// Access function: Pointer to external data source function
+		CellInterfaceScalarFctPt& black_box_external_fct_pt_CellInterface(const unsigned i)
+			{
+			#ifdef PARANOID
+				if(i>=Black_box_external_fct_pts.size()){
+					throw OomphLibError("Something is attempting to set an external function for a cell\nintercae element which is not within the number required by the cell model",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+				}
+			#endif
+				return Black_box_external_fct_pts[i];
+			}
+
+
 
 
 
@@ -550,6 +617,13 @@ namespace oomph
 		//====================================================================
 		//====================================================================
 		inline void assign_initial_conditions_from_cell_model(){
+		#ifdef PARANOID
+			if(cell_model_pt()=nullptr){
+				throw OomphLibError("No cell model has been set",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+			}
+		#endif
 			double current_var;
 			for(unsigned n=0; n < this->nnode(); n++){
 				for(unsigned v=0; v<NUM_VARS;v++){
@@ -571,7 +645,7 @@ namespace oomph
 		inline void get_nodal_cell_custom_output(const unsigned &l, Vector<double> &output) const
 		{
 			CellState state;
-			fill_state_container_at_node(state, l);
+			fill_state_container_at_node(l, state);
 
 			cell_model_pt()->custom_output(state,output);
 		}
@@ -607,9 +681,26 @@ namespace oomph
 				fill_in_generic_residual_contribution_cell_interface(residuals,jacobian,GeneralisedElement::Dummy_matrix,1);
 			}
 			else{
+				// std::cout << "BOOM" << std::endl;
 				//Otherwise perform fill in procedure using finite differencing
 				FiniteElement::fill_in_contribution_to_jacobian(residuals,jacobian);
 			}
+
+			// for(unsigned i=0; i<jacobian.nrow(); i++){
+			// 	double temp = 0.0;
+			// 	for(unsigned j=0; j<jacobian.ncol(); j++){
+			// 		temp += jacobian(i,j);
+			// 	}
+			// 	std::cout << "row " << i << "\t" << temp << std::endl;
+			// }
+
+			// for(unsigned i=0; i<jacobian.ncol(); i++){
+			// 	double temp = 0.0;
+			// 	for(unsigned j=0; j<jacobian.nrow(); j++){
+			// 		temp += jacobian(j,i);
+			// 	}
+			// 	std::cout << "col " << i << "\t" << temp << std::endl;
+			// }
 		}
 
 		/// Add the element's contribution to its residuals vector,
@@ -652,10 +743,8 @@ namespace oomph
 		//Pointer to the cell model
 		CellModelBase *Cell_model_pt;
 
-		// If true, before calculating single cell for a node, check if residual
-		//	entries corresponding to that node are zero. If any are not zero, do
-		//	not calculate single cell.
-		bool Ignore_Repeated_Cells;
+		//Are cells represented by a point source
+		bool Cells_Are_Points;
 
 		unsigned ipt_not_at_nodes;
 
@@ -663,8 +752,17 @@ namespace oomph
 
 
 	private:
-		unsigned Cell_type_internal_index;
-		unsigned Black_box_nodal_parameters_internal_index;
+		// unsigned Cell_type_internal_index;
+		Vector<unsigned> Cell_Type_Data;
+		// unsigned Black_box_nodal_parameters_internal_index;
+		Vector<Vector<double>> Black_Box_Nodal_Parameters;
+		// list of local node indexes for which the jacobian and
+		//	residual entries are computed. The fill in is
+		//	exactly the same as that of neighbouring elements
+		//	so we can safely ignore repeated nodes. By default all
+		//	nodes are computed just to be safe. 1 indicates comuted
+		//	0 indicates is not computed
+		Vector<unsigned> Cell_Inds_To_Compute;
 	};
 
 
@@ -695,9 +793,10 @@ namespace oomph
 									CellInterfaceEquations<DIM, NUM_VARS>()
 		{
 			//set the integration scheme to one with integral points aligned with the nodes
-			this->set_integration_scheme(new GaussWithNodes<DIM, NNODE_1D>);
+			// this->set_integration_scheme(new GaussWithNodes<DIM, NNODE_1D>);
+			this->set_integration_scheme(new QNodesOnlyHijackedIntegralScheme<DIM, 2>);
 			//set the number of integral points which are not aligned with nodes
-			this->ipt_not_at_nodes = this->integral_pt()->nweight() - this->nnode();
+			this->ipt_not_at_nodes = 0;//this->integral_pt()->nweight() - this->nnode();
 		}
 
 		QCellInterfaceElement(const QCellInterfaceElement<DIM, NUM_VARS, NNODE_1D>& dummy){BrokenCopy::broken_copy("QCellInterfaceElement");}
@@ -765,7 +864,8 @@ namespace oomph
 									CellInterfaceEquations<DIM, NUM_VARS>()
 		{
 			//set the integration scheme to one with integral points aligned with the nodes
-			this->set_integration_scheme(new GaussWithNodes<DIM, NNODE_1D>);
+			// this->set_integration_scheme(new GaussWithNodes<DIM, NNODE_1D>);
+			this->set_integration_scheme(new TNodesOnlyHijackedIntegralScheme<DIM, 2>);
 			//set the number of integral points which are not aligned with nodes
 			this->ipt_not_at_nodes = this->integral_pt()->nweight() - this->nnode();
 		}
@@ -837,6 +937,13 @@ namespace oomph
 		PointCellInterfaceElement()	:	PointElement(),
 										CellInterfaceEquations<DIM, NUM_VARS>()
 		{
+			this->set_dimension(DIM);
+			//set the integration scheme to one with integral points aligned with the nodes
+			// this->set_integration_scheme(new PointIntegralWithNodes);NodesOnlyHijackedPointIntegralScheme
+			this->set_integration_scheme(new NodesOnlyHijackedPointIntegralScheme);
+			// this->set_integration_scheme(new PointIntegral);
+			//set the number of integral points which are not aligned with nodes
+			this->ipt_not_at_nodes = 0;
 		}
 		PointCellInterfaceElement(const PointCellInterfaceElement<DIM,NUM_VARS>& dummy){BrokenCopy::broken_copy("PointCellInterfaceElement");}
 
@@ -845,21 +952,6 @@ namespace oomph
 		//====================================================================
 		//Output functions
 		//====================================================================
-		// /// Output with default number of plot points
-		// void output(std::ostream &outfile){
-		// 	PointCellInterfaceElement<DIM, NUM_VARS>::output(outfile, 0);
-		// }
-		// /// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
-		// /// nplot^DIM plot points
-		// void output(std::ostream &outfile, const unsigned &nplot);
-		// /// C_style output with default number of plot points
-		// void output(FILE* file_pt){
-		// 	PointCellInterfaceElement<DIM, NUM_VARS>::output(file_pt, 0);
-		// }
-		//  /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
-		//  /// n_plot^DIM plot points
-		//  void output(FILE* file_pt, const unsigned &n_plot);
-
 		 /// Output with default number of plot points
 		void output(std::ostream &outfile){
 			CellInterfaceEquations<DIM, NUM_VARS>::output(outfile);
@@ -879,6 +971,630 @@ namespace oomph
 		 	CellInterfaceEquations<DIM, NUM_VARS>::output(file_pt, n_plot);
 		}
 	};
+
+
+	// template<unsigned DIM, unsigned NUM_VARS>
+	// class FaceGeometry<PointCellInterfaceElement<DIM, NUM_VARS> >
+	// {
+	// 	//implement as private constructor to kill any process trying to make it
+	// private:
+	// 	FaceGeometry(){}
+	// };
+
+
+
+	//===================================================================
+	//Single cell element with monodomain membrane potential
+	//===================================================================
+
+	//Point element does not work for some reason...Instead implement as inheriting from
+	//	QInterface element but do some clever pinning and overloading to ensure no
+	//	Unnecessary computation is done
+
+
+	//Monodomain Single cell element
+	//Does not inherit from monodomain equations
+	//	it's more efficient to just reimplement it
+	template<unsigned NUM_VARS>
+	class MonodomainSingleCellElement :
+		public virtual PointCellInterfaceElement<1, NUM_VARS>
+	{
+	private:
+
+		bool Compute_Off_Diagonal_Blocks = false;
+
+	public:
+
+		//typedef the membrane potential source function
+		typedef void (*MonodomainSingleCellSourceFctPt)(const double&t, double& Istim);
+
+		MonodomainSingleCellElement() : PointCellInterfaceElement<1, NUM_VARS>()
+		{
+
+		}
+
+		void compute_off_diagonal_blocks(){Compute_Off_Diagonal_Blocks = true;}
+		void do_not_compute_off_diagonal_blocks(){Compute_Off_Diagonal_Blocks = false;}
+
+
+		//We need storage for the cell variables and 1 for the monodomain
+		inline unsigned required_nvalue(const unsigned &n) const 
+	  		{return NUM_VARS+1;}
+
+	  	unsigned vm_index_BaseCellMembranePotential() const {return PointCellInterfaceElement<1, NUM_VARS>::max_index_CellInterfaceEquations();}
+
+	  	void get_membrane_potential_CellInterface(const unsigned& ipt,
+													const Vector<double>& s,
+													const Vector<double>& x,
+													double& V) const override
+	  	{
+	  		V = this->raw_nodal_value(0,vm_index_BaseCellMembranePotential());
+	  	}
+
+
+	  	//====================================================================
+		//====================================================================
+		//Residual and Jacobian functions
+		//====================================================================
+		//====================================================================
+		/// Add the element's contribution to its residual vector (wrapper)
+		void fill_in_contribution_to_residuals(Vector<double> &residuals){
+			//Fill in residual contribution from cell interface
+			PointCellInterfaceElement<1,NUM_VARS>::fill_in_contribution_to_residuals(residuals);
+
+		   	//Call the generic residuals function with flag set to 0 and using
+		   	//a dummy matrix
+			fill_in_generic_residual_contribution_point_monodomain(
+				residuals,GeneralisedElement::Dummy_matrix,
+				GeneralisedElement::Dummy_matrix,0);
+		}
+		/// \short Add the element's contribution to its residual vector and 
+		/// the element Jacobian matrix (wrapper)
+		void fill_in_contribution_to_jacobian(Vector<double> &residuals,
+		                                   DenseMatrix<double> &jacobian){
+			PointCellInterfaceElement<1,NUM_VARS>::fill_in_contribution_to_jacobian(residuals,jacobian);
+			fill_in_generic_residual_contribution_point_monodomain(residuals,jacobian,GeneralisedElement::Dummy_matrix,1);
+		}
+		/// Add the element's contribution to its residuals vector,
+		/// jacobian matrix and mass matrix
+		void fill_in_contribution_to_jacobian_and_mass_matrix(
+			Vector<double> &residuals, DenseMatrix<double> &jacobian,
+			DenseMatrix<double> &mass_matrix){
+			//Call the generic routine with the flag set to 2
+			// fill_in_generic_residual_contribution_cell_interface(residuals,jacobian,mass_matrix,2);
+			FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
+		}
+
+	protected:
+
+		/// \short Add the point monodomain contribution to the residual vector
+		/// Assumes that the residual has already been partially filled by the cell model
+ 		virtual void fill_in_generic_residual_contribution_point_monodomain(
+  			Vector<double> &residuals, DenseMatrix<double> &jacobian, 
+  			DenseMatrix<double> &mass_matrix, unsigned flag){
+			//There is only one node and no integral points to loop over
+
+			//Get the vm index
+			const unsigned vm_index = vm_index_BaseCellMembranePotential();
+			//Get vm
+			double vm = this->raw_nodal_value(0,vm_index);
+			//Get dvmdt
+			// Get the data's timestepper
+			TimeStepper* time_stepper_pt= this->node_pt(0)->time_stepper_pt();
+			double dvmdt = 0.0;
+			if(!time_stepper_pt->is_steady()){
+				// Number of timsteps (past & present)
+				const unsigned n_time = time_stepper_pt->ntstorage();
+				//Loop over timesteps
+				for(unsigned t=0;t<n_time;t++){
+					dvmdt += time_stepper_pt->weight(1,t)*this->nodal_value(t,0,vm_index);
+				}
+			}
+
+			//Get the source: source function + membrane current
+			double source = 0.0;
+			if(Point_Monodomain_Source_fct_pt!=nullptr){
+				(*Point_Monodomain_Source_fct_pt)(this->node_pt(0)->time_stepper_pt()->time(),source);
+			}
+			source += PointCellInterfaceElement<1,NUM_VARS>::get_nodal_membrane_current(0);
+			//Get the capacitance
+			// double cm = PointCellInterfaceElement<1,NUM_VARS>::get_nodal_membrane_capacitance(0);
+			double cm = 1.0;
+			//Local eqn number of the membrane potential
+			int local_eqn = this->nodal_local_eqn(0, vm_index);
+			int local_unknown;
+			//If the membrane potential is not pinned
+			if(local_eqn>=0){
+				residuals[local_eqn] -= (cm*dvmdt + source);
+				if(flag){
+					jacobian(local_eqn, local_eqn) -= cm*this->node_pt(0)->time_stepper_pt()->weight(1,0);
+					
+					if(flag==2){
+						mass_matrix(local_eqn, local_eqn)
+							+= cm;
+					}
+
+					//Fill in the off-daigonal block
+					if(Compute_Off_Diagonal_Blocks){
+						//Find the total number of unknowns in the elements
+						unsigned n_dof = this->ndof();
+						//Temporary storage for residuals
+						Vector<double> newres(n_dof, 0.0);
+						//Set the finite difference step
+						double fd_step = FiniteElement::Default_fd_jacobian_step;
+						//Calculate the residuals corresponding to the cell model resulting from
+						//	a perturbed membrane potential
+						double *value_pt = this->node_pt(0)->value_pt(vm_index);
+						//Record the value of the membrane potential
+						double old_var = *value_pt;
+						//Increment the membrane potential
+						*value_pt += fd_step;
+						//Zero the newres vector
+						// for(unsigned m=0; m<n_dof; m++){newres[m] = 0.0;}
+						//Fill in the newres vector with the residuals corresponding to a perturbed membrane potential
+						PointCellInterfaceElement<1,NUM_VARS>::fill_in_contribution_to_residuals(newres);
+						
+						//Loop over the cell variables
+						for(unsigned i=0; i<NUM_VARS; i++){
+							//Get the eqn number of the cell variable in question
+							local_unknown = this->nodal_local_eqn(0, this->min_index_CellInterfaceEquations()+i);
+							//If it is not pinned
+							if(local_unknown>=0){
+								//Add to the jacobian matrix
+								jacobian(local_unknown, local_eqn) = (newres[local_unknown] - residuals[local_unknown])/fd_step;
+							}
+						}
+						//Return the membrane potential to it's original value
+						*value_pt = old_var;
+
+						//===============================================
+						//This doesn't seem to improve convergence at all
+						//===============================================
+						//Loop over the cell variables
+						// for(unsigned i=0; i<NUM_VARS; i++){
+						// 	//Get the local eqn number associated with the ith cell variable
+						// 	local_unknown = this->nodal_local_eqn(0, this->min_index_CellInterfaceEquations()+i);
+						// 	//If it's not been pinned
+						// 	if(local_unknown>=0){
+						// 		value_pt = this->node_pt(0)->value_pt(this->min_index_CellInterfaceEquations()+i);
+						// 		old_var = *value_pt;
+						// 		*value_pt += fd_step;
+						// 		for(unsigned m=0; m<n_dof; m++){newres[m] = 0.0;}
+						// 		fill_in_generic_residual_contribution_point_monodomain(newres,
+						// 										GeneralisedElement::Dummy_matrix,
+						// 										GeneralisedElement::Dummy_matrix, 0);
+						// 		jacobian(local_eqn, local_unknown) = (newres[local_eqn] - residuals[local_eqn])/fd_step;
+						// 		*value_pt = old_var;
+						// 	}
+						// }
+
+						
+					}
+				}
+			}
+ 		}
+
+
+ 		/// Pointer to source function:
+ 		MonodomainSingleCellSourceFctPt Point_Monodomain_Source_fct_pt;
+
+
+
+	public:
+
+		/// Access function: Pointer to source function
+		MonodomainSingleCellSourceFctPt& source_fct_pt() 
+		{return Point_Monodomain_Source_fct_pt;}
+
+		/// Access function: Pointer to source function. Const version
+		MonodomainSingleCellSourceFctPt source_fct_pt() const 
+		{return Point_Monodomain_Source_fct_pt;}
+
+		//====================================================================
+		//Output functions
+		//====================================================================
+
+		 /// Output with default number of plot points
+		void output(std::ostream &outfile){
+		}
+		/// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
+		/// nplot^DIM plot points
+		void output(std::ostream &outfile, const unsigned &nplot){
+		}
+		/// C_style output with default number of plot points
+		void output(FILE* file_pt){
+		}
+		 /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
+		 /// n_plot^DIM plot points
+		 void output(FILE* file_pt, const unsigned &n_plot){
+		}
+
+
+	};//end class
+
+
+	//Bidomain Single cell element
+	//Does not inherit from Bidomain equations
+	//	it's more efficient to just reimplement it
+
+
+
+
+	//Fast Monodomain Single Cell
+	//Does not use oomph-lib machinery.
+	//Does not assemble a jacobian or calculate residuals.
+	//Only Compatible with exlicit cell models.
+	//Uses the explicit timestep function from cell model and maintains
+	//	a single cellstate container to avoid unnecessary overhead from
+	//	creating and destroying them at each timestep
+	//Represents a stripped down version of the CellInterfaceElements
+	//Uses explicit Euler for timestepping of the monodomain
+	template<unsigned NUM_VARS>
+	class FastSingleCell
+	{
+	public:
+		//typedef the membrane potential source function
+		typedef void (*MonodomainSingleCellSourceFctPt)(const double&t, double& Istim);
+
+		/// Access function: Pointer to source function
+		MonodomainSingleCellSourceFctPt& source_fct_pt() 
+		{return Point_Monodomain_Source_fct_pt;}
+
+		/// Access function: Pointer to source function. Const version
+		MonodomainSingleCellSourceFctPt source_fct_pt() const 
+		{return Point_Monodomain_Source_fct_pt;}
+
+		CellModelBase* const & cell_model_pt() const{
+			// std::cout << "BOOM" << std::endl;
+			// std::cout << "BOOM" << ipt_not_at_nodes << std::endl;
+			#ifdef PARANOID
+			if(Cell_model_pt == 0){
+				//throw an error			    
+				throw OomphLibError("No Cell model assigned to element Cell_interface_element",
+				OOMPH_CURRENT_FUNCTION,
+				OOMPH_EXCEPTION_LOCATION);
+			}
+			#endif
+			return Cell_Model_pt;
+		}
+
+		void set_cell_model_pt(CellModelBase* cell_model){
+			//Check if the required number of values from cell_model_pt is the same as that passed to the element constructor
+			if(NUM_VARS!=cell_model->required_nodal_variables()){
+				//throw an error
+				std::string error_message =
+						"The number of variables passed to the FastSingleCell constructor (";
+			    error_message += std::to_string(NUM_VARS);
+			    error_message += ") does not match\n\tthe number defined by the Cell_Model_pt (";
+			    error_message += std::to_string(cell_model->required_nodal_variables());
+			    error_message += ").";
+			    
+			   	throw OomphLibError(error_message,
+			                       	OOMPH_CURRENT_FUNCTION,
+			                       	OOMPH_EXCEPTION_LOCATION);
+			}
+			//set the cell_model_pt
+			Cell_Model_pt = cell_model;
+			//build the required nodal parameters
+			//Create data for cell type
+			Cell_Type = 0;
+			//Create data for black-box nodal parameters
+			Black_Box_Nodal_Parameters.resize(cell_model->required_black_box_parameters(), 0.0);
+			//Resize the black-box external function pointers
+			// Black_box_external_fct_pts.resize(cell_model->required_external_data(), 0);
+
+			Variable_vals.resize(NUM_VARS+1);
+		}
+
+		void set_cell_type(const unsigned &cell_type){
+			Cell_Type = cell_type;
+			persistent_state.set_cell_type(Cell_Type);
+		}
+
+		inline void assign_initial_conditions_from_cell_model(){
+		#ifdef PARANOID
+			if(cell_model_pt()==nullptr){
+				throw OomphLibError("No cell model has been set",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+			}
+		#endif
+			if(cell_model_pt()==nullptr){std::cout << "no cell model pt"; exit(0);}
+			// 	throw OomphLibError("No cell model has been set",
+			// 		OOMPH_CURRENT_FUNCTION,
+			// 		OOMPH_EXCEPTION_LOCATION);
+			// }
+			double current_var;
+			for(unsigned v=0; v<NUM_VARS;v++){
+				if(cell_model_pt()->return_initial_state_variable(v,current_var,Cell_Type)){
+					Variable_vals[1+v] = current_var;
+				}
+				//if a suitable value cannot be returned by the cell model then the value is pinned
+				else{
+					// throw OomphLibError("Extra variable in fast cell detected.",
+					// 					OOMPH_CURRENT_FUNCTION,
+					// 					OOMPH_EXCEPTION_LOCATION);
+				}
+			}
+		}
+
+		inline void set_initial_vm(const double &vm){
+			Variable_vals[0] = vm;
+		}
+
+		void TakeTimestep(const double& dt, const double& stim){
+			//Populate the persistent_state
+			//We re-use this vector to extract the original values for passing to the cell state
+			// to avoid creating unnecessary data on the fly
+			Vector<double> new_var_vals(NUM_VARS);
+			for(unsigned i=0; i<NUM_VARS; i++){
+				new_var_vals[i] = Variable_vals[1+i];
+			}
+			persistent_state.set_previous_variables(new_var_vals);
+			persistent_state.set_dt(dt);
+			persistent_state.set_vm(Variable_vals[0]);
+
+			persistent_state.set_black_box_nodal_parameters(Black_Box_Nodal_Parameters);
+			
+			
+			//Call explicit timestep from the cell model
+			Cell_Model_pt->explicit_timestep(persistent_state, new_var_vals);
+
+			//Assume membrane current has been calculated within explicit timestep
+			double new_mem_pot = Variable_vals[0] - dt*(persistent_state.get_membrane_current() + stim);
+
+			Variable_vals[0] = new_mem_pot;
+			for(unsigned i=0; i<NUM_VARS; i++){
+				Variable_vals[1+i] = new_var_vals[i];
+			}
+		}
+
+		void output_variables(std::ofstream &data_out){
+			for(unsigned i=0; i<NUM_VARS+1; i++){
+				if(i!=0){data_out << ", ";}
+				data_out << Variable_vals[i];
+			}
+			// data_out << std::endl;
+
+		}
+
+
+
+	protected:
+		/// Pointer to source function:
+ 		MonodomainSingleCellSourceFctPt Point_Monodomain_Source_fct_pt;
+
+ 		///Pointer to Cell Model
+ 		CellModelBase* Cell_Model_pt;
+
+ 		///The cell type
+ 		unsigned Cell_Type;
+
+ 		///Vector of black box parameters required by the cell model
+ 		Vector<double> Black_Box_Nodal_Parameters;
+
+ 		//The persistent cell state container
+		CellState persistent_state;
+
+		//The vector containing the cell variable values and the membrane potential
+		Vector<double> Variable_vals;
+	};
+
+
+//Namespace, helper functions for dealing with cell interface elements
+namespace Oomph_Cell_Interface_Helpers
+{
+	//Setup non-overlapping node residual and jacobian fill in for the vector of elements
+	//	passed. Only to be applied in the case that cells are points and thus their residual and
+	//	jacobian is the same regardless of the element it is computed within
+	template<class ELEMENT>
+	void Setup_Non_Overlapping_Nodes(const Vector<GeneralisedElement*> element_pts)
+	{	
+		oomph_info << "Removing excess computation of cell nodes by overlapping elements:" << std::endl;
+		unsigned n_elmts = element_pts.size();
+		unsigned n_node = 0;
+		//Declare map: node_refs -> unique id
+		std::map<Node*, unsigned> node_id_map;
+		std::map<unsigned, Node*> node_point_map;
+		//Declare Vector: Node unique id -> Vector of elements which compute that node
+		Vector<Vector<unsigned>> elements_computing_node;
+		//Loop over all the elements
+		for(unsigned i=0; i<n_elmts; i++){
+			FiniteElement* el_pt = dynamic_cast<FiniteElement*>(element_pts[i]);
+			unsigned n_el_node = el_pt->nnode();
+			//Loop over all the node points
+			for(unsigned l=0; l<n_el_node; l++){
+				//If the node is new
+				if(node_id_map.find(el_pt->node_pt(l)) == node_id_map.end()){
+					//Add it to the map of node_refs to a unique node id
+					node_id_map[el_pt->node_pt(l)] = n_node;
+					node_point_map[n_node] = el_pt->node_pt(l);
+					n_node++;
+					//Add the element id to the Vector of element ids for that node
+					elements_computing_node.resize(n_node);
+					elements_computing_node[n_node-1].push_back(i);
+				}
+				//If the node is not new
+				else{
+					//Add the element id to the Vector of element ids for that node
+					elements_computing_node[node_id_map[el_pt->node_pt(l)]].push_back(i);
+				}
+			}
+		}
+
+
+		oomph_info << "Found " << n_node << " unique nodes associated with the " << n_elmts << " cell interface elements." << std::endl;
+
+		oomph_info << "Initial number of elements computing each detected node:" << std::endl;
+		oomph_info << "Node id : Number of elements" << std::endl;
+		//Report on the number of elements computing each node
+		for(unsigned l=0; l<n_node; l++){
+			oomph_info << l << " : " << elements_computing_node[l].size() << std::endl;
+		}
+
+		oomph_info << "Initial number of nodes computed by each element:" << std::endl;
+		oomph_info << "Element id : Number of nodes" << std::endl;
+		//Report on the number of elements computing each node
+		for(unsigned i=0; i<element_pts.size(); i++){
+			oomph_info << i << " : " << dynamic_cast<ELEMENT*>(element_pts[i])->n_computed_node() << std::endl;
+		}
+
+
+		bool reduced = false;
+		unsigned num_pass = 0;
+		//Continue until we have reduced the number of overlapping elements to zero
+		while(!reduced){
+			//Loop over the nodes
+			for(unsigned l=0; l<n_node; l++){
+				//If there are > 1 elements which compute it
+				if(elements_computing_node[l].size()>1){
+					//Vector of number of computed nodes for each element which computes this node
+					Vector<unsigned> num_computed_nodes(elements_computing_node[l].size());
+					//Loop over the elements which compute this node
+					for(unsigned i=0; i<elements_computing_node[l].size(); i++){
+						//Get a pointer to the element
+						ELEMENT* el_pt =
+							dynamic_cast<ELEMENT*>(element_pts[elements_computing_node[l][i]]);
+						//Check how many nodes it computes
+						num_computed_nodes[i] = el_pt->n_computed_node();
+					}
+					//Remove the element which computes the most nodes and turn off computation for this node
+					unsigned ind_to_be_removed = std::max_element(num_computed_nodes.begin(),num_computed_nodes.end()) - num_computed_nodes.begin();
+					//Get a pointer to the node we are working on
+					Node* nod_pt = node_point_map[l];
+					//Get a pointer to the element
+					ELEMENT* el_pt =
+						dynamic_cast<ELEMENT*>(element_pts[elements_computing_node[l][ind_to_be_removed]]);
+					//Loop over the nodes in the element
+					for(unsigned i=0; i<el_pt->nnode(); i++){
+						//if the node is the same as the one we are working with
+						if(el_pt->node_pt(i) == nod_pt){
+							el_pt->do_not_compute_node(i);
+						}
+					}
+					//Remove the element from the vector of elements which compute this node
+					elements_computing_node[l].erase(elements_computing_node[l].begin()+ind_to_be_removed);
+				}
+			}
+			num_pass++;
+			reduced = true;
+			//Loop over the nodes
+			for(unsigned l=0; l<n_node; l++){
+				//Check how many elements compute each
+				if(elements_computing_node[l].size()>1){
+					//If they are all computed by just 1 element then stop infinite loop
+					reduced = false;
+					break;
+				}
+			}
+		}
+
+		//Vector of number of computed nodes for each element
+		// Vector<unsigned> num_computed_nodes(element_pts.size());
+		// for(unsigned e=0; e<element_pts.size(); e++){
+		// 	num_computed_nodes[e] = dynamic_cast<ELEMENT*>(element_pts[e])->n_computed_node();
+		// }
+		// //While we can reduce all of the elements
+		// while(*std::max_element(num_computed_nodes.begin(),num_computed_nodes.end()) > 1){
+		// 	//Get the element with the largest number of computed nodes
+		// 	unsigned e = std::max_element(num_computed_nodes.begin(),num_computed_nodes.end()) - num_computed_nodes.begin();
+		// 	//Get a pointer to it
+		// 	ELEMENT* el_pt = dynamic_cast<ELEMENT*>(element_pts[e]);
+		// 	//We assume that we haven't managed to reduce the element in question
+		// 	bool element_was_reduceable = false;
+		// 	//Loop over the nodes in the element
+		// 	for(unsigned n=0; n<el_pt->nnode(); n++){
+		// 		//If the node is computed by the element
+		// 		if(el_pt->is_node_computed(n)){
+		// 			//Get the node id in our list of nodes
+		// 			unsigned n_ind = node_id_map[el_pt->node_pt(n)];
+		// 			//If the node is computed by more than 1 element
+		// 			if(elements_computing_node[n_ind].size()>1){
+		// 				//Remove it from the list of computed nodes for this element
+		// 				el_pt->do_not_compute_node(n);
+		// 				//Remove the element id from the vector of ids of elements which compute this node
+		// 				for(unsigned e1=0; e1<elements_computing_node[n_ind].size(); e1++){
+		// 					if(elements_computing_node[n_ind][e1] == e){
+		// 						elements_computing_node[n_ind].erase(elements_computing_node[n_ind].begin() + e1);
+		// 					}
+		// 				}
+		// 				//We let the loop know that we reduced an element
+		// 				element_was_reduceable = true;
+		// 				//Once we have removed a node from the computation of this element then stop removing nodes
+		// 				break;
+		// 			}
+		// 		}
+		// 	}
+		// 	//If we have got to this point and the computation of a node could not be removed from
+		// 	//	the element then the element is not reduceable further and we remove it from the list
+		// 	//	of elements we check
+		// 	if(!element_was_reduceable){num_computed_nodes[e] = 0;}
+		// 	num_pass++;
+		// }
+
+
+		//Recalculate things just to make sure
+		node_id_map.clear();
+		node_point_map.clear();
+		elements_computing_node.clear();
+		n_elmts = element_pts.size();
+		n_node = 0;
+		//Declare map: node_refs -> unique id
+		// std::map<Node*, unsigned> node_id_map;
+		// std::map<unsigned, Node*> node_point_map;
+		//Declare Vector: Node unique id -> Vector of elements which compute that node
+		// Vector<Vector<unsigned>> elements_computing_node;
+		//Loop over all the elements
+		for(unsigned i=0; i<n_elmts; i++){
+			ELEMENT* el_pt = dynamic_cast<ELEMENT*>(element_pts[i]);
+			unsigned n_el_node = el_pt->nnode();
+			//Loop over all the node points
+			for(unsigned l=0; l<n_el_node; l++){
+				//If the node is new
+				if(node_id_map.find(el_pt->node_pt(l)) == node_id_map.end()){
+					//if the node is computed by the element
+					if(el_pt->is_node_computed(l)){
+						//Add it to the map of node_refs to a unique node id
+						node_id_map[el_pt->node_pt(l)] = n_node;
+						node_point_map[n_node] = el_pt->node_pt(l);
+						n_node++;
+						//Add the element id to the Vector of element ids for that node
+						elements_computing_node.resize(n_node);
+						elements_computing_node[n_node-1].push_back(i);
+					}
+				}
+				//If the node is not new
+				else{
+					//if the node is computed by the element
+					if(el_pt->is_node_computed(l)){
+						//Add the element id to the Vector of element ids for that node
+						elements_computing_node[node_id_map[el_pt->node_pt(l)]].push_back(i);
+					}
+				}
+			}
+		}
+
+		oomph_info << "Final number of elements computing each detected node:" << std::endl;
+		oomph_info << "Node id : Number of elements" << std::endl;
+		//Report on the number of elements computing each node
+		for(unsigned l=0; l<n_node; l++){
+			oomph_info << l << " : " << elements_computing_node[l].size() << std::endl;
+		}
+
+		oomph_info << "Final number of nodes computed by each element:" << std::endl;
+		oomph_info << "Element id : Number of nodes" << std::endl;
+		//Report on the number of elements computing each node
+		for(unsigned i=0; i<element_pts.size(); i++){
+			oomph_info << i << " : " << dynamic_cast<ELEMENT*>(element_pts[i])->n_computed_node() << std::endl;
+		}
+
+		oomph_info << "Completed computation reduction of cell interface mesh of point nodes. Process required " << num_pass << " passes to complete." << std::endl;
+	}
+
+
+}
+
+
 }
 
 #endif

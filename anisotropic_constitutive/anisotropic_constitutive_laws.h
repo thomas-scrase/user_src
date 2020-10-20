@@ -62,7 +62,8 @@ class AnisotropicStrainEnergyFunction
 
  /// Return the strain energy in terms of the strain tensor
  virtual double W(const DenseMatrix<double> &gamma,
-                  const DenseMatrix<double> &A)
+                  const DenseMatrix<double> &A,
+                  const Vector<double> &V)
   {
    std::string error_message =
     "The strain-energy function as a function of the strain-tensor,\n";
@@ -78,7 +79,8 @@ class AnisotropicStrainEnergyFunction
 
  /// Return the strain energy in terms of the strain invariants
  virtual double W(const Vector<double> &I,
-                  const DenseMatrix<double> &A)
+                  const DenseMatrix<double> &A,
+                  const Vector<double> &V)
   {
    std::string error_message =
     "The strain-energy function as a function of the strain\n ";
@@ -98,6 +100,7 @@ class AnisotropicStrainEnergyFunction
  /// finite differences).
  virtual void derivative(const DenseMatrix<double> &gamma,
                          const DenseMatrix<double> &A,
+                         const Vector<double> &V,
                          DenseMatrix<double> &dWdgamma)
   {
    throw OomphLibError(
@@ -112,12 +115,13 @@ class AnisotropicStrainEnergyFunction
  /// differences
  virtual void derivatives(Vector<double> &I,
                           const DenseMatrix<double> &A,
+                          const Vector<double> &V,
                           Vector<double> &dWdI)
   {
    //Calculate the derivatives of the strain-energy-function wrt the strain 
    //invariants
    double FD_Jstep = 1.0e-8; //Usual comments about global stuff
-   double energy = W(I,A);
+   double energy = W(I,A,V);
    unsigned num_invariants = I.size();
    //Loop over the strain invariants
    for(unsigned i=0;i<num_invariants;i++)
@@ -127,7 +131,7 @@ class AnisotropicStrainEnergyFunction
      //Increase ith strain invariant
      I[i] += FD_Jstep;
      //Get the new value of the strain energy
-     double energy_new = W(I,A);
+     double energy_new = W(I,A,V);
      //Calculate the value of the derivative
      dWdI[i] = (energy_new - energy) / FD_Jstep;
      //Reset value of ith strain invariant
@@ -172,17 +176,17 @@ class AnisotropicMooneyRivlin : public AnisotropicStrainEnergyFunction
  virtual ~AnisotropicMooneyRivlin(){}
 
  /// Return the strain energy in terms of strain tensor
- double W(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A)
-  {return AnisotropicStrainEnergyFunction::W(gamma, A);}
+ double W(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A, const Vector<double> &V)
+  {return AnisotropicStrainEnergyFunction::W(gamma, A, V);}
 
  /// Return the strain energy in terms of the strain invariants
- double W(const Vector<double> &I, const DenseMatrix<double> &A)
+ double W(const Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V)
  {return (*C1_pt)*(I[0]-3.0) + (*C2_pt)*(I[1]-3.0);}
 
  
  /// \short Return the derivatives of the strain energy function with
  /// respect to the strain invariants
- void derivatives(Vector<double> &I, const DenseMatrix<double> &A, Vector<double> &dWdI)
+ void derivatives(Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V, Vector<double> &dWdI)
   {
    dWdI[0] = (*C1_pt);
    dWdI[1] = (*C2_pt);
@@ -224,7 +228,7 @@ public:
 
   virtual ~ PoleZeroStrainEnergyFunction(){}
 
-  double W(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A)
+  double W(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A, const Vector<double> &V)
   {
     //transform a,b,k,gamma from fibre, sheet, normal to cartesian basis using A if A!=0
     
@@ -263,12 +267,12 @@ public:
     return W_temp;
   }
 
-  double W(const Vector<double> &I, const DenseMatrix<double> &A)
+  double W(const Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V)
   {
-    return AnisotropicStrainEnergyFunction::W(I,A);
+    return AnisotropicStrainEnergyFunction::W(I,A, V);
   }
 
-  void derivative(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A, DenseMatrix<double> &dWdgamma)
+  void derivative(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A, const Vector<double> &V, DenseMatrix<double> &dWdgamma)
   {
     for(int i=0;i<3;i++){
       for(int j=0;j<3;j++){
@@ -338,12 +342,12 @@ class AnisotropicGeneralisedMooneyRivlin : public AnisotropicStrainEnergyFunctio
   }
  
   /// Return the strain energy in terms of strain tensor
- double W(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A)
- {return AnisotropicStrainEnergyFunction::W(gamma, A);}
+ double W(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A, const Vector<double> &V)
+ {return AnisotropicStrainEnergyFunction::W(gamma, A, V);}
  
  
  /// Return the strain energy in terms of the strain invariants
- double W(const Vector<double> &I, const DenseMatrix<double> &A)
+ double W(const Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V)
  {
   double G=(*E_pt)/(2.0*(1.0+(*Nu_pt)));
   return 0.5*((*C1_pt)*(I[0]-3.0) + (G-(*C1_pt))*(I[1]-3.0)
@@ -355,7 +359,7 @@ class AnisotropicGeneralisedMooneyRivlin : public AnisotropicStrainEnergyFunctio
  
  /// \short Return the derivatives of the strain energy function with
  /// respect to the strain invariants
- void derivatives(Vector<double> &I, const DenseMatrix<double> &A, Vector<double> &dWdI)
+ void derivatives(Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V, Vector<double> &dWdI)
  {
   double G=(*E_pt)/(2.0*(1.0+(*Nu_pt)));
   dWdI[0] = 0.5*(*C1_pt);
@@ -409,7 +413,7 @@ public:
 
   ~HolzapfelOgdenStrainEnergyFunction(){}
 
-  double W(const Vector<double> &I, const DenseMatrix<double> &A)
+  double W(const Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V)
   {
     return a/(2*b)*exp(b*(I[0] - 3)) + af/(2*bf)*(exp(bf*pow(I[3] - 1, 2.0)) - 1)
                                      + as/(2*bs)*(exp(bs*pow(I[5] - 1, 2.0)) - 1)
@@ -663,7 +667,7 @@ class AnisotropicConstitutiveLaw
   /// covariant undeformed and deformed metric tensor and the 
   /// matrix in which to return the stress tensor
   virtual void calculate_second_piola_kirchhoff_stress(
-   const DenseMatrix<double> &g, const DenseMatrix<double> &G, const DenseMatrix<double> &A, DenseMatrix<double> &sigma)=0;
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G, const DenseMatrix<double> &A, const Vector<double> &V, DenseMatrix<double> &sigma)=0;
 
   /// \short Calculate the derivatives of the contravariant 
   /// 2nd Piola Kirchhoff stress tensor with respect to the deformed metric
@@ -680,6 +684,7 @@ class AnisotropicConstitutiveLaw
   virtual void calculate_d_second_piola_kirchhoff_stress_dG(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    const DenseMatrix<double> &sigma,
    RankFourTensor<double> &d_sigma_dG,const bool &symmetrize_tensor=true);
 
@@ -697,6 +702,7 @@ class AnisotropicConstitutiveLaw
   virtual void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet)
    {
@@ -722,6 +728,7 @@ class AnisotropicConstitutiveLaw
   virtual void calculate_d_second_piola_kirchhoff_stress_dG(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    const DenseMatrix<double> &sigma,
    const double &detG,    
    const double &interpolated_solid_p,
@@ -740,6 +747,7 @@ class AnisotropicConstitutiveLaw
   virtual void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G, 
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa) 
    {
@@ -762,6 +770,7 @@ class AnisotropicConstitutiveLaw
   virtual void calculate_d_second_piola_kirchhoff_stress_dG(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    const DenseMatrix<double> &sigma,
    const double &gen_dil,
    const double &inv_kappa,
@@ -880,6 +889,7 @@ class AnisotropicGeneralisedHookean : public AnisotropicConstitutiveLaw
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double> &sigma);
 
 
@@ -896,6 +906,7 @@ class AnisotropicGeneralisedHookean : public AnisotropicConstitutiveLaw
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet);
 
@@ -911,6 +922,7 @@ class AnisotropicGeneralisedHookean : public AnisotropicConstitutiveLaw
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa);
 
@@ -954,17 +966,20 @@ public:
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double> &sigma);
 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet);
 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G, 
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa);
 
@@ -982,7 +997,7 @@ public:
 class HolzapfelOgdenConstitutiveLaw : public AnisotropicConstitutiveLaw
 {
 public:
-  HolzapfelOgdenConstitutiveLaw(const Vector<double> HOParams) : 
+  HolzapfelOgdenConstitutiveLaw(const Vector<double> HOParams, const double active_scaling) : 
   AnisotropicConstitutiveLaw(),a(HOParams[0]),
                               b(HOParams[1]),
                               af(HOParams[2]),
@@ -990,25 +1005,29 @@ public:
                               as(HOParams[3]),
                               bs(HOParams[5]),
                               afs(HOParams[6]),
-                              bfs(HOParams[7]) {}
+                              bfs(HOParams[7]),
+                              Active_Scaling(active_scaling) {}
 
   virtual ~HolzapfelOgdenConstitutiveLaw(){ }
 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double> &sigma);
 
   //INCOMPRESSIBLE SOLID BECAUSE SOFT TISSUE IS APPROXIMATELY INCOMPRESSIBLE
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet);
 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa);
 
@@ -1025,6 +1044,7 @@ private:
   double bs;
   double afs;
   double bfs;
+  double Active_Scaling;
 };
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1058,6 +1078,7 @@ class AnisotropicStrainEnergyFunctionConstitutiveLaw : public AnisotropicConstit
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double> &sigma);
 
 
@@ -1074,6 +1095,7 @@ class AnisotropicStrainEnergyFunctionConstitutiveLaw : public AnisotropicConstit
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet);
 
@@ -1089,6 +1111,7 @@ class AnisotropicStrainEnergyFunctionConstitutiveLaw : public AnisotropicConstit
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G, 
    const DenseMatrix<double> &A,
+   const Vector<double> &V,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa);
 

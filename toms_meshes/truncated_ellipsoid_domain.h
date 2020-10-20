@@ -1,9 +1,6 @@
 #ifndef OOMPH_TRUNCATED_ELLIPSOID_DOMAIN_HEADER
 #define OOMPH_TRUNCATED_ELLIPSOID_DOMAIN_HEADER
 
-
-
-
 // Generic oomph-lib includes
 #include "../generic/quadtree.h"
 #include "../generic/domain.h"

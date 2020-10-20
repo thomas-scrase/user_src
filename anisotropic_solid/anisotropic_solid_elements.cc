@@ -346,15 +346,14 @@ fill_in_generic_contribution_to_residuals_pvd(Vector<double> &residuals,
    //if no anisotropy functions are given to the element then A and lambda default to zero
    DenseMatrix<double> A;
    this->anisotropic_matrix(ipt, s, interpolated_xi, A);
-
-   //IF TRANSVERSELY ISOTROPIC INVARIANTS CANNOT BE EXPRESSED IN TERMS OF g, G, gup, & Gup then push vectors in A forward here OR change G to interpolated_G so A can be pushed forward inside anisotropic matrix
-
+   Vector<double> V;
+   this->driving_strain(ipt, s, interpolated_xi, V);
    //end
 
 
    //Now calculate the stress tensor from the constitutive law
    DenseMatrix<double> sigma(DIM);
-   get_stress(g,G,A,sigma);
+   get_stress(g,G,A,V,sigma);
 
    // Add pre-stress
    for(unsigned i=0;i<DIM;i++) 
@@ -402,7 +401,7 @@ fill_in_generic_contribution_to_residuals_pvd(Vector<double> &residuals,
 
      //Get the "upper triangular" entries of the derivatives of the stress
      //tensor with respect to G
-     this->get_d_stress_dG_upper(g,G,A,sigma,d_stress_dG);
+     this->get_d_stress_dG_upper(g,G,A,V,sigma,d_stress_dG);
     }
    
 //=====EQUATIONS OF ELASTICITY FROM PRINCIPLE OF VIRTUAL DISPLACEMENTS========
@@ -572,10 +571,13 @@ fill_in_generic_contribution_to_residuals_pvd(Vector<double> &residuals,
 template <unsigned DIM>
 void AnisotropicPVDEquations<DIM>::output(std::ostream &outfile, const unsigned &n_plot)
 {
+
+  // std::cout << "boom" << std::endl;
  
  Vector<double> x(DIM);
  Vector<double> xi(DIM);
  Vector<double> s(DIM);
+ DenseMatrix<double> stress_or_strain(DIM,DIM);
 
  // Tecplot header info
  outfile << this->tecplot_zone_string(n_plot);
@@ -607,6 +609,28 @@ void AnisotropicPVDEquations<DIM>::output(std::ostream &outfile, const unsigned 
    
    // Output growth
    outfile << gamma;
+
+   //get the strain
+   this->get_strain(s,stress_or_strain);
+   for(unsigned i=0;i<DIM;i++)
+    {
+     for(unsigned j=0;j<=i;j++)
+      {
+       outfile << stress_or_strain(j,i) << " " ;
+      }
+    }
+
+   //get the stress
+   this->get_stress(s,stress_or_strain);
+   for(unsigned i=0;i<DIM;i++)
+    {
+     for(unsigned j=0;j<=i;j++)
+      {
+       outfile << stress_or_strain(j,i) << " " ;
+      }
+    }
+
+
    outfile << std::endl;
   }
  
@@ -1036,11 +1060,13 @@ void AnisotropicPVDEquations<DIM>::get_stress(const Vector<double> &s,
  //changes made to add anisotropy
  DenseMatrix<double> A;
  this->anisotropic_matrix(ipt, s, xi, A);
+ Vector<double> V;
+ this->driving_strain(ipt, s, xi, V);
  //end
 
  
  //Now calculate the stress tensor from the constitutive law
- get_stress(g,G,A,sigma);
+ get_stress(g,G,A,V,sigma);
  
 }
 
@@ -1057,7 +1083,7 @@ void AnisotropicPVDEquations<DIM>::get_stress(const Vector<double> &s,
 /// at specified local coordinate: \c  principal_stress_vector(i,j)
 /// is the j-th component of the i-th principal stress vector.
 //=======================================================================
-//broken by changing prestress to be dependent on ipt, to avoid actially breaking it
+//!!!!!Broken by changing prestress to be dependent on ipt, to avoid actially breaking it
 //  changed ipt to 0, this will result in garbage data in multiphysics problems
 //  where prestress is from an external source. but this only seems to be used by 1
 //  function which is used in outputting to tecplot so I'm safe for now
@@ -1446,6 +1472,16 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
       }
     }
 
+   //Additions for anisotropic
+   //Get the local body force
+   // Vector<double> b_l(DIM);
+   // this->local_body_force(ipt, g, G, b_l);
+   // //Add the local body force to the body force
+   // for(unsigned i=0; i<DIM; i++){
+   //  b[i]+=b_l[i];
+   // }
+   //End additions for anisotropic
+
    //Now calculate the deviatoric stress and all pressure-related
    //quantitites
    DenseMatrix<double> sigma(DIM,DIM), sigma_dev(DIM,DIM), Gup(DIM,DIM);
@@ -1494,6 +1530,8 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
    //changes made to add anisotropy
    DenseMatrix<double> A;
    this->anisotropic_matrix(ipt, s, interpolated_xi, A);
+   Vector<double> V;
+   this->driving_strain(ipt, s, interpolated_xi, V);
    //end
 
    // Incompressible: Compute the deviatoric part of the stress tensor, the
@@ -1501,7 +1539,7 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
    // of the deformed covariant metric tensor.
    if(Incompressible)
     {
-     get_stress(g,G,A,sigma_dev,Gup,detG);
+     get_stress(g,G,A,V,sigma_dev,Gup,detG);
      
      // Get full stress
      for (unsigned a=0;a<DIM;a++)
@@ -1518,7 +1556,7 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
        //Get the "upper triangular" entries of the derivatives of the stress
        //tensor with respect to G
        this->
-        get_d_stress_dG_upper(g,G,A,sigma,detG,interpolated_solid_p,
+        get_d_stress_dG_upper(g,G,A,V,sigma,detG,interpolated_solid_p,
                               d_stress_dG,d_detG_dG);
       }
     }
@@ -1527,7 +1565,7 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
    // the generalised dilatation and the inverse bulk modulus.
    else
     {
-     get_stress(g,G,A,sigma_dev,Gup,gen_dil,inv_kappa);
+     get_stress(g,G,A,V,sigma_dev,Gup,gen_dil,inv_kappa);
 
      // Get full stress
      for (unsigned a=0;a<DIM;a++)
@@ -1543,7 +1581,7 @@ fill_in_generic_residual_contribution_pvd_with_pressure(
       {
        //Get the "upper triangular" entries of the derivatives of the stress
        //tensor with respect to G
-       this->get_d_stress_dG_upper(g,G,A,sigma,gen_dil,inv_kappa,
+       this->get_d_stress_dG_upper(g,G,A,V,sigma,gen_dil,inv_kappa,
                                    interpolated_solid_p,
                                    d_stress_dG,d_gen_dil_dG);
       }
@@ -1917,10 +1955,12 @@ template <unsigned DIM>
 void AnisotropicPVDEquationsWithPressure<DIM>::output(std::ostream &outfile, 
                                            const unsigned &n_plot)
 {
+  // std::cout << "boom" << std::endl;
  //Set output Vector
  Vector<double> s(DIM);
  Vector<double> x(DIM);
  Vector<double> xi(DIM);
+ DenseMatrix<double> stress_or_strain(DIM,DIM);
 
  // Tecplot header info
  outfile << this->tecplot_zone_string(n_plot);
@@ -1954,7 +1994,28 @@ void AnisotropicPVDEquationsWithPressure<DIM>::output(std::ostream &outfile,
    outfile << gamma << " ";
    // Output pressure
    outfile << interpolated_solid_p(s) << " ";
-   outfile << "\n";
+   
+   //get the strain
+   this->get_strain(s,stress_or_strain);
+   for(unsigned i=0;i<DIM;i++)
+    {
+     for(unsigned j=0;j<=i;j++)
+      {
+       outfile << stress_or_strain(j,i) << " " ;
+      }
+    }
+
+   //get the stress
+   this->get_stress(s,stress_or_strain);
+   for(unsigned i=0;i<DIM;i++)
+    {
+     for(unsigned j=0;j<=i;j++)
+      {
+       outfile << stress_or_strain(j,i) << " " ;
+      }
+    }
+
+    outfile << std::endl;
   }
 
  // Write tecplot footer (e.g. FE connectivity lists)
@@ -2157,6 +2218,8 @@ void AnisotropicPVDEquationsWithPressure<DIM>::extended_output(std::ostream &out
        outfile << stress_or_strain(j,i) << " " ;
       }
     }
+
+    
 
 
    outfile << std::endl;
@@ -2370,18 +2433,20 @@ void AnisotropicPVDEquationsWithPressure<DIM>::get_stress(const Vector<double> &
  //changes made to add anisotropy
  DenseMatrix<double> A;
  this->anisotropic_matrix(ipt, s, xi, A);
+ Vector<double> V;
+ this->driving_strain(ipt, s, xi, V);
  //end
 
  if(Incompressible)
   {
-   get_stress(g,G,A,sigma_dev,Gup,detG);
+   get_stress(g,G,A,V,sigma_dev,Gup,detG);
   }
  // Nearly incompressible: Compute the deviatoric part of the 
  // stress tensor, the contravariant deformed metric tensor,
  // the generalised dilatation and the inverse bulk modulus.
  else
   {
-   get_stress(g,G,A,sigma_dev,Gup,gen_dil,inv_kappa);
+   get_stress(g,G,A,V,sigma_dev,Gup,gen_dil,inv_kappa);
   }
 
  // Get complete stress

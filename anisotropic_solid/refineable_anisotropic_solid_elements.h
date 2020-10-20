@@ -152,6 +152,7 @@ public:
 
    //changes made to add anisotropy
    this->Anisotropic_matrix_fct_pt = cast_father_element_pt->anisotropic_matrix_fct_pt();
+   this->Driving_strain_fct_pt = cast_father_element_pt->driving_strain_fct_pt();
    //end
    
    // Set pointer to the contitutive law

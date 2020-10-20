@@ -34,10 +34,7 @@ namespace oomph{
 
 	//Black-box nodal parameters
 	void CellState::set_black_box_nodal_parameters(const Vector<double> &new_nodal_parameters){
-		Black_Box_Nodal_Parameters.resize(new_nodal_parameters.size());
-		for(unsigned i=0; i<new_nodal_parameters.size(); i++){
-			Black_Box_Nodal_Parameters[i] = new_nodal_parameters[i];
-		}
+		Black_Box_Nodal_Parameters = new_nodal_parameters;
 	}
 	double CellState::get_black_box_nodal_parameters(const unsigned &paramter_index) const {return Black_Box_Nodal_Parameters[paramter_index];}
 
@@ -67,8 +64,8 @@ namespace oomph{
 
 	//Previous values
 	void CellState::set_previous_variables(const Vector<double> &new_previous_variables){
+		Previous_Variables.resize(new_previous_variables.size());
 		for(unsigned i = 0; i < new_previous_variables.size(); i++){
-			Previous_Variables.resize(new_previous_variables.size());
 			Previous_Variables[i] = new_previous_variables[i];
 		}
 	}
@@ -92,7 +89,7 @@ namespace oomph{
 		General_cell_model_data[data_index] = new_data;
 	}
 	void CellState::resize_general_cell_model_data(const unsigned &new_size){	//resize the vector representing general cell model data
-		General_cell_model_data.resize(new_size);
+		General_cell_model_data.resize(new_size,0.0);
 	}
 	double CellState::get_general_cell_model_data(const unsigned &data_index) const { //get the data at data_index
 		return General_cell_model_data[data_index];

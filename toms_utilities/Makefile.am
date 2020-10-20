@@ -4,12 +4,12 @@
 
 # Define the sources
 sources =  \
-toms_integral.cc \
-diff_augmented_cell_wrapper.cc
+toms_integral.cc
 # Define the headers
 headers =  \
 toms_integral.h \
-diff_augmented_cell_wrapper.h
+diff_augmented_cell_wrapper.h \
+enforce_positive_normal_flow_elements.h
 
 # Define name of library
 libname = toms_utilities

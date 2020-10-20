@@ -2,7 +2,7 @@
 //LIC// Contains the base cell model class along with two simple cell models
 //LIC// ZeroCell - purely for testing
 //LIC// FitzHighNagumo - an old redundant model also for testing, albeit more
-//LIC//		in depth.
+//LIC//		interesting
 //LIC// ====================================================================
 
 
@@ -45,8 +45,8 @@ namespace oomph{
 	//	the value computed by the explicit timestepping function and the current
 	//	value at the node. Further, the entire explicit timestep is required
 	//	to be computed when calculating active strain and membrane current which
-	//	is likely to reduce efficieny
-	//Benefits though include a very easily invertible jacobian, since only
+	//	is likely to reduce efficiency
+	//Benefits include a very easily invertible jacobian, since only
 	//	diagonal entries are filled and ease of use by the user
 	//====================================================================
 	//====================================================================
@@ -73,15 +73,14 @@ namespace oomph{
 			DummyVector.resize(required_nodal_variables());
 			//set DummyVector = cell variables at previous timestep
 			for(unsigned i=0; i<required_nodal_variables(); i++){
-				DummyVector[i] = state.get_previous_variables(i);
-				// DummyVector[i] = state.get_var(0,i);
+				// DummyVector[i] = state.get_previous_variables(i);
+				DummyVector[i] = state.get_var(0,i);
 			}
-			// state.set_dt(0.0);
+			double dt_old = state.get_dt();
+			state.set_dt(0.0);
 			//Compute the cell model explicit timestep
-			// std::cout << DummyVector[0] << std::endl;
 			explicit_timestep(state, DummyVector);
-
-			// std::cout << state.get_membrane_current();
+			state.set_dt(dt_old);
 			// std::exit(0);
 			//Return the caclulated cell model current
 			return state.get_membrane_current();
@@ -97,12 +96,14 @@ namespace oomph{
 			DummyVector.resize(required_nodal_variables());
 			//set DummyVector = cell variables at previous timestep
 			for(unsigned i=0; i<required_nodal_variables(); i++){
-				DummyVector[i] = state.get_previous_variables(i);
-				// DummyVector[i] = state.get_var(0,i);
+				// DummyVector[i] = state.get_previous_variables(i);
+				DummyVector[i] = state.get_var(0,i);
 			}
-			// state.set_dt(0.0);
+			double dt_old = state.get_dt();
+			state.set_dt(0.0);
 			//Compute the cell model explicit timestep with a dummy vector
 			explicit_timestep(state, DummyVector);
+			state.set_dt(dt_old);
 			//Return the calculated cell model strain
 			return state.get_active_strain();
 		}
@@ -194,10 +195,10 @@ namespace oomph{
 		//Access functions for mutation type
 		//(Element-wise since we assume all cells are affected by the same mutation)
 		//====================================================================
-		const unsigned &mutation() const {return *Mutation_pt;}
-		unsigned* &mutation_pt() {return Mutation_pt;}
+		const std::string &mutation() const {return *Mutation_pt;}
+		std::string* &mutation_pt() {return Mutation_pt;}
 
-		void set_mutation_pt(unsigned* mutation_pt_){Mutation_pt = mutation_pt_;}
+		void set_mutation_pt(std::string* mutation_pt_){Mutation_pt = mutation_pt_;}
 
 		//====================================================================
 		//Acess function to dictate initial conditions of cell model to cell
@@ -243,6 +244,12 @@ namespace oomph{
 		                       OOMPH_CURRENT_FUNCTION,
 		                       OOMPH_EXCEPTION_LOCATION);
 		}
+
+		virtual inline unsigned required_external_data() {
+			throw OomphLibError("The number of external data required for this model to function has not been defined for this cell model yet",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+		}
 	
 	protected:
 
@@ -251,7 +258,7 @@ namespace oomph{
 		//	Used in switch function with the following correspondence:
 		//		0 WT, 1 D322H, 2 E48G, 3 A305T, 4 Y155C, 5 D469E, 6 P488S
 		//====================================================================
-		unsigned *Mutation_pt;
+		std::string *Mutation_pt;
 
 		//The largest dt which ensures convergence of the method,
 		//	must be implemented by the user who defined the cell
@@ -516,7 +523,7 @@ namespace oomph{
 		//Return a sensible value
 		double membrane_current(CellState &state) {return state.get_var(0,0);}
 		//Return a sensbile value
-		double active_strain(CellState &state) const {return pow(state.get_var(0,0),2.0);}
+		double active_strain(CellState &state) {return pow(state.get_var(0,0),2.0);}
 		//The membrane capacitance of this cell model
 		double cm(CellState &state) const {return 1.0;}
 		//The custom output for the model, there's nothing special to output so it's left blank
@@ -568,6 +575,8 @@ namespace oomph{
 
 
 
+	//!!!!!Both fithughnagumo models are very stiff - work out why at some point
+	
 	//====================================================================
 	//====================================================================
 	//Begin the Explicit FitzHugh-Nagumo Cell model:
@@ -582,7 +591,7 @@ namespace oomph{
 	public:
 		FitzHughNagumoExplicit() : CellModelBase()
 		{
-			Intrinsic_dt = 0.1;
+			Intrinsic_dt = 0.05;
 		}
 
 		bool compatible_cell_types(const unsigned& cell_type){return true;}
@@ -609,7 +618,8 @@ namespace oomph{
 			new_state[0] = y + state.get_dt()*variable_forcing_function(vm,new_state[0]);
 
 			//set the values of membrane current and active strain
-			state.set_membrane_current((potential_forcing_function(vm,new_state[0])));
+			state.set_membrane_current((potential_forcing_function(vm,new_state[0]))- new_state[0]);
+			// state.set_membrane_current(0.0);
 			state.set_active_strain(0.0);
 		}
 
@@ -680,7 +690,7 @@ namespace oomph{
 		}
 
 		//because we're writing an implicit method we need to overload active strain
-		double active_strain(CellState &state) const {return 0.0;}
+		double active_strain(CellState &state) {return 0.0;}
 
 		//The membrane capacitance of this cell model
 		double cm(CellState &state) const {return 1.0;}

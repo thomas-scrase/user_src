@@ -1,10 +1,9 @@
-#include "TNNP_Vent.h"
+#include "Implicit_TNNP_Vent.h"
 
 namespace oomph{
 
 	TNNPVent::TNNPVent()	:	CellModelBase()
 	{
-		this->Required_Storage = 25;
 
 		// constants
 		TTCell_Ko = 5.4;
@@ -70,14 +69,14 @@ namespace oomph{
 		double mcell_factor = 1.8;
 
 		double Gkr = 0.153;
-		if (state.cell_type() == 102 or state.cell_type() == 105)
+		if (state.get_cell_type() == 102 or state.get_cell_type() == 105)
 			Gkr = 0.0135 * pow(get_Ischemia_TTCell_Ko(state), 0.59) * endo_factor;
-		else if (state.cell_type() == 101 or state.cell_type() == 104)
+		else if (state.get_cell_type() == 101 or state.get_cell_type() == 104)
 			Gkr = 0.0135 * pow(get_Ischemia_TTCell_Ko(state), 0.59) * mcell_factor;
 		else
 			Gkr = 0.0135 * pow(get_Ischemia_TTCell_Ko(state), 0.59) * epi_factor;
 
-    	state.set_ikr_current(Gkr * state.get_var(0,21) * (state.get_vm() - state.ek()));
+    	state.set_general_cell_model_data_index(0,Gkr * state.get_var(0,21) * (state.get_vm() - state.get_general_cell_model_data(15)));
     }
 
 	void TNNPVent::IKs_current( CellState &state) 
@@ -88,36 +87,36 @@ namespace oomph{
 		double x;
 		double A = 0.4;  // was  0.5 for the LV, here change to 0.35, to increase APD, see what happens.
 
-		if (state.cell_type() == 105 or state.cell_type() == 104 or state.cell_type() == 103)
+		if (state.get_cell_type() == 105 or state.get_cell_type() == 104 or state.get_cell_type() == 103)
 		{
 			A = 0.4;
 		}
 
-		if (state.cell_type() == 103 or state.cell_type() == 100) {
+		if (state.get_cell_type() == 103 or state.get_cell_type() == 100) {
 			A = 0.2;
 		}
 		x = (29.6 / 16.5 - 1) / (A + 29.6 / 16.5 * (1 - A) );
-		InAcTo_Vhalf_ABh = (state.ab_index() - 1.0) * 4.0;                        // Apical Cells: -2.0; Basal Cells: 2.0;
+		InAcTo_Vhalf_ABh = (state.get_black_box_nodal_parameters(0) - 1.0) * 4.0;                        // Apical Cells: -2.0; Basal Cells: 2.0;
 		x = (4.5 / 3.4 - 1) / (A + 4.5 / 3.4 * (1 - A) );
-		InAcTo_Vk_ABh    = 1.0 -  (state.ab_index() - A) * x; // Apical cells: 1.0; Basal Cells: 3.4/4.5
+		InAcTo_Vk_ABh    = 1.0 -  (state.get_black_box_nodal_parameters(0) - A) * x; // Apical cells: 1.0; Basal Cells: 3.4/4.5
 		x = (5.6 / 2.1 - 1) / (A + 5.6 / 2.1 * (1 - A) );
 		// x = (516-318)/(516+318);
 		x = (358.0 / 516.0 - 1) / (A + 358.0 / 516.0 * (1 - A) );
 
 		double GKs_ABh = 1.0;
-		GKs_ABh          =  1.0 -  (state.ab_index() - A) * x;   // Apical Cells: 1.0; Basal Cells: 2.1/5.6
-		state.set_iks_current(GKs_ABh * get_Gks(state) * state.get_var(0,10) * state.get_var(0,10) * (state.get_vm() - state.eks()));  // with apicalbasal heterogeneity wit direct scaling factor, by haibo
+		GKs_ABh          =  1.0 -  (state.get_black_box_nodal_parameters(0) - A) * x;   // Apical Cells: 1.0; Basal Cells: 2.1/5.6
+		state.set_general_cell_model_data_index(1,GKs_ABh * get_Gks(state) * state.get_var(0,10) * state.get_var(0,10) * (state.get_vm() - state.get_general_cell_model_data(16)));  // with apicalbasal heterogeneity wit direct scaling factor, by haibo
 	}
 
 	void TNNPVent::IK1_current( CellState &state) 
 	{
 		double GK1 = 5.405;
-		double Ak1 = 0.1 / (1. + exp(0.06 * (state.get_vm() - state.ek() - 200)));
-		double Bk1 = (3.0 * exp(0.0002 * (state.get_vm() - state.ek() + 100)) + exp(0.1 * (state.get_vm() - state.ek() - 10))) / (1. + exp(-0.5 * (state.get_vm() - state.ek())));
+		double Ak1 = 0.1 / (1. + exp(0.06 * (state.get_vm() - state.get_general_cell_model_data(15) - 200)));
+		double Bk1 = (3.0 * exp(0.0002 * (state.get_vm() - state.get_general_cell_model_data(15) + 100)) + exp(0.1 * (state.get_vm() - state.get_general_cell_model_data(15) - 10))) / (1. + exp(-0.5 * (state.get_vm() - state.get_general_cell_model_data(15))));
 		double rec_iK1 = Ak1 / (Ak1 + Bk1);
-		if (state.cell_type() == 100)
+		if (state.get_cell_type() == 100)
 			GK1 *= 1.2; // according to the ORd model supple, added by haibo
-		state.set_ik1_current(GK1 * rec_iK1 * (state.get_vm() - state.ek()));
+		state.set_general_cell_model_data_index(2,GK1 * rec_iK1 * (state.get_vm() - state.get_general_cell_model_data(15)));
 	}
 
 	void TNNPVent::Ito_current( CellState &state) 
@@ -128,24 +127,24 @@ namespace oomph{
 		double x;
 		double A = 0.4;  // was  0.5 for the LV, here change to 0.35, to increase APD, see what happens.
 
-		if (state.cell_type() == 105 or state.cell_type() == 104 or state.cell_type() == 103)
+		if (state.get_cell_type() == 105 or state.get_cell_type() == 104 or state.get_cell_type() == 103)
 		{
 			A = 0.4;
 		}
 
-		if (state.cell_type() == 103 or state.cell_type() == 100) {
+		if (state.get_cell_type() == 103 or state.get_cell_type() == 100) {
 			A = 0.2;
 		}
 		x = (29.6 / 16.5 - 1) / (A + 29.6 / 16.5 * (1 - A) );
-		InAcTo_Vhalf_ABh = (state.ab_index() - 1.0) * 4.0;                        // Apical Cells: -2.0; Basal Cells: 2.0;
+		InAcTo_Vhalf_ABh = (state.get_black_box_nodal_parameters(0) - 1.0) * 4.0;                        // Apical Cells: -2.0; Basal Cells: 2.0;
 		x = (4.5 / 3.4 - 1) / (A + 4.5 / 3.4 * (1 - A) );
-		InAcTo_Vk_ABh    = 1.0 -  (state.ab_index() - A) * x; // Apical cells: 1.0; Basal Cells: 3.4/4.5
+		InAcTo_Vk_ABh    = 1.0 -  (state.get_black_box_nodal_parameters(0) - A) * x; // Apical cells: 1.0; Basal Cells: 3.4/4.5
 		x = (5.6 / 2.1 - 1) / (A + 5.6 / 2.1 * (1 - A) );
 		// x = (516-318)/(516+318);
 		x = (358.0 / 516.0 - 1) / (A + 358.0 / 516.0 * (1 - A) );
 		double GTo_ABh = 1.0;
-		GTo_ABh          = 1.0 -  (state.ab_index() - A) * x; // Apical cells: 1.0; Basal Cells: 16.5/29.6
-		state.set_ito_current(GTo_ABh * get_Gto(state) * state.get_var(0,12) * state.get_var(0,11) * (state.get_vm() - state.ek()));
+		GTo_ABh          = 1.0 -  (state.get_black_box_nodal_parameters(0) - A) * x; // Apical cells: 1.0; Basal Cells: 16.5/29.6
+		state.set_general_cell_model_data_index(3,GTo_ABh * get_Gto(state) * state.get_var(0,12) * state.get_var(0,11) * (state.get_vm() - state.get_general_cell_model_data(15)));
 	}
 
 	void TNNPVent::Isus_current(CellState &state)
@@ -156,38 +155,38 @@ namespace oomph{
 	void TNNPVent::INa_current(CellState &state) 
 	{
 		double GNa = 14.838;
-		if (state.cell_type() == 104 or state.cell_type() == 101)
+		if (state.get_cell_type() == 104 or state.get_cell_type() == 101)
 		{
 			// GNa *= 1.5;  // tranmural hereterogeneity includes INa
 		}
-		state.set_ina_current(get_Acidosis_factor(state) * GNa * state.get_var(0,5) * state.get_var(0,5) * state.get_var(0,5) * state.get_var(0,6) * state.get_var(0,7) * (state.get_vm() - state.ena()));
+		state.set_general_cell_model_data_index(4,get_Acidosis_factor(state) * GNa * state.get_var(0,5) * state.get_var(0,5) * state.get_var(0,5) * state.get_var(0,6) * state.get_var(0,7) * (state.get_vm() - state.get_general_cell_model_data(14)));
 	}
 
 	void TNNPVent::IbNa_current( CellState &state) 
 	{
-		state.set_ibna_current(TTCell_GbNa * (state.get_vm() - state.ena()));
+		state.set_general_cell_model_data_index(5,TTCell_GbNa * (state.get_vm() - state.get_general_cell_model_data(14)));
 	}
 
 	void TNNPVent::ICaL_current( CellState &state)
 	{
-		state.set_ical_current(get_Acidosis_factor(state) * TTCell_GCaL * state.get_var(0,13) * state.get_var(0,14) * state.get_var(0,15) * state.get_var(0,16) * 4 * (state.get_vm() - 15) * (TTCell_F * TTCell_F / (TTCell_R * TTCell_T)) *
+		state.set_general_cell_model_data_index(6,get_Acidosis_factor(state) * TTCell_GCaL * state.get_var(0,13) * state.get_var(0,14) * state.get_var(0,15) * state.get_var(0,16) * 4 * (state.get_vm() - 15) * (TTCell_F * TTCell_F / (TTCell_R * TTCell_T)) *
 		              (0.25 * exp(2 * (state.get_vm() - 15) * TTCell_F / (TTCell_R * TTCell_T)) * state.get_var(0,2) - TTCell_Cao) / (exp(2 * (state.get_vm() - 15) * TTCell_F / (TTCell_R * TTCell_T)) - 1.));
 	}
 
 	void TNNPVent::IbCa_current( CellState &state) 
 	{
-		state.set_ibca_current(TTCell_GbCa * (state.get_vm() - state.eca()));
+		state.set_general_cell_model_data_index(7,TTCell_GbCa * (state.get_vm() - state.get_general_cell_model_data(17)));
 	}
 
 	void TNNPVent::INaK_current( CellState &state) 
 	{
 		double rec_iNaK = (1. / (1. + 0.1245 * exp(-0.1 * state.get_vm() * TTCell_F / (TTCell_R * TTCell_T)) + 0.0353 * exp(-state.get_vm() * TTCell_F / (TTCell_R * TTCell_T))));
-		state.set_inak_current((1 - 0.35 * state.is_index()) * TTCell_knak * (get_Ischemia_TTCell_Ko(state) / (get_Ischemia_TTCell_Ko(state) + TTCell_KmK)) * (state.get_var(0,3) / (state.get_var(0,3) + TTCell_KmNa)) * rec_iNaK);
+		state.set_general_cell_model_data_index(8,(1 - 0.35 * state.get_black_box_nodal_parameters(1)) * TTCell_knak * (get_Ischemia_TTCell_Ko(state) / (get_Ischemia_TTCell_Ko(state) + TTCell_KmK)) * (state.get_var(0,3) / (state.get_var(0,3) + TTCell_KmNa)) * rec_iNaK);
 	}
 
 	void TNNPVent::INaCa_current( CellState &state) 
 	{
-		state.set_inaca_current(TTCell_knaca * (1. / (TTCell_KmNai * TTCell_KmNai * TTCell_KmNai + TTCell_Nao * TTCell_Nao * TTCell_Nao)) * (1. / (TTCell_KmCa + TTCell_Cao)) *
+		state.set_general_cell_model_data_index(9,TTCell_knaca * (1. / (TTCell_KmNai * TTCell_KmNai * TTCell_KmNai + TTCell_Nao * TTCell_Nao * TTCell_Nao)) * (1. / (TTCell_KmCa + TTCell_Cao)) *
 	               (1. / (1 + TTCell_ksat * exp((TTCell_n - 1) * state.get_vm() * TTCell_F / (TTCell_R * TTCell_T)))) *
 	               (exp(TTCell_n * state.get_vm() * TTCell_F / (TTCell_R * TTCell_T)) * state.get_var(0,3) * state.get_var(0,3) * state.get_var(0,3) * TTCell_Cao -
 	                exp((TTCell_n - 1) * state.get_vm() * TTCell_F / (TTCell_R * TTCell_T)) * TTCell_Nao * TTCell_Nao * TTCell_Nao * state.get_var(0,0) * 2.5));
@@ -195,26 +194,26 @@ namespace oomph{
 
 	void TNNPVent::IpCa_current( CellState &state) 
 	{
-		state.set_ipca_current(TTCell_GpCa * state.get_var(0,0) / (TTCell_KpCa + state.get_var(0,0)));
+		state.set_general_cell_model_data_index(10,TTCell_GpCa * state.get_var(0,0) / (TTCell_KpCa + state.get_var(0,0)));
 	}
 
 	void TNNPVent::IpK_current( CellState &state) 
 	{
 		double rec_ipK = 1. / (1. + exp((25 - state.get_vm()) / 5.98));
-		state.set_ipk_current(TTCell_GpK * rec_ipK * (state.get_vm() - state.ek()));
+		state.set_general_cell_model_data_index(11,TTCell_GpK * rec_ipK * (state.get_vm() - state.get_general_cell_model_data(15)));
 	}
 
 	void TNNPVent::INaL_current( CellState &state) 
 	{
-		state.set_inal_current(get_GNaL(state) * state.get_var(0,18) * state.get_var(0,19) * (state.get_vm() - state.ena()));
-		// state.set_inal_current((1 + 10 * state.is_index()) * get_GNaL(state) * state.get_var(0,18) * state.get_var(0,19) * (state.get_vm() - state.ena()));
+		// state.set_general_cell_model_data_index(12,get_GNaL(state) * state.get_var(0,18) * state.get_var(0,19) * (state.get_vm() - state.get_general_cell_model_data(14)));
+		state.set_general_cell_model_data_index(12,(1 + 10 * state.get_black_box_nodal_parameters(1)) * get_GNaL(state) * state.get_var(0,18) * state.get_var(0,19) * (state.get_vm() - state.get_general_cell_model_data(14)));
 	}
 
 	void TNNPVent::IKATP_current( CellState &state) 
 	{
 		double GKATP              = 155.0;
-		float f_atp               = 0.0055 * state.is_index();
-		state.set_ikatp_current(GKATP * f_atp * pow(get_Ischemia_TTCell_Ko(state) / 5.4, 0.3) * (state.get_vm() - state.ek()) / (40 + 3.5 * exp(0.025 * state.get_vm())));
+		float f_atp               = 0.0055 * state.get_black_box_nodal_parameters(1);
+		state.set_general_cell_model_data_index(13,GKATP * f_atp * pow(get_Ischemia_TTCell_Ko(state) / 5.4, 0.3) * (state.get_vm() - state.get_general_cell_model_data(15)) / (40 + 3.5 * exp(0.025 * state.get_vm())));
 	}
 
 	void TNNPVent::If_current(CellState &state)
@@ -228,30 +227,22 @@ namespace oomph{
 
 	void TNNPVent::ENa_reversal( CellState &state) 
 	{
-		state.set_ena(TTCell_RTONF * (log((TTCell_Nao / state.get_var(0,3)))));
+		state.set_general_cell_model_data_index(14,TTCell_RTONF * (log((TTCell_Nao / state.get_var(0,3)))));
 	}
 
 	void TNNPVent::EK_reversal( CellState &state) 
 	{
-		state.set_ek(TTCell_RTONF * (log((get_Ischemia_TTCell_Ko(state) / state.get_var(0,4)))));
+		state.set_general_cell_model_data_index(15,TTCell_RTONF * (log((get_Ischemia_TTCell_Ko(state) / state.get_var(0,4)))));
 	}
 
 	void TNNPVent::EKs_reversal( CellState &state) 
 	{
-		state.set_eks(TTCell_RTONF * (log((get_Ischemia_TTCell_Ko(state) + TTCell_pKNa * TTCell_Nao) / (state.get_var(0,4) + TTCell_pKNa * state.get_var(0,3)))));
-		// std::cout << "Detailing calc EKs" << std::endl;
-		// std::cout << "TTCell_RTONF " << TTCell_RTONF << std::endl;
-		// std::cout << "get_Ischemia_TTCell_Ko(state) " << get_Ischemia_TTCell_Ko(state) << std::endl;
-		// std::cout << "TTCell_pKNa " << TTCell_pKNa << std::endl;
-		// std::cout << "TTCell_Nao " << TTCell_Nao << std::endl;
-		// std::cout << "state.get_var(0,4)" << state.get_var(0,4) << std::endl;
-		// std::cout << "state.get_var(0,3)" << state.get_var(0,3) << std::endl;
-		// std::cout << "End detailing calc EKs" << std::endl;
+		state.set_general_cell_model_data_index(16,TTCell_RTONF * (log((get_Ischemia_TTCell_Ko(state) + TTCell_pKNa * TTCell_Nao) / (state.get_var(0,4) + TTCell_pKNa * state.get_var(0,3)))));
 	}
 
 	void TNNPVent::ECa_reversal( CellState &state) 
 	{
-		state.set_eca(0.5 * TTCell_RTONF * (log((TTCell_Cao / state.get_var(0,0)))));
+		state.set_general_cell_model_data_index(17,0.5 * TTCell_RTONF * (log((TTCell_Cao / state.get_var(0,0)))));
 	}
 
 	//====================================================================
@@ -273,9 +264,9 @@ namespace oomph{
 		double AB_IKr_ActVhalf = 0.0;
 
 		
-		// TauKs_ABh = 1.0 -  (state.ab_index()-1.0) * x; // Apical Cells:1.0 ; Basal Cells: 516/358
-		// TauKs_ABh = 1.0 - state.ab_index()*(516.0/318.0-1);// Apical Cells:1.0 ; Basal Cells: 516/358
-		AB_IKr_ActVhalf = -(state.ab_index() - 1.0) * 4.9; // Apical cells: 2.45; Basal cells -2.45
+		// TauKs_ABh = 1.0 -  (state.get_black_box_nodal_parameters(0)-1.0) * x; // Apical Cells:1.0 ; Basal Cells: 516/358
+		// TauKs_ABh = 1.0 - state.get_black_box_nodal_parameters(0)*(516.0/318.0-1);// Apical Cells:1.0 ; Basal Cells: 516/358
+		AB_IKr_ActVhalf = -(state.get_black_box_nodal_parameters(0) - 1.0) * 4.9; // Apical cells: 2.45; Basal cells -2.45
 
 		double m_epiMidRatio = 1.5;
 		double epi_factor   = 1.8 * m_epiMidRatio;
@@ -470,7 +461,7 @@ namespace oomph{
 											- state.get_var(0,2)*TTCell_Bufss
 											+ pow((state.get_var(0,2)+TTCell_Kbufss),2.0)
 										)
-						-(-Ixfer * (TTCell_Vc / TTCell_Vss) + Irel * (TTCell_Vsr / TTCell_Vss) + (-state.ical() * TTCell_inversevssF2 * TTCell_CAPACITANCE))*pow((state.get_var(0,2)+TTCell_Kbufsr),2.0);
+						-(-Ixfer * (TTCell_Vc / TTCell_Vss) + Irel * (TTCell_Vsr / TTCell_Vss) + (-state.get_general_cell_model_data(6) * TTCell_inversevssF2 * TTCell_CAPACITANCE))*pow((state.get_var(0,2)+TTCell_Kbufsr),2.0);
 
 		//Cai
 		residuals[0] -= state.get_var(1,0)*(
@@ -478,21 +469,21 @@ namespace oomph{
 											- state.get_var(0,0)*TTCell_Bufc
 											+ pow((state.get_var(0,0)+TTCell_Kbufc),2.0)
 										)
-						-((-(state.ibca() + state.ipca() - 2.0 * state.inaca()) * TTCell_inverseVcF2 * TTCell_CAPACITANCE) - (Iup - Ileak) * (TTCell_Vsr / TTCell_Vc) + Ixfer)*pow((state.get_var(0,0)+TTCell_Kbufsr),2.0);
+						-((-(state.get_general_cell_model_data(7) + state.get_general_cell_model_data(10) - 2.0 * state.get_general_cell_model_data(9)) * TTCell_inverseVcF2 * TTCell_CAPACITANCE) - (Iup - Ileak) * (TTCell_Vsr / TTCell_Vc) + Ixfer)*pow((state.get_var(0,0)+TTCell_Kbufsr),2.0);
 	}
 
 	inline void TNNPVent::Na_i_residual( CellState &state,
 							Vector<double> &residuals){
 		// std::cout << state.get_var(1,3) << "\t";
-		// std::cout << state.ina() << "\t";
-		// std::cout << state.inal() << "\t";
-		// std::cout << state.ibna() << "\t";
-		// std::cout << 3 * state.inak() << "\t";
-		// std::cout << 3 * state.inaca() << "\t";
+		// std::cout << state.get_general_cell_model_data(4) << "\t";
+		// std::cout << state.get_general_cell_model_data(12) << "\t";
+		// std::cout << state.get_general_cell_model_data(5) << "\t";
+		// std::cout << 3 * state.get_general_cell_model_data(8) << "\t";
+		// std::cout << 3 * state.get_general_cell_model_data(9) << "\t";
 		// std::cout << TTCell_inverseVcF << "\t";
 		// std::cout << TTCell_CAPACITANCE << std::endl;
 
-		residuals[3] -= state.get_var(1,3) + (state.ina() + state.inal() + state.ibna() + 3 * state.inak() + 3 * state.inaca()) * TTCell_inverseVcF * TTCell_CAPACITANCE;
+		residuals[3] -= state.get_var(1,3) + (state.get_general_cell_model_data(4) + state.get_general_cell_model_data(12) + state.get_general_cell_model_data(5) + 3 * state.get_general_cell_model_data(8) + 3 * state.get_general_cell_model_data(9)) * TTCell_inverseVcF * TTCell_CAPACITANCE;
 
 		// std::cout << residuals[3] << std::endl;
 		// throw OomphLibError("This is an intentional error",
@@ -502,7 +493,7 @@ namespace oomph{
 
 	inline void TNNPVent::K_i_residual( CellState &state,
 							Vector<double> &residuals){
-		residuals[4] -= state.get_var(1,4) + (/*Istim +*/ state.ik1() + state.ito() + state.ikr() + state.iks() - 2 * state.inak() + state.ipk() + state.ikatp()) * TTCell_inverseVcF * TTCell_CAPACITANCE;
+		residuals[4] -= state.get_var(1,4) + (/*Istim +*/ state.get_general_cell_model_data(2) + state.get_general_cell_model_data(3) + state.get_general_cell_model_data(0) + state.get_general_cell_model_data(1) - 2 * state.get_general_cell_model_data(8) + state.get_general_cell_model_data(11) + state.get_general_cell_model_data(13)) * TTCell_inverseVcF * TTCell_CAPACITANCE;
 	}
 
 
@@ -513,6 +504,14 @@ namespace oomph{
 																	DenseMatrix<double> &jacobian,
 																	unsigned flag)
 	{	
+		//Provide necessary storage for data generated by the various member functions called when calculating
+		//	residual and jacobian entries:
+		// 14 Currents Ikr, Iks, Ik1, Ito, Ina, Ibna, Ical, Ibca, Inak, Inaca, Ipca, Ipk, Inal, Ikatp
+		// 4 reversal currents ena, ek, eks, eca
+		// For a total of 18
+		state.resize_general_cell_model_data(18);
+
+
 		//Call the reversal functions
 		ENa_reversal(state);
 		EK_reversal(state);
@@ -562,7 +561,7 @@ namespace oomph{
 	}
 
 	//Return the initial condition for the nth get_variable and cell_typeth cell type
-	inline bool TNNPVent::return_initial_value(const unsigned &n, double &v, const unsigned &cell_type){
+	inline bool TNNPVent::return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type){
 		switch(n){
 			case 0 : v = 0.00007;
 					break;

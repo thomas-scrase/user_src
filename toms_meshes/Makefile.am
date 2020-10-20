@@ -2,7 +2,7 @@
 #-----------------------
 
 # Define the sources
-sources =  
+sources =  empty.cc
 
 # Define the headers
 headers =  empty.h

@@ -32,6 +32,13 @@
 //oomph-lib header
 #include "toms_integral.h"
 
+//========================================================
+//OKAY so I got linker errors when the static const members were
+// declared here so I just threw them at the end of the header
+//	and it worked so I left it as that
+//This file is meant to be empty
+//========================================================
+
 namespace oomph
 {
 
@@ -771,7 +778,3 @@ const double TGaussWithNodes<3,5>::Weight[45] ={
  2.23873973961420164e-03}; 
 
 }
-
-
-
-

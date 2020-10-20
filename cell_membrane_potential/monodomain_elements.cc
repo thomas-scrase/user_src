@@ -32,12 +32,12 @@ namespace oomph{
    
    //Set the value of n_intpt
    const unsigned n_intpt = this->integral_pt()->nweight();
-     
-   //Set the Vector to hold local coordinates
-   Vector<double> s(DIM);
 
    //Get the membrane capacitance
    const double cm = this->cm();
+     
+   //Set the Vector to hold local coordinates
+   Vector<double> s(DIM);
 
    //Integers used to store the local equation number and local unknown
    //indices for the residuals and jacobians
@@ -119,7 +119,6 @@ namespace oomph{
           }
         }
       }
-    
 
      //Get source function
      //-------------------
@@ -145,7 +144,6 @@ namespace oomph{
       {
         //Fill in residual and jacobian contribution for u
         //Set the local equation number
-        // std::cout << "Vm" << std::endl;
         local_eqn = this->nodal_local_eqn(l,this->vm_index_BaseCellMembranePotential());
 
         /*IF it's not a boundary condition*/

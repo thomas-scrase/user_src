@@ -189,8 +189,62 @@ namespace oomph{
 
 	 /// \short Output function:  
 	 ///  x,y,u   or    x,y,z,u at n_plot^DIM plot points
-	 void output(std::ostream &outfile, const unsigned &n_plot)
-	  {BaseCellMembranePotentialEquations<DIM>::output(outfile,n_plot);}
+	 void output(std::ostream &outfile, const unsigned &nplot) override
+	 {
+	 	// std::cout << "BOOM\nBOOM\nBOOM\nBOOM\nBOOM" << std::endl;
+		//Vector of local coordinates
+		Vector<double> s(DIM);
+
+		// Tecplot header info
+		outfile << this->tecplot_zone_string(nplot);
+
+		const unsigned n_node = this->nnode();
+		const unsigned vm_index = this->vm_index_BaseCellMembranePotential();
+		// std::cout << "n_node " << n_node << std::endl;
+		Shape psi(n_node);
+		DShape dpsidx(n_node,DIM);
+
+		// Loop over plot points
+		unsigned num_plot_points=this->nplot_points(nplot);
+		for (unsigned iplot=0;iplot<num_plot_points;iplot++){
+			// Get local coordinates of plot point
+			this->get_s_plot(iplot,nplot,s);
+
+			// Get Eulerian coordinate of plot point
+			Vector<double> x(DIM);
+			this->interpolated_x(s,x);
+
+			for(unsigned i=0;i<DIM;i++) {outfile << x[i] << " ";}
+			outfile << this->interpolated_vm_BaseCellMembranePotential(s) << " ";
+
+			//Get the gradients
+			(void)this->dshape_eulerian(s,psi,dpsidx);
+			Vector<double> interpolated_dvmdx(DIM,0.0);
+			double dvmdt = 0.0;
+			for(unsigned n=0;n<n_node;n++){
+				const double vm_ = this->nodal_value(n,vm_index);
+				dvmdt += this->dvm_dt_BaseCellMembranePotential(n)*psi(n);
+				for(unsigned i=0;i<DIM;i++){interpolated_dvmdx[i] += vm_*dpsidx(n,i);}
+			}
+
+			outfile << dvmdt << " ";
+
+			for(unsigned i=0;i<DIM;i++){outfile << interpolated_dvmdx[i]  << " ";}
+
+			//Get diffusivity tensor
+			DenseMatrix<double> D(DIM,DIM,0.0);
+			this->get_diff_monodomain(iplot,s,x,D);
+			for(unsigned i=0; i<DIM; i++){
+				for(unsigned j=0; j<=i; j++){
+					outfile << D(i,j) << " ";
+				}
+			}
+
+			outfile  << std::endl;
+		}
+		// Write tecplot footer (e.g. FE connectivity lists)
+		this->write_tecplot_zone_footer(outfile,nplot);
+	}
 
 
 	 /// \short C-style output function:  
