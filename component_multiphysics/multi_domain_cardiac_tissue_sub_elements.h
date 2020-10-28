@@ -99,7 +99,7 @@ namespace oomph{
 			// DiffAugmentedCell<CELL_ELEMENT>::fill_in_contribution_to_jacobian(residuals,jacobian);
 			CELL_ELEMENT::fill_in_contribution_to_jacobian(residuals, jacobian);
 			// Fill in contribution from external elements
-			this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
+			// this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
 		}
 
 		/// Add the element's contribution to its residuals vector,
@@ -177,7 +177,7 @@ namespace oomph{
 			// ElementWithExternalElement::fill_in_contribution_to_jacobian(residuals,jacobian);
 			CELL_ELEMENT::fill_in_contribution_to_jacobian(residuals,jacobian);
 			// Fill in contribution from external elements
-			this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
+			// this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
 		}
 
 		/// Add the element's contribution to its residuals vector,
@@ -257,7 +257,6 @@ namespace oomph{
 			//Get the interaction numbers
 			const unsigned cell_interaction = 0;
 			const unsigned solid_interaction = 1;
-
 			if(external_element_pt(cell_interaction, ipt) != nullptr){
 				dynamic_cast<DiffAugmentedCell<EXT_CELL_ELEMENT>*>
 				// dynamic_cast<EXT_CELL_ELEMENT*>
@@ -367,9 +366,9 @@ namespace oomph{
 			//Get the interaction numbers
 			const unsigned cell_interaction = 0;
 			const unsigned solid_interaction = 1;
-
 			if(external_element_pt(cell_interaction, ipt) != nullptr){
 				dynamic_cast<DiffAugmentedCell<EXT_CELL_ELEMENT>*>
+				// dynamic_cast<EXT_CELL_ELEMENT*>
 				(external_element_pt(cell_interaction, ipt))->
 					get_interpolated_diffusion_matrix(external_element_local_coord(cell_interaction,ipt),D);
 			}
@@ -446,74 +445,6 @@ namespace oomph{
 			SOLID_ELEMENT::describe_local_dofs(out, current_string);
 		}
 
-		// double prestress(const unsigned& i,
-	 //                    const unsigned& j,
-	 //                    const unsigned& ipt,
-  //                       const Vector<double> &s,
-	 //                    const Vector<double> xi) override
-	 //   {
-	 //   	//cell active stress
-	 //   	double cell_active_stress=0.0;
-	 //   	//get the vectors
-		// DenseMatrix<double> A(this->dim(), this->dim());
-		// this->anisotropic_matrix(ipt, s, xi, A);
-
-		// unsigned cell_interaction = 0;
-
-	 //   	EXT_CELL_ELEMENT* ext_element_pt = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(cell_interaction, ipt));
-
-	 //   	if(ext_element_pt != NULL){
-		// 	cell_active_stress = ext_element_pt->get_interpolated_active_stress(external_element_local_coord(cell_interaction, ipt));
-		// 	cell_active_stress = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(cell_interaction, ipt))
-		// 					->get_interpolated_active_stress(external_element_local_coord(cell_interaction, ipt));
-		// }
-
-		// //we assume that the first vector is the fibre direction - makes sense, it is the most important one
-	 //    if (this->Prestress_fct_pt==0)
-	 //     {
-	 //      return cell_active_stress*A(i,0)*A(j,0);
-	 //     }
-	 //    else
-	 //     {
-	 //      return (*this->Prestress_fct_pt)(i,j,xi) + cell_active_stress*A(i,0)*A(j,0);
-	 //     }
-	 //   }
-
-	   /// \short Evaluate body force at local point ipt
-	 //   void local_body_force(const unsigned& ipt,
-  //                           const DenseMatrix<double>& g,
-  //                           const DenseMatrix<double>& G,
-  //                           Vector<double>& b_l)
-	 //   {
-	 //   	// Cell active stress
-	 //   	double cell_active_stress=0.0;
-	 //   	// Get the vectors
-	 //   	DenseMatrix<double> A(this->dim(), this->dim());
-	 //   	Vector<double> DummyVector; //It's okay to use this because we're getting A from an external element
-		// this->anisotropic_matrix(ipt, DummyVector, DummyVector, A);
-		// // Interaction number of interaction with cell elements
-		// unsigned cell_interaction = 0;
-	 //   	// Get a pointer to the external cell element
-	 //   	EXT_CELL_ELEMENT* ext_element_pt = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(cell_interaction, ipt));
-	 //   	// If there is an external cell element
-	 //   	if(ext_element_pt != NULL){
-	 //   		//Get the active stress
-		// 	cell_active_stress = ext_element_pt->get_interpolated_active_stress(external_element_local_coord(cell_interaction, ipt));
-		// 	cell_active_stress = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(cell_interaction, ipt))
-		// 					->get_interpolated_active_stress(external_element_local_coord(cell_interaction, ipt));
-		// }
-	 //    //By default there is no local body force, this function is
-	 //    //  for adding forcing terms arising locally from other
-	 //    //  processes, for example cellular contraction
-	 //    for(unsigned i=0; i<this->dim(); i++){
-	 //    	//Make sure it's zero first
-	 //    	b_l[i] = 0.0;
-	 //    	for(unsigned k=0; k<this->dim(); k++){
-	 //      		b_l[i] += A(k,0)*G(i,k)*1e-2;//!!!!!Just a scaling factor of 1e-3 for testing: not sure what it should be
-	 //      	}
-	 //    }
-	 //   }
-
 		void driving_strain(const unsigned& ipt,
                            const Vector<double>& s,
                            const Vector<double>& xi,
@@ -527,15 +458,8 @@ namespace oomph{
 			}
 
 			if(external_element_pt(cell_interaction, ipt) != nullptr){
-				// Get a pointer to the external cell element
-			   	// EXT_CELL_ELEMENT* ext_element_pt = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(cell_interaction, ipt));
-			   	// If there is an external cell element
-			   	// if(ext_element_pt != NULL){
-			   		//Get the active stress
-					// cell_active_stress = ext_element_pt->get_interpolated_active_stress(external_element_local_coord(cell_interaction, ipt));
-					V[0] = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(cell_interaction, ipt))
-									->get_interpolated_active_stress(external_element_local_coord(cell_interaction, ipt));
-				// }
+				V[0] = dynamic_cast<EXT_CELL_ELEMENT*>(external_element_pt(cell_interaction, ipt))
+					->get_interpolated_active_stress(external_element_local_coord(cell_interaction, ipt));
 			}
 		}
 

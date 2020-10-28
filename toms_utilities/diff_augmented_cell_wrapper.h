@@ -154,8 +154,9 @@ namespace oomph
 		//Getter function for diffusion matrix
 		inline void get_interpolated_diffusion_matrix(const Vector<double> &s,
 													DenseMatrix<double> &diff_matrix){
-			DenseMatrix<double> interpolated_preferential_vectors;
-			Vector<double> interpolated_diff_coeffs;
+
+			DenseMatrix<double> interpolated_preferential_vectors(CELL_ELEMENT::dim(), CELL_ELEMENT::dim());
+			Vector<double> interpolated_diff_coeffs(CELL_ELEMENT::dim());
 			get_interpolated_preferential_vectors(s, interpolated_preferential_vectors);
 			get_interpolated_diffusion_coefficients(s, interpolated_diff_coeffs);
 
