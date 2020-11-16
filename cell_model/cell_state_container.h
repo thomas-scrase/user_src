@@ -81,6 +81,7 @@ namespace oomph{
 		void set_general_cell_model_data_index(const unsigned &data_index, const double &new_data); //change the value of a specific index general cell model data
 		void resize_general_cell_model_data(const unsigned &new_size);	//resize the vector representing general cell model data
 		double get_general_cell_model_data(const unsigned &data_index) const; //get the data at data_index
+		const Vector<double>* general_cell_model_data() const; //Return a const pointer to the general cell model data
 
 	private:
 		//====================================================================

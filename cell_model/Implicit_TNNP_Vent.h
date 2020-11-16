@@ -293,7 +293,7 @@ namespace oomph{
 
 
 		virtual inline double get_Ischemia_TTCell_Ko(CellState &state){
-			return TTCell_Ko + state.get_black_box_nodal_parameters(1) * 5.4;;
+			return TTCell_Ko + state.get_black_box_nodal_parameters(1) * 5.4;
 		}
 
 		virtual inline double get_Acidosis_factor(CellState &state){

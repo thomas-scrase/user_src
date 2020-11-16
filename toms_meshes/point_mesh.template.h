@@ -50,7 +50,7 @@ namespace oomph{
 		#ifdef PARANOID	
 			PointElement* el_pt = new ELEMENT;
 			if(el_pt == nullptr){
-				std::string err "PointMesh is only for Point elements";
+				std::string err = "PointMesh is only for Point elements";
 				throw OomphLibError(err, OOMPH_CURRENT_FUNCTION, OOMPH_EXCEPTION_LOCATION);
 			}
 			delete el_pt; el_pt = 0;

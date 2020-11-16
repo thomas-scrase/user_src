@@ -95,6 +95,9 @@ namespace oomph{
 		return General_cell_model_data[data_index];
 	}
 
+	const Vector<double>* CellState::general_cell_model_data() const { //Return a const pointer to the general cell model data
+		return &General_cell_model_data;
+	}
 
 	
 	//Force build CellState

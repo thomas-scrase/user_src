@@ -35,7 +35,7 @@ public:
 	inline unsigned required_black_box_parameters(){return 0;}
 	inline unsigned required_external_data() {return 0;}
 
-private:
+protected:
 	int sign(double a){ return ((a) < (0.) ? (-1.0) : (1.0));}
 	double heav(double a){ return ((a) < (0.) ? (0.0) : (1.0));}
 

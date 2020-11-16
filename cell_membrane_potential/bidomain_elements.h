@@ -3,44 +3,78 @@
 //LIC// from the base cell membrane potential equations
 //LIC//====================================================================
 
-#ifndef OOMPH_MONODOMAIN
-#define OOMPH_MONODOMAIN
+#ifndef OOMPH_BIDOMAIN_ELEMENTS_HEADER
+#define OOMPH_BIDOMAIN_ELEMENTS_HEADER
 
 #include "cell_membrane_potential_elements.h"
 
 namespace oomph{
 
-//Monodomain Equations
+//Bidomain Equations
 	template <unsigned DIM>
-	class MonodomainEquations :
+	class BidomainEquations :
 	public virtual BaseCellMembranePotentialEquations<DIM>
 	{
 	public:
 
 		//change this to take s instead of x? (no functional change, just notation)
 		/// \short Funciton pointer to a diffusivity function
-		typedef void (*MonodomainEquationsDiffFctPt)
-		(const Vector<double> &x, DenseMatrix<double> &D);
+		typedef void (*BidomainEquationsConductFctPt)
+		(const Vector<double> &x, DenseMatrix<double> &G);
 
 
-        MonodomainEquations()	:	Diff_fct_pt(0)
+        BidomainEquations()	:	Intracellular_Conductivity_Fct_Pt(0),
+        						Extracellular_Conductivity_Fct_Pt(0)
         {
 
         }
 
-		//Overload the residual for the monodomain equations
+        virtual inline unsigned phie_index_Bidomain() const {return this->vm_index_BaseCellMembranePotential()+1;}
+
+        double dphie_dt_Bidomain(const unsigned &n) const
+        { 	
+			// Get the data's timestepper
+			TimeStepper* time_stepper_pt= this->node_pt(n)->time_stepper_pt();
+
+			//Initialise dudt
+			double dphiedt=0.0;
+			//Loop over the timesteps, if there is a non Steady timestepper
+			if (!time_stepper_pt->is_steady())
+			{
+				//Find the index at which the variable is stored
+				const unsigned phie_nodal_index = phie_index_Bidomain();
+
+				// Number of timsteps (past & present)
+				const unsigned n_time = time_stepper_pt->ntstorage();
+
+				for(unsigned t=0;t<n_time;t++)
+				{
+					dphiedt += time_stepper_pt->weight(1,t)*this->nodal_value(t,n,phie_nodal_index);
+				}
+			}
+			return dphiedt;
+        }
+
+		//Overload the residual for the bidomain equations
 		void fill_in_generic_residual_contribution_BaseCellMembranePotential(
 	    Vector<double> &residuals, DenseMatrix<double> &jacobian, 
 	    DenseMatrix<double> &mass_matrix, unsigned flag);
 
-
 		/// Access function: Pointer to diffusion  function
-		MonodomainEquationsDiffFctPt& diff_fct_pt() 
-		{return Diff_fct_pt;}
+		BidomainEquationsConductFctPt& intracellular_conductivity_fct_pt() 
+		{return Intracellular_Conductivity_Fct_Pt;}
 
 		/// Access function: Pointer to diffusion function. Const version
-		MonodomainEquationsDiffFctPt diff_fct_pt() const 
-		{return Diff_fct_pt;}
+		BidomainEquationsConductFctPt intracellular_conductivity_fct_pt() const 
+		{return Intracellular_Conductivity_Fct_Pt;}
+
+		/// Access function: Pointer to diffusion  function
+		BidomainEquationsConductFctPt& extracellular_conductivity_fct_pt() 
+		{return Extracellular_Conductivity_Fct_Pt;}
+
+		/// Access function: Pointer to diffusion function. Const version
+		BidomainEquationsConductFctPt extracellular_conductivity_fct_pt() const 
+		{return Extracellular_Conductivity_Fct_Pt;}
 
 		/// \short Get diffusivity tensor at (Eulerian) position 
 		/// x and/or local coordinate s. 
@@ -48,29 +82,51 @@ namespace oomph{
 		/// virtual to allow overloading in multi-physics problems where
 		/// the diff function might be determined by
 		/// another system of equations 
-		inline virtual void get_diff_monodomain(const unsigned& ipt,
-	                                            const Vector<double> &s,
-	                                            const Vector<double>& x,
-	                                            DenseMatrix<double>& D) const
+		inline virtual void get_intracellular_conductivity_bidomain(const unsigned& ipt,
+		                                            const Vector<double> &s,
+		                                            const Vector<double>& x,
+		                                            DenseMatrix<double>& G_i) const
 		{
 			//If no diff function has been set, return identity
-			if(Diff_fct_pt==0){
+			if(Intracellular_Conductivity_Fct_Pt==0){
 				for(unsigned i=0; i<DIM; i++){
 					for(unsigned j=0; j<DIM; j++){
-						D(i,j) =  0.0;
+						G_i(i,j) =  0.0;
 					}
-					D(i,i)  = 1.0;
+					G_i(i,i)  = 1.0;
 				}
 			}
 			else{
 				// Get diffusivity tensor from function
-				(*Diff_fct_pt)(x,D);
+				(*Intracellular_Conductivity_Fct_Pt)(x,G_i);
 			}
 		}
 
+		inline virtual void get_extracellular_conductivity_bidomain(const unsigned& ipt,
+		                                            const Vector<double> &s,
+		                                            const Vector<double>& x,
+		                                            DenseMatrix<double>& G_e) const
+		{
+			//If no diff function has been set, return identity
+			if(Extracellular_Conductivity_Fct_Pt==0){
+				for(unsigned i=0; i<DIM; i++){
+					for(unsigned j=0; j<DIM; j++){
+						G_e(i,j) =  0.0;
+					}
+					G_e(i,i)  = 1.0;
+				}
+			}
+			else{
+				// Get diffusivity tensor from function
+				(*Extracellular_Conductivity_Fct_Pt)(x,G_e);
+			}
+		}
 
+		//!!!!!this is mostly used for error checking. What form should it take,
+		//	perhaps flux of the transmembrane + intracellular potential?
+		// Maybe get G_i.grad(V+phi_e) + G_e.grad(phi_e) ?
 		/// Get flux: \f$\mbox{flux}[i] = \mbox{d}u / \mbox{d}x_i \f$
-		void get_total_flux_monodomain(const Vector<double>& s, 
+		void get_total_flux_bidomain(const Vector<double>& s,
 		                			Vector<double>& total_flux) const
 		{
 			//Find out how many nodes there are in the element
@@ -78,6 +134,7 @@ namespace oomph{
 
 			//Get the nodal index at which the unknown is stored
 			const unsigned vm_nodal_index = this->vm_index_BaseCellMembranePotential();
+			const unsigned phie_nodal_index = this->phie_index_Bidomain();
 
 			//Set up memory for the shape and test functions
 			Shape psi(n_node);
@@ -88,31 +145,33 @@ namespace oomph{
 
 			//Storage for the Eulerian position
 			Vector<double> interpolated_x(DIM,0.0);
-			//Storage for the concentration
-			double interpolated_vm = 0.0;
 			//Storage for the derivatives of the concentration
 			Vector<double> interpolated_dvmdx(DIM,0.0);
-
+			Vector<double> interpolated_dphiedx(DIM,0.0);
 			// Loop over nodes
 			for(unsigned l=0;l<n_node;l++) 
 			{
 			 //Get the value at the node
 			 const double vm_value = this->nodal_value(l,vm_nodal_index);
-			 interpolated_vm += vm_value*psi(l);
+			 const double phie_value = this->nodal_value(l,phie_nodal_index);
 			 // Loop over directions
 			 for(unsigned j=0;j<DIM;j++)
 			  {
 			   interpolated_x[j] += this->nodal_position(l,j)*psi(l);
 			   interpolated_dvmdx[j] += vm_value*dpsidx(l,j);
+			   interpolated_dphiedx[j] += phie_value*dpsidx(l,j);
 			  }
 			}
 
 			//Dummy integration point 
 			unsigned ipt=0;
 
-			//Get diffusivity tensor
-			DenseMatrix<double> D(DIM,DIM);
-			get_diff_monodomain(ipt,s,interpolated_x,D);
+			//Get conductivity tensors
+			DenseMatrix<double> Gi(DIM,DIM,0.0);
+			this->get_intracellular_conductivity_bidomain(ipt,s,interpolated_x,Gi);
+
+			DenseMatrix<double> Ge(DIM,DIM,0.0);
+			this->get_extracellular_conductivity_bidomain(ipt,s,interpolated_x,Ge);
 
 			//Calculate the total flux made up of the diffusive flux
 			//and the conserved wind
@@ -121,7 +180,7 @@ namespace oomph{
 			 total_flux[i] = 0.0;
 			 for(unsigned j=0;j<DIM;j++)
 			  {
-			   total_flux[i] +=  D(i,j)*interpolated_dvmdx[j];
+			   total_flux[i] += (interpolated_dvmdx[j] + interpolated_dphiedx[j])*Gi(i,j) + interpolated_dphiedx[j]*Ge(i,j);
 			  }
 			}
 		}
@@ -129,52 +188,53 @@ namespace oomph{
 	protected:
 		/// Pointer to diffusivity function:
 		///		function typedef is given in BaseCellMembranePotentialEquations
- 		MonodomainEquationsDiffFctPt Diff_fct_pt;
+ 		BidomainEquationsConductFctPt Intracellular_Conductivity_Fct_Pt;
+ 		BidomainEquationsConductFctPt Extracellular_Conductivity_Fct_Pt;
 
 	};
 
 
 
 
-//Monodomain Elements
+//Bidomain Elements
 
 	//======================================================================
-	/// \short QMonodomainElement elements are 
+	/// \short QBidomainElement elements are 
 	/// linear/quadrilateral/brick-shaped Advection Diffusion elements with 
 	/// isoparametric interpolation for the function.
 	//======================================================================
 	template <unsigned DIM, unsigned NNODE_1D>
-	 class QMonodomainElement : 
+	 class QBidomainElement : 
 	 public virtual QElement<DIM,NNODE_1D>,
-	 public virtual MonodomainEquations<DIM>
+	 public virtual BidomainEquations<DIM>
 	{
 
 	private:
 
 	 /// \short Static array of ints to hold number of variables at 
 	 /// nodes: Initial_Nvalue[n]
-	 static const unsigned Initial_Nvalue = 1;
+	 static const unsigned Initial_Nvalue = 2;
 	 
 	  public:
 
 
 	 ///\short  Constructor: Call constructors for QElement and 
 	 /// Advection Diffusion equations
-	 QMonodomainElement() : QElement<DIM,NNODE_1D>(), 
-	  MonodomainEquations<DIM>()
+	 QBidomainElement() : QElement<DIM,NNODE_1D>(), 
+	  BidomainEquations<DIM>()
 	  { }
 
 	 /// Broken copy constructor
-	 QMonodomainElement(
-	  const QMonodomainElement<DIM,NNODE_1D>&  dummy) 
+	 QBidomainElement(
+	  const QBidomainElement<DIM,NNODE_1D>&  dummy) 
 	  { 
-	   BrokenCopy::broken_copy("QMonodomainElement");
+	   BrokenCopy::broken_copy("QBidomainElement");
 	  } 
 	 
 	 /// Broken assignment operator
-	 void operator=(const QMonodomainElement<DIM,NNODE_1D>&) 
+	 void operator=(const QBidomainElement<DIM,NNODE_1D>&) 
 	  {
-	   BrokenCopy::broken_assign("QMonodomainElement");
+	   BrokenCopy::broken_assign("QBidomainElement");
 	  }
 
 	 /// \short  Required  # of `values' (pinned or dofs) 
@@ -231,14 +291,14 @@ namespace oomph{
 
 			for(unsigned i=0;i<DIM;i++){outfile << interpolated_dvmdx[i]  << " ";}
 
-			//Get diffusivity tensor
-			DenseMatrix<double> D(DIM,DIM,0.0);
-			this->get_diff_monodomain(iplot,s,x,D);
-			for(unsigned i=0; i<DIM; i++){
-				for(unsigned j=0; j<=i; j++){
-					outfile << D(i,j) << " ";
-				}
-			}
+			// //Get diffusivity tensor
+			// DenseMatrix<double> D(DIM,DIM,0.0);
+			// this->get_diff_monodomain(iplot,s,x,D);
+			// for(unsigned i=0; i<DIM; i++){
+			// 	for(unsigned j=0; j<=i; j++){
+			// 		outfile << D(i,j) << " ";
+			// 	}
+			// }
 
 			outfile  << std::endl;
 		}
@@ -306,7 +366,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double QMonodomainElement<DIM,NNODE_1D>::
+	double QBidomainElement<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_BaseCellMembranePotential(const Vector<double> &s,
 	                                         Shape &psi, 
 	                                         DShape &dpsidx,
@@ -340,7 +400,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double QMonodomainElement<DIM,NNODE_1D>::
+	double QBidomainElement<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(
 	 const unsigned &ipt,
 	 Shape &psi, 
@@ -367,13 +427,13 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// \short Face geometry for the QMonodomainElement elements: 
+	/// \short Face geometry for the QBidomainElement elements: 
 	/// The spatial dimension of the face elements is one lower than that 
 	/// of the bulk element but they have the same number of points along 
 	/// their 1D edges.
 	//=======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	class FaceGeometry<QMonodomainElement<DIM,NNODE_1D> >: 
+	class FaceGeometry<QBidomainElement<DIM,NNODE_1D> >: 
 	 public virtual QElement<DIM-1,NNODE_1D>
 	{
 
@@ -393,10 +453,10 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// Face geometry for the 1D QMonodomain elements: Point elements
+	/// Face geometry for the 1D QBidomain elements: Point elements
 	//=======================================================================
 	template<unsigned NNODE_1D>
-	class FaceGeometry<QMonodomainElement<1,NNODE_1D> >: 
+	class FaceGeometry<QBidomainElement<1,NNODE_1D> >: 
 	 public virtual PointElement
 	{
 
@@ -414,49 +474,49 @@ namespace oomph{
 
 	/////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////
-	// TMonodomainElement
+	// TBidomainElement
 	////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////
 
 
 
 	//======================================================================
-	/// \short TMonodomainElement elements are isoparametric triangular 
+	/// \short TBidomainElement elements are isoparametric triangular 
 	/// DIM-dimensional General Advection Diffusion Equations with  NNODE_1D nodal points along each
-	/// element edge. Inherits from TElement and MonodomainEquations
+	/// element edge. Inherits from TElement and BidomainEquations
 	//======================================================================
 	template <unsigned DIM, unsigned NNODE_1D>
-	 class TMonodomainElement : 
+	 class TBidomainElement : 
 	 public virtual TElement<DIM,NNODE_1D>,
-	 public virtual MonodomainEquations<DIM>
+	 public virtual BidomainEquations<DIM>
 	{
 
 	private:
 
 	 /// \short Static array of ints to hold number of variables at 
 	 /// nodes: Initial_Nvalue[n]
-	 static const unsigned Initial_Nvalue = 1;
+	 static const unsigned Initial_Nvalue = 2;
 	 
 	  public:
 
 
 	 ///\short  Constructor: Call constructors for TElement and 
 	 /// Advection Diffusion equations
-	 TMonodomainElement() : TElement<DIM,NNODE_1D>(), 
-	  MonodomainEquations<DIM>()
+	 TBidomainElement() : TElement<DIM,NNODE_1D>(), 
+	  BidomainEquations<DIM>()
 	  { }
 
 	 /// Broken copy constructor
-	 TMonodomainElement(
-	  const TMonodomainElement<DIM,NNODE_1D>&  dummy) 
+	 TBidomainElement(
+	  const TBidomainElement<DIM,NNODE_1D>&  dummy) 
 	  { 
-	   BrokenCopy::broken_copy("TMonodomainElement");
+	   BrokenCopy::broken_copy("TBidomainElement");
 	  } 
 	 
 	 /// Broken assignment operator
-	 void operator=(const TMonodomainElement<DIM,NNODE_1D>&) 
+	 void operator=(const TBidomainElement<DIM,NNODE_1D>&) 
 	  {
-	   BrokenCopy::broken_assign("TMonodomainElement");
+	   BrokenCopy::broken_assign("TBidomainElement");
 	  }
 
 	 /// \short  Required  # of `values' (pinned or dofs) 
@@ -541,7 +601,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double TMonodomainElement<DIM,NNODE_1D>::
+	double TBidomainElement<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_BaseCellMembranePotential(const Vector<double> &s,
 	                                         Shape &psi, 
 	                                         DShape &dpsidx,
@@ -575,7 +635,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double TMonodomainElement<DIM,NNODE_1D>::
+	double TBidomainElement<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(
 	 const unsigned &ipt,
 	 Shape &psi, 
@@ -602,13 +662,13 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// \short Face geometry for the TMonodomainElement elements: 
+	/// \short Face geometry for the TBidomainElement elements: 
 	/// The spatial dimension of the face elements is one lower than that 
 	/// of the bulk element but they have the same number of points along 
 	/// their 1D edges.
 	//=======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	class FaceGeometry<TMonodomainElement<DIM,NNODE_1D> >: 
+	class FaceGeometry<TBidomainElement<DIM,NNODE_1D> >: 
 	 public virtual TElement<DIM-1,NNODE_1D>
 	{
 
@@ -628,10 +688,10 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// Face geometry for the 1D TMonodomainElement: Point elements
+	/// Face geometry for the 1D TBidomainElement: Point elements
 	//=======================================================================
 	template<unsigned NNODE_1D>
-	class FaceGeometry<TMonodomainElement<1,NNODE_1D> >: 
+	class FaceGeometry<TBidomainElement<1,NNODE_1D> >: 
 	 public virtual PointElement
 	{
 

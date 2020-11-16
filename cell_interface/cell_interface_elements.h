@@ -618,7 +618,7 @@ namespace oomph
 		//====================================================================
 		inline void assign_initial_conditions_from_cell_model(){
 		#ifdef PARANOID
-			if(cell_model_pt()=nullptr){
+			if(cell_model_pt()==nullptr){
 				throw OomphLibError("No cell model has been set",
 					OOMPH_CURRENT_FUNCTION,
 					OOMPH_EXCEPTION_LOCATION);
@@ -1233,22 +1233,22 @@ namespace oomph
 	class FastSingleCell
 	{
 	public:
-		//typedef the membrane potential source function
-		typedef void (*MonodomainSingleCellSourceFctPt)(const double&t, double& Istim);
+		// //typedef the membrane potential source function
+		// typedef void (*MonodomainSingleCellSourceFctPt)(const double&t, double& Istim);
 
-		/// Access function: Pointer to source function
-		MonodomainSingleCellSourceFctPt& source_fct_pt() 
-		{return Point_Monodomain_Source_fct_pt;}
+		// /// Access function: Pointer to source function
+		// MonodomainSingleCellSourceFctPt& source_fct_pt() 
+		// {return Point_Monodomain_Source_fct_pt;}
 
-		/// Access function: Pointer to source function. Const version
-		MonodomainSingleCellSourceFctPt source_fct_pt() const 
-		{return Point_Monodomain_Source_fct_pt;}
+		// /// Access function: Pointer to source function. Const version
+		// MonodomainSingleCellSourceFctPt source_fct_pt() const 
+		// {return Point_Monodomain_Source_fct_pt;}
 
 		CellModelBase* const & cell_model_pt() const{
 			// std::cout << "BOOM" << std::endl;
 			// std::cout << "BOOM" << ipt_not_at_nodes << std::endl;
 			#ifdef PARANOID
-			if(Cell_model_pt == 0){
+			if(Cell_Model_pt==nullptr){
 				//throw an error			    
 				throw OomphLibError("No Cell model assigned to element Cell_interface_element",
 				OOMPH_CURRENT_FUNCTION,
@@ -1273,6 +1273,8 @@ namespace oomph
 			                       	OOMPH_CURRENT_FUNCTION,
 			                       	OOMPH_EXCEPTION_LOCATION);
 			}
+			//By default we use timestepping to solve for the membrane potential
+			MembranePotentialIsPinned = false;
 			//set the cell_model_pt
 			Cell_Model_pt = cell_model;
 			//build the required nodal parameters
@@ -1285,6 +1287,9 @@ namespace oomph
 
 			Variable_vals.resize(NUM_VARS+1);
 		}
+
+		void pin_membrane_potential(){MembranePotentialIsPinned = true;}
+		void unpin_membrane_potential(){MembranePotentialIsPinned = false;}
 
 		void set_cell_type(const unsigned &cell_type){
 			Cell_Type = cell_type;
@@ -1318,8 +1323,17 @@ namespace oomph
 			}
 		}
 
+		//return const membrane potential
+		void get_vm(double& vm) const {
+			vm = Variable_vals[0];
+		}
+
 		inline void set_initial_vm(const double &vm){
 			Variable_vals[0] = vm;
+		}
+
+		inline void assign_black_box_nodal_parameters(const Vector<double> &params){
+			Black_Box_Nodal_Parameters = params;
 		}
 
 		void TakeTimestep(const double& dt, const double& stim){
@@ -1335,15 +1349,23 @@ namespace oomph
 			persistent_state.set_vm(Variable_vals[0]);
 
 			persistent_state.set_black_box_nodal_parameters(Black_Box_Nodal_Parameters);
-			
+
+			//Resize the general cell model data to zero, it will just keep growing otherwise because
+			//	we have a persistent cell state
+			persistent_state.resize_general_cell_model_data(0);
+
 			
 			//Call explicit timestep from the cell model
 			Cell_Model_pt->explicit_timestep(persistent_state, new_var_vals);
 
-			//Assume membrane current has been calculated within explicit timestep
-			double new_mem_pot = Variable_vals[0] - dt*(persistent_state.get_membrane_current() + stim);
+			//Record the custom output values
+			Custom_Output_Vect = (*persistent_state.general_cell_model_data());
 
-			Variable_vals[0] = new_mem_pot;
+			//Assume membrane current has been calculated within explicit timestep
+			if(!MembranePotentialIsPinned){
+				double new_mem_pot = Variable_vals[0] - dt*(persistent_state.get_membrane_current() + stim);
+				Variable_vals[0] = new_mem_pot;
+			}
 			for(unsigned i=0; i<NUM_VARS; i++){
 				Variable_vals[1+i] = new_var_vals[i];
 			}
@@ -1354,15 +1376,21 @@ namespace oomph
 				if(i!=0){data_out << ", ";}
 				data_out << Variable_vals[i];
 			}
-			// data_out << std::endl;
+		}
 
+		Vector<double>* custom_output_vect(){
+			return &Custom_Output_Vect;
 		}
 
 
 
 	protected:
-		/// Pointer to source function:
- 		MonodomainSingleCellSourceFctPt Point_Monodomain_Source_fct_pt;
+		/// Is the membrane potential calculated with the element timestepper?
+		///	 or alternatively is it prescribed? If so, pin it
+		bool MembranePotentialIsPinned;
+
+		// /// Pointer to source function:
+ 	// 	MonodomainSingleCellSourceFctPt Point_Monodomain_Source_fct_pt;
 
  		///Pointer to Cell Model
  		CellModelBase* Cell_Model_pt;
@@ -1378,6 +1406,9 @@ namespace oomph
 
 		//The vector containing the cell variable values and the membrane potential
 		Vector<double> Variable_vals;
+
+		//Store the most recent additional variables returned by the cell model
+		Vector<double> Custom_Output_Vect;
 	};
 
 

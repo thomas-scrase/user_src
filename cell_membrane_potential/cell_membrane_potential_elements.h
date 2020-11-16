@@ -46,17 +46,11 @@ public:
  /// x is a Vector! 
  typedef void (*BaseCellMembranePotentialSourceFctPt)
   (const Vector<double>& x, double& f);
-
-  // \short function pointer to boundary source function fct(bounds, f(bounds)) --
-  // bounds_of_node is a vector of the bounds the node exists on
-  typedef void (*BaseCellMembranePotentialBoundarySourceFctPt)
-  (std::set<unsigned>* &boundaries_pt, double& bound_source);
   
 
  /// \short Constructor: Initialise the Source_fct_pt and Wind_fct_pt 
  /// to null and set (pointer to) Peclet number to default
  BaseCellMembranePotentialEquations() : Source_fct_pt(0),
-                                        Boundary_source_fct_pt(0),
                                         ALE_is_disabled(false)
   {
    //Set membrane capacitance to default
@@ -198,16 +192,6 @@ public:
  /// Access function: Pointer to source function. Const version
  BaseCellMembranePotentialSourceFctPt source_fct_pt() const 
   {return Source_fct_pt;}
-
-
-
-  /// Access function: Pointer to boundary source function
-  BaseCellMembranePotentialBoundarySourceFctPt& boundary_source_fct_pt() 
-    {return Boundary_source_fct_pt;}
-
-  /// Access function: Pointer to boundary source function
-  BaseCellMembranePotentialBoundarySourceFctPt boundary_source_fct_pt() const
-    {return Boundary_source_fct_pt;}
 
 
  /// membrane capacitance
@@ -368,9 +352,7 @@ protected:
 
  /// Pointer to source function:
  BaseCellMembranePotentialSourceFctPt Source_fct_pt;
- /// Pointer to boundary source function
- BaseCellMembranePotentialBoundarySourceFctPt Boundary_source_fct_pt;
-
+ 
  /// \short Boolean flag to indicate if ALE formulation is disabled when 
  /// time-derivatives are computed. Only set to false if you're sure
  /// that the mesh is stationary.
