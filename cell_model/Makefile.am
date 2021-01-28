@@ -4,18 +4,23 @@
 # Define the sources
 sources =  \
 cell_state_container.cc \
-cell_model_base.cc \
-CNZ_Atria.cc \
-TNNP_Vent.cc \
-Explicit_TNNP_Vent.cc
+Explicit_TNNP_Vent.cc \
+Implicit_TNNP_Vent.cc \
+Implicit_CNZ_Atria.cc \
+Explicit_CNZ_Atria.cc \
+Explicit_TNNP_Vent_With_Rice.cc \
+Explicit_OHaraRudy_Vent.cc
 
 # Define the headers
 headers =  \
 cell_state_container.h \
 cell_model_base.h \
-CNZ_Atria.h \
-TNNP_Vent.h \
-Explicit_TNNP_Vent.h
+Explicit_TNNP_Vent.h \
+Implicit_TNNP_Vent.h \
+Implicit_CNZ_Atria.h \
+Explicit_CNZ_Atria.h \
+Explicit_TNNP_Vent_With_Rice.h \
+Explicit_OHaraRudy_Vent.h
 
 # Define name of library
 libname = cell_model

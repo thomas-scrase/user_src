@@ -17,32 +17,32 @@
 	#include <oomph-lib-config.h>
 #endif
 
-#include "optimisation_elements.h"
-
+#include "../generic/Vector.h"
 
 namespace oomph{
-	class TrainableElement
-	{
-	public:
-		TrainableElement()	:	Parameter_Source_Pt(0)	{}
+class TrainableElement
+{
+public:
+	TrainableElement()	:	Parameter_Source_Pt(0)	{}
 
-		void set_parameter_source_pt(OptimisationEquations& new_parameter_source_pt){
-			Parameter_Source_Pt = &new_parameter_source_pt;
+	void set_parameter_source_pt(Vector<double> &new_parameter_source_pt){
+		Parameter_Source_Pt = &new_parameter_source_pt;
+	}
+
+	void extract_parameters_from_parameter_source(Vector<double> &parameters) const {
+		if(Parameter_Source_Pt==NULL){
+			// throw OomphLibError("Parameter_Source_Pt is null",
+			// 		OOMPH_CURRENT_FUNCTION,
+			// 		OOMPH_EXCEPTION_LOCATION);
+			return;
 		}
 
-		void extract_parameters_from_parameter_source(Vector<double> &parameters){
-			if(Parameter_Source_Pt==NULL){
-				// throw OomphLibError("Parameter_Source_Pt is null",
-				// 		OOMPH_CURRENT_FUNCTION,
-				// 		OOMPH_EXCEPTION_LOCATION);
-				return;
-			}
-			Parameter_Source_Pt->get_all_internal_data(parameters);
-		}
+		parameters = (*Parameter_Source_Pt);
+	}
 
-	private:
-		OptimisationEquations* Parameter_Source_Pt;
-	};
+private:
+	Vector<double>* Parameter_Source_Pt;
+};
 
 }
 

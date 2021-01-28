@@ -26,48 +26,45 @@ namespace oomph
 	public:
 		DiffAugmentedCell()	:	CELL_ELEMENT()
 		{
-			//Make the internal data, nnode comes from CELL_ELEMENT(), data does not contribute to finite differencing
-			unsigned dummy_internal_data_pt = this->add_internal_data(new Data(1), false);
-			this->internal_data_pt(dummy_internal_data_pt)->pin(0);
-			//Make data point for vector
-			unsigned datasize = CELL_ELEMENT::nnode()*CELL_ELEMENT::dim()*CELL_ELEMENT::dim();
-			Preferential_vectors_internal_index = this->add_internal_data(new Data(datasize), false);
-			//Default to zero and pin them
-			for(unsigned i=0;i<CELL_ELEMENT::nnode()*CELL_ELEMENT::dim()*CELL_ELEMENT::dim();i++)
-			{
-				this->internal_data_pt(Preferential_vectors_internal_index)->set_value(i, 0.0);
-				this->internal_data_pt(Preferential_vectors_internal_index)->pin(i);
-			}
-			//Make data point for diffusion coefficients
-			Diffusion_coefficient_internal_index = this->add_internal_data(new Data(CELL_ELEMENT::nnode()*CELL_ELEMENT::dim()), false);
-			//Default to zero and pin them
-			for(unsigned i=0;i<CELL_ELEMENT::nnode()*CELL_ELEMENT::dim();i++)
-			{
-				this->internal_data_pt(Diffusion_coefficient_internal_index)->set_value(i, 0.0);
-				this->internal_data_pt(Diffusion_coefficient_internal_index)->pin(i);
-			}
-		}
+			unsigned dim = CELL_ELEMENT::dim();
+			unsigned nnode = CELL_ELEMENT::nnode();
 
-		// ~DiffAugmentedCell(){ CELL_ELEMENT::~CELL_ELEMENT(); }
+			Diffusion_Coefficients_Data.resize(nnode);
+			Vector_Data.resize(nnode);
 
-		//Setter functions for vectors
-		void set_preferential_vector_at_node(const unsigned &n, const unsigned &vect_ind, const Vector<double> &vector){
-			for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
-				std::cout << "d: " << d << std::endl;
-				this->internal_data_pt(Preferential_vectors_internal_index)->set_value(n*CELL_ELEMENT::dim()*CELL_ELEMENT::dim() + vect_ind*CELL_ELEMENT::dim() + d, vector[d]);
-			}
-		}
-
-		//Getter function for vectors
-		inline void get_preferential_vectors_at_node(const unsigned &n, DenseMatrix<double> &pref_vects) const {
-			pref_vects.resize(CELL_ELEMENT::dim(),CELL_ELEMENT::dim());
-			for(unsigned v=0; v<CELL_ELEMENT::dim(); v++){
-				for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
-					pref_vects(d,v) = this->internal_data_pt(Preferential_vectors_internal_index)->value(n*CELL_ELEMENT::dim()*CELL_ELEMENT::dim() + v*CELL_ELEMENT::dim() + d);
+			for(unsigned i=0; i<nnode; i++){
+				Diffusion_Coefficients_Data[i].resize(dim, 0.0);
+				Vector_Data[i].resize(dim);
+				for(unsigned j=0;j<dim;j++){
+					Vector_Data[i][j].resize(dim, 0.0);
 				}
 			}
 		}
-		inline void get_interpolated_preferential_vectors(const Vector<double> &s, DenseMatrix<double> &interpolated_preferential_vectors) const {
+
+		//Setter functions for vectors
+		void set_preferential_vector_at_node(const unsigned &n,
+											const unsigned &vect_ind,
+											const Vector<double> &vector){
+			Vector_Data[n][vect_ind] = vector;
+		}
+
+		//Getter function for vectors
+		inline void get_preferential_vectors_at_node(const unsigned &n,
+													DenseMatrix<double> &pref_vects) const {
+			// std::cout << "Reporting preferential vectors at local node: " << n << std::endl;
+			pref_vects.resize(CELL_ELEMENT::dim(),CELL_ELEMENT::dim());
+			for(unsigned v=0; v<CELL_ELEMENT::dim(); v++){
+				// std::cout << v << ":";
+				for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
+					pref_vects(d,v) = Vector_Data[n][v][d];
+					// std::cout << "\t(" << d << ")" << pref_vects(d,v);
+				}
+				// std::cout << std::endl;
+			}
+		}
+
+		inline void get_interpolated_preferential_vectors(const Vector<double> &s,
+													DenseMatrix<double> &interpolated_preferential_vectors) const {
 			//Get the interpolation weights
 			unsigned n_node = CELL_ELEMENT::nnode();
 			Shape psi(n_node);
@@ -76,7 +73,13 @@ namespace oomph
 			DenseMatrix<double> nodal_pref_vects;
 			nodal_pref_vects.resize(CELL_ELEMENT::dim(), CELL_ELEMENT::dim());
 			//The interpolated vectors to be returned
+
 			interpolated_preferential_vectors.resize(CELL_ELEMENT::dim(), CELL_ELEMENT::dim());
+			for(unsigned v=0; v<CELL_ELEMENT::dim(); v++){
+					for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
+						interpolated_preferential_vectors(d,v) = 0.0;
+					}
+				}
 
 			for(unsigned l=0; l < n_node; l++){
 				get_preferential_vectors_at_node(l, nodal_pref_vects);
@@ -87,22 +90,39 @@ namespace oomph
 					}
 				}
 			}
+
+			// std::cout << "Reporting preferential vectors at local coord" << std::endl;
+			// for(unsigned v=0; v<CELL_ELEMENT::dim(); v++){
+			// 	std::cout << v << ":";
+			// 	for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
+			// 		std::cout << "\t(" << d << ")" << interpolated_preferential_vectors(d,v);
+			// 	}
+			// 	std::cout << std::endl;
+			// }
+
 		}
 
 		//Setter function for diffusion coefficients
-		void set_diffusion_coefficients_at_node(const unsigned &node, const Vector<double> &diff_coeffs){
-			for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
-				this->internal_data_pt(Diffusion_coefficient_internal_index)->set_value(node*CELL_ELEMENT::dim() + d, diff_coeffs[d]);
-			}
+		void set_diffusion_coefficients_at_node(const unsigned &node,
+												const Vector<double> &diff_coeffs){
+			Diffusion_Coefficients_Data[node] = diff_coeffs;
 		}
+		
 		//Getter function for diffusion coefficients
-		inline void get_diffusion_coefficients_at_node(const unsigned &n, Vector<double> &diff_coeffs) const {
-			diff_coeffs.resize(CELL_ELEMENT::dim());
-			for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
-				diff_coeffs[d] = this->internal_data_pt(Diffusion_coefficient_internal_index)->value(n*CELL_ELEMENT::dim() + d);
-			}
+		inline void get_diffusion_coefficients_at_node(const unsigned &n,
+														Vector<double> &diff_coeffs) const {
+			diff_coeffs = Diffusion_Coefficients_Data[n];
+
+			// std::cout << "Reporting diffusion coefficients at node: " << n << std::endl;
+			// for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
+			// 	std::cout << "\t(" << d << ")" << diff_coeffs[d];
+			// }
+			// std::cout << std::endl;
+
 		}
-		inline void get_interpolated_diffusion_coefficients(const Vector<double> &s, Vector<double> &interpolated_diff_coeffs) const {
+
+		inline void get_interpolated_diffusion_coefficients(const Vector<double> &s,
+															Vector<double> &interpolated_diff_coeffs) const {
 			//Get the interpolation weights
 			unsigned n_node = CELL_ELEMENT::nnode();
 			Shape psi(n_node);
@@ -112,18 +132,31 @@ namespace oomph
 			//The interpolated vectors to be returned
 			interpolated_diff_coeffs.resize(CELL_ELEMENT::dim());
 
+			for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
+					interpolated_diff_coeffs[d] = 0.0;
+				}
+
 			for(unsigned l=0; l < n_node; l++){
 				get_diffusion_coefficients_at_node(l, nodal_diff_coeffs);
 				for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
 					interpolated_diff_coeffs[d] += nodal_diff_coeffs[d]*psi[l];
 				}
 			}
+
+			// std::cout << "Reporting diffusion coefficients at local coord" << std::endl;
+			// for(unsigned d=0; d<CELL_ELEMENT::dim(); d++){
+			// 	std::cout << "\t(" << d << ")" << interpolated_diff_coeffs[d];
+			// }
+			// std::cout << std::endl;
+
 		}
 
 		//Getter function for diffusion matrix
-		inline void get_interpolated_diffusion_matrix(const Vector<double> &s, DenseMatrix<double> &diff_matrix){
-			DenseMatrix<double> interpolated_preferential_vectors;
-			Vector<double> interpolated_diff_coeffs;
+		inline void get_interpolated_diffusion_matrix(const Vector<double> &s,
+													DenseMatrix<double> &diff_matrix){
+
+			DenseMatrix<double> interpolated_preferential_vectors(CELL_ELEMENT::dim(), CELL_ELEMENT::dim());
+			Vector<double> interpolated_diff_coeffs(CELL_ELEMENT::dim());
 			get_interpolated_preferential_vectors(s, interpolated_preferential_vectors);
 			get_interpolated_diffusion_coefficients(s, interpolated_diff_coeffs);
 
@@ -141,10 +174,11 @@ namespace oomph
 		}
 
 
-	protected:
+	private:
 
-		unsigned Preferential_vectors_internal_index;
-		unsigned Diffusion_coefficient_internal_index;
+		Vector<Vector<double>> Diffusion_Coefficients_Data;
+
+		Vector<Vector<Vector<double>>> Vector_Data;
 	};
 
 }

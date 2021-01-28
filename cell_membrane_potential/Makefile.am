@@ -5,14 +5,19 @@
 sources =  \
 cell_membrane_potential_elements.cc \
 monodomain_elements.cc \
-refineable_monodomain_elements.cc
+refineable_monodomain_elements.cc \
+bidomain_elements.cc \
+refineable_bidomain_elements.cc
 
 # Define the headers
 headers =  \
 cell_membrane_potential_elements.h \
 monodomain_elements.h \
 monodomain_flux_elements.h \
-refineable_monodomain_elements.h
+refineable_monodomain_elements.h \
+bidomain_elements.h \
+bidomain_flux_elements.h \
+refineable_bidomain_elements.h
 
 # Define name of library
 libname = cell_membrane_potential

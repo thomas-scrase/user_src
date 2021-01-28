@@ -428,6 +428,10 @@ fill_in_generic_residual_contribution_monodomain_flux(
    //Get the imposed flux
    double flux;
    get_flux(interpolated_x,flux);
+
+   // //get the diffusion tensor
+   // DenseMatrix<double> D(Dim,Dim,0.0);
+   // this->bulk_element_pt()->get_diff_monodomain(ipt, s, interpolated_x, D);
    
    //Now add to the appropriate equations
    

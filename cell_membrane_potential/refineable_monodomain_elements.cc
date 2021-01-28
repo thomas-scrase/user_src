@@ -15,6 +15,9 @@ namespace oomph
 		//Get the nodal index at which the unknown is stored
 		const unsigned vm_nodal_index = this->vm_index_BaseCellMembranePotential();
 
+		//Get the membrane capacitance
+		const double cm = this->cm();
+
 		//Set up memory for the shape and test functions
 		Shape psi(n_node), test(n_node);
 		DShape dpsidx(n_node,DIM), dtestdx(n_node,DIM);
@@ -24,9 +27,6 @@ namespace oomph
 
 		//Set the Vector to hold local coordinates
 		Vector<double> s(DIM);
-
-		//Get the Peclet*Strouhal number
-		const double cm = this->cm();
 
 		//Integers used to store the local equation number and local unknown
 		//indices for the residuals and jacobians
@@ -88,7 +88,6 @@ namespace oomph
 					}
 				}
 			}
-
 
 			//Get source function
 			//-------------------

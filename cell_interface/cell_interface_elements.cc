@@ -1,5 +1,6 @@
 #include "cell_interface_elements.h"
 
+
 namespace oomph
 {
 	//Only ever output 2 nplot points
@@ -32,20 +33,19 @@ namespace oomph
 			//Get the shape function
 			(void)this->shape(s,psi);
 
-			outfile << nodal_vm(l) << " ";
+			outfile << get_nodal_membrane_potential(l) << " ";
 
-			outfile << interpolated_membrane_current_CellInterface(s) << " ";
-
-			Vector<double> custom_output;
-			get_nodal_cell_custom_output(l, custom_output);
-
-			for(unsigned i=0; i<custom_output.size(); i++){
-				// std::cout << "we're trying to output now" << std::endl;
-				outfile << custom_output[i] << " ";
-			}
+			outfile << get_nodal_membrane_current(l) << " ";
 
 			//output active strain
-			outfile << get_interpolated_cell_active_strain(s) << " ";
+			outfile << get_nodal_active_stress(l) << " ";
+
+			
+			Vector<double> custom_output;
+			get_nodal_cell_custom_output(l, custom_output);
+			for(unsigned i=0; i<custom_output.size(); i++){
+				outfile << custom_output[i] << " ";
+			}
 			
 			//Loop over the variables
 			for(unsigned var=min_index_CellInterfaceEquations();var<max_index_CellInterfaceEquations();var++){
@@ -79,75 +79,50 @@ namespace oomph
 											                                               DenseMatrix<double> &mass_matrix,
 											                                               unsigned flag)
 	{
+		//Get the number of nodes in the element
 		const unsigned n_node = nnode();
-		
-		unsigned ipt_node;
-
- 	// 	//should the function include contribution from this cell
- 	// 	bool compute_this_node;
-
- 		//Storage vectors for the local_index and local_eqn numbers for the single cell data
- 		Vector<int> local_eqn(cell_model_pt()->required_storage());
-		//Construct the state container
+ 		//Preallocate storage vectors for the local_index and local_eqn numbers for the single cell data
+ 		Vector<int> local_eqn(cell_model_pt()->required_nodal_variables());
+		//Preallocate the state container
 		CellState state;
 
-		//Loop over the nodes
+		//Loop over the nodes: we don't loop over integration points
+		//	because cells are the nodes. If the cells are not points then
+		//	this is reflected by how data passed to it is calculated.
+		//Note that the cell model is still a point, these cell models are
+		//	always points, but by setting cells are not points means any
+		//	external "stimulus" to the cell model is calculated from integrating
+		//	over the element.
 		for(unsigned l=0;l<n_node;l++){
-			ipt_node = this->ipt_at_node(l);
+
+			//If cells are represented by a point and this cell should not
+			//	be computed then skip it
+			if(Cells_Are_Points && !Cell_Inds_To_Compute[l]){continue;}
+
 			// Get the local ind and local eqn of the cell data
-			for(unsigned var=0; var<cell_model_pt()->required_storage(); var++){
+			for(unsigned var=0; var<cell_model_pt()->required_nodal_variables(); var++){
 				local_eqn[var] = nodal_local_eqn(l, min_index_CellInterfaceEquations() + var);
 			}
 
-			// compute_this_node = true;
-			// // If Ignore_Repeated_Cells is true then check if the cell has already been computed
-			// if(Ignore_Repeated_Cells){
-			// 	//loop over the single cell data
-			// 	for(unsigned var=0; var<cell_model_pt()->Required_storage(); var++){
-
-			// 		if(local_eqn[var]>=0){
-			// 			// Check the value of the residuals corresponding to the single cell data
-			// 			if(residuals[local_eqn[var]]!=0){
-			// 				// If it's not zero then the cell has already been computed
-			// 				// Do not compute this cell
-			// 				compute_this_node = false;
-			// 				// Stop checking
-			// 				break;
-			// 			}
-			// 		}
-			// 	}
-			// }
-			// // If the single cell for this node has already been computed then go to the next node
-			// if(!compute_this_node){
-			// 	std::cout << "+!+!+!+!+!+!+!+!+!+!+!+!+!+! SKIPPED A NODE +!+!+!+!+!+!+!+!+!+!+!+!+!+!" << std::endl;
-			// 	for(unsigned printy=0;printy<10;printy++){
-			// 		std::cout << std::endl;
-			// 	}
-			// 	continue;
-			// }
-
-
 			//Preallocate memory for the residual and jacobian sub objects
-			Vector<double> residual_sub(cell_model_pt()->required_storage(), 0.0);
-			DenseMatrix<double> jacobian_sub(cell_model_pt()->required_storage(),cell_model_pt()->required_storage(),0.0);
+			Vector<double> residual_sub(cell_model_pt()->required_nodal_variables(), 0.0);
+			DenseMatrix<double> jacobian_sub(cell_model_pt()->required_nodal_variables(),cell_model_pt()->required_nodal_variables(),0.0);
 
-			fill_state_container_at_node(state, l);
+			fill_state_container_at_node(l, state);
 			//get the cell model to update the residual and jacobian entries
 			cell_model_pt()->fill_in_generic_residual_contribution_cell_base(state,
 																			residual_sub,
 																			jacobian_sub,
 																			flag);
 			// Loop over the entries in the residual and jacobian
-			for(unsigned var=0; var<cell_model_pt()->required_storage(); var++){
+			for(unsigned var=0; var<cell_model_pt()->required_nodal_variables(); var++){
 				if(local_eqn[var]>=0){
 					residuals[local_eqn[var]] += residual_sub[var];
-
-
+					//Compute Jacobian?
 					if(flag){
-						for(unsigned var1=0; var1<cell_model_pt()->required_storage(); var1++){
+						for(unsigned var1=0; var1<cell_model_pt()->required_nodal_variables(); var1++){
 							jacobian(local_eqn[var], local_eqn[var1]) += jacobian_sub(var, var1);
 						}
-						// jacobian(local_eqn[var], local_eqn[var]) += jacobian_sub(var, var);
 					}
 				}
 			}
@@ -167,9 +142,17 @@ namespace oomph
 	template class CellInterfaceEquations<2,45>;
 	template class CellInterfaceEquations<3,45>;
 
+	template class CellInterfaceEquations<1,49>;
+	template class CellInterfaceEquations<2,49>;
+	template class CellInterfaceEquations<3,49>;
+
 	template class CellInterfaceEquations<1,25>;
 	template class CellInterfaceEquations<2,25>;
 	template class CellInterfaceEquations<3,25>;
+
+	template class CellInterfaceEquations<1,34>;
+	template class CellInterfaceEquations<2,34>;
+	template class CellInterfaceEquations<3,34>;
 
 	template class CellInterfaceEquations<1,1>;
 	template class CellInterfaceEquations<2,1>;
@@ -182,7 +165,7 @@ namespace oomph
 	//!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+
 	//IF YOU ADD A NEW CELL MODEL:
 	//		Copy and paste the commented-out commands below, edit the last number (0)
-	//		in the <x,y,z> to reflect the Required_Storage of the new cell model
+	//		in the <x,y,z> to reflect the required_nodal_variables of the new cell model
 	//!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+
 
 	// template class QCellInterfaceElement<1,2>;
@@ -226,6 +209,44 @@ namespace oomph
 	template class TCellInterfaceElement<3,45,3>;
 	// template class TCellInterfaceElement<3,45,4>;
 
+	template class PointCellInterfaceElement<1,45>;
+	template class PointCellInterfaceElement<2,45>;
+	template class PointCellInterfaceElement<3,45>;
+
+
+
+
+	//Force build for the Explicit CNZ cell model
+	template class QCellInterfaceElement<1,49,2>;
+	template class QCellInterfaceElement<1,49,3>;
+	// template class QCellInterfaceElement<1,49,4>;
+
+	template class QCellInterfaceElement<2,49,2>;
+	template class QCellInterfaceElement<2,49,3>;
+	// template class QCellInterfaceElement<2,49,4>;
+
+	template class QCellInterfaceElement<3,49,2>;
+	template class QCellInterfaceElement<3,49,3>;
+	// template class QCellInterfaceElement<3,49,4>;
+
+
+	template class TCellInterfaceElement<1,49,2>;
+	template class TCellInterfaceElement<1,49,3>;
+	// template class TCellInterfaceElement<1,49,4>;
+
+	template class TCellInterfaceElement<2,49,2>;
+	template class TCellInterfaceElement<2,49,3>;
+	// template class TCellInterfaceElement<2,49,4>;
+
+	template class TCellInterfaceElement<3,49,2>;
+	template class TCellInterfaceElement<3,49,3>;
+	// template class TCellInterfaceElement<3,49,4>;
+
+	template class PointCellInterfaceElement<1,49>;
+	template class PointCellInterfaceElement<2,49>;
+	template class PointCellInterfaceElement<3,49>;
+
+
 
 
 	//Force build for the TNNP cell model
@@ -254,7 +275,71 @@ namespace oomph
 	template class TCellInterfaceElement<3,25,3>;
 	// template class TCellInterfaceElement<3,25,4>;
 
+	template class PointCellInterfaceElement<1,25>;
+	template class PointCellInterfaceElement<2,25>;
+	template class PointCellInterfaceElement<3,25>;
 
+
+	//Force build for the TNNP with Rice myofilament cell model
+	template class QCellInterfaceElement<1,34,2>;
+	template class QCellInterfaceElement<1,34,3>;
+	// template class QCellInterfaceElement<1,34,4>;
+
+	template class QCellInterfaceElement<2,34,2>;
+	template class QCellInterfaceElement<2,34,3>;
+	// template class QCellInterfaceElement<2,34,4>;
+
+	template class QCellInterfaceElement<3,34,2>;
+	template class QCellInterfaceElement<3,34,3>;
+	// template class QCellInterfaceElement<3,34,4>;
+
+
+	template class TCellInterfaceElement<1,34,2>;
+	template class TCellInterfaceElement<1,34,3>;
+	// template class TCellInterfaceElement<1,34,4>;
+
+	template class TCellInterfaceElement<2,34,2>;
+	template class TCellInterfaceElement<2,34,3>;
+	// template class TCellInterfaceElement<2,34,4>;
+
+	template class TCellInterfaceElement<3,34,2>;
+	template class TCellInterfaceElement<3,34,3>;
+	// template class TCellInterfaceElement<3,34,4>;
+
+	template class PointCellInterfaceElement<1,34>;
+	template class PointCellInterfaceElement<2,34>;
+	template class PointCellInterfaceElement<3,34>;
+
+
+	//Force build for the TNNP with Rice myofilament and markov iks cell model
+	template class QCellInterfaceElement<1,50,2>;
+	template class QCellInterfaceElement<1,50,3>;
+	// template class QCellInterfaceElement<1,50,4>;
+
+	template class QCellInterfaceElement<2,50,2>;
+	template class QCellInterfaceElement<2,50,3>;
+	// template class QCellInterfaceElement<2,50,4>;
+
+	template class QCellInterfaceElement<3,50,2>;
+	template class QCellInterfaceElement<3,50,3>;
+	// template class QCellInterfaceElement<3,50,4>;
+
+
+	template class TCellInterfaceElement<1,50,2>;
+	template class TCellInterfaceElement<1,50,3>;
+	// template class TCellInterfaceElement<1,50,4>;
+
+	template class TCellInterfaceElement<2,50,2>;
+	template class TCellInterfaceElement<2,50,3>;
+	// template class TCellInterfaceElement<2,50,4>;
+
+	template class TCellInterfaceElement<3,50,2>;
+	template class TCellInterfaceElement<3,50,3>;
+	// template class TCellInterfaceElement<3,50,4>;
+
+	template class PointCellInterfaceElement<1,50>;
+	template class PointCellInterfaceElement<2,50>;
+	template class PointCellInterfaceElement<3,50>;
 
 
 	//Force build for the 1D variable cell models
@@ -282,4 +367,15 @@ namespace oomph
 	template class TCellInterfaceElement<3,1,2>;
 	template class TCellInterfaceElement<3,1,3>;
 	// template class TCellInterfaceElement<3,1,4>;
+
+	template class PointCellInterfaceElement<1,1>;
+	template class PointCellInterfaceElement<2,1>;
+	template class PointCellInterfaceElement<3,1>;
+
+
+	template class MonodomainSingleCellElement<1>;
+	template class MonodomainSingleCellElement<25>;
+	template class MonodomainSingleCellElement<34>;
+	template class MonodomainSingleCellElement<45>;
+	template class MonodomainSingleCellElement<49>;
 }

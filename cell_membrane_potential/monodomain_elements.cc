@@ -32,12 +32,9 @@ namespace oomph{
    
    //Set the value of n_intpt
    const unsigned n_intpt = this->integral_pt()->nweight();
-     
+
    //Set the Vector to hold local coordinates
    Vector<double> s(DIM);
-
-   //Get the membrane capacitance
-   const double cm = this->cm();
 
    //Integers used to store the local equation number and local unknown
    //indices for the residuals and jacobians
@@ -68,8 +65,6 @@ namespace oomph{
      double interpolated_vm=0.0;
      double dvmdt=0.0;
 
-     double interpolated_boundary_source=0.0;
-
      Vector<double> interpolated_x(DIM,0.0);
      Vector<double> interpolated_dvmdx(DIM,0.0);
      Vector<double> mesh_velocity(DIM,0.0);
@@ -89,23 +84,6 @@ namespace oomph{
          interpolated_x[j] += this->raw_nodal_position(l,j)*psi(l);
          interpolated_dvmdx[j] += vm_value*dpsidx(l,j);
         }
-
-        //If Boundary_source_fct_pt has been set, get the contribution from the node
-        //  This check prevents bulk non boundary elements from contributing
-        //  unnecessary overhead
-       if(this->Boundary_source_fct_pt){
-        // Preallocate boundaries the node is on
-        std::set<unsigned>* boundaries_pt;
-        // Get the pointer to set of boundaries node lies on
-        this->node_pt(l)->get_boundaries_pt(boundaries_pt);
-        // If the set is non-zero, get a contribution to interpolated_boundary_source
-        if(boundaries_pt!=0){
-          double bound_source = 0.0;
-          this->Boundary_source_fct_pt(boundaries_pt, bound_source);
-          interpolated_boundary_source += bound_source*psi(l);
-        }
-       }
-
       }
      
      // Mesh velocity?
@@ -119,19 +97,11 @@ namespace oomph{
           }
         }
       }
-    
 
      //Get source function
      //-------------------
      double source;
      this->get_source_BaseCellMembranePotential(ipt,interpolated_x,source);
-
-     //add the boundary source
-     if(this->Boundary_source_fct_pt!=0){
-      // std::cout << "Source from bound " << interpolated_boundary_source << std::endl;
-      source += interpolated_boundary_source;
-     }
-
 
      //Get diffusivity tensor
      DenseMatrix<double> D(DIM,DIM,0.0);
@@ -145,14 +115,13 @@ namespace oomph{
       {
         //Fill in residual and jacobian contribution for u
         //Set the local equation number
-        // std::cout << "Vm" << std::endl;
         local_eqn = this->nodal_local_eqn(l,this->vm_index_BaseCellMembranePotential());
 
         /*IF it's not a boundary condition*/
         if(local_eqn >= 0)
           {
           // Add body force/source term and time derivative 
-          residuals[local_eqn] -= (cm*dvmdt + source)*test(l)*W;
+          residuals[local_eqn] -= (dvmdt + source)*test(l)*W;
          
           // The Generalised Advection Diffusion bit itself
           for(unsigned k=0;k<DIM;k++)
@@ -160,7 +129,7 @@ namespace oomph{
              //Terms that multiply the test function 
               double tmp = 0.0;
              // //If the mesh is moving need to subtract the mesh velocity
-             if(!this->ALE_is_disabled) {tmp -= cm*mesh_velocity[k];}
+             if(!this->ALE_is_disabled) {tmp -= mesh_velocity[k];}
              tmp *= interpolated_dvmdx[k];
 
              //Terms that multiply the derivative of the test function
@@ -189,14 +158,14 @@ namespace oomph{
                 {
                 //Mass matrix term
                 jacobian(local_eqn,local_unknown) 
-                  -= cm*test(l)*psi(l2)*
+                  -= test(l)*psi(l2)*
                   this->node_pt(l2)->time_stepper_pt()->weight(1,0)*W;
 
                 //Add the mass matrix term
                 if(flag==2)
                   {
                   mass_matrix(local_eqn,local_unknown)
-                    += cm*test(l)*psi(l2)*W;
+                    += test(l)*psi(l2)*W;
                   }
 
                 //Add contribution to Elemental Matrix
@@ -204,7 +173,7 @@ namespace oomph{
                   //Temporary term used in assembly
                   double tmp = 0.0;
                   if(!this->ALE_is_disabled)
-                   {tmp -= cm*mesh_velocity[k];}
+                   {tmp -= mesh_velocity[k];}
                   tmp *= dpsidx(l2,k);
 
                   double tmp2 = 0.0;

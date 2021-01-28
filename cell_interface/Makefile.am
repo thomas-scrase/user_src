@@ -4,18 +4,20 @@
 
 # Define the sources
 sources = \
-cell_interface_elements.cc
+cell_interface_elements.cc \
+segregated_cell_interface_elements.cc
 
-# Include files which shouldn't be compiled
-incl_cc_files =
+# # Include files which shouldn't be compiled
+# incl_cc_files =
 
 # Define the headers
 headers = \
-cell_interface_elements.h
+cell_interface_elements.h \
+segregated_cell_interface_elements.h
 
-# Template only files. These should be included in include directory
-# but should not be listed in combined header file
-templates = 
+# # Template only files. These should be included in include directory
+# # but should not be listed in combined header file
+# templates = 
 
 # Define name of library
 libname = cell_interface

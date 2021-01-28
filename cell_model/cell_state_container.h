@@ -27,249 +27,91 @@ namespace oomph{
 	public:
 		//Empty constructor and destructor
 		CellState();
-		// ~CellState();
-		//====================================================================
-		//Set and access member variables
-		//====================================================================
 
-		//General cell variables
 		//vars
 		void set_vars(const DenseMatrix<double> &new_vars); 
-		double var(const unsigned &d, const unsigned &n) const ;
+		double get_var(const unsigned &d, const unsigned &n) const ;
 
 		//time_stepper_weights
 		void set_time_stepper_weights(const DenseMatrix<double> &new_time_stepper_weights);
-		double time_stepper_weights(const unsigned &d, const unsigned &n) const ;
-
-		//Vm
-		void set_vm(const double &new_vm);
-		double vm() const ;
-
-		//stress
-		void set_stress(const double &new_stress);
-		double stress() const ;
-
-		//Na_o
-		void set_nao(const double &new_nao);
-		double na_o() const ;
-
-		//K_o
-		void set_ko(const double &new_ko);
-		double k_o() const ;
-
-		//Ca_o
-		void set_cao(const double &new_cao);
-		double ca_o() const ;
+		double get_time_stepper_weight(const unsigned &d, const unsigned &n) const ;
 
 		//cell_type
 		void set_cell_type(const unsigned &new_cell_type);
-		unsigned cell_type() const ;
+		unsigned get_cell_type() const ;
 
-		//fibrosis_type
-		void set_fibrosis_type(const unsigned &new_fibrosis_type);
-		unsigned fibrosis_type() const ;
+		//Black-box nodal parameters
+		void set_black_box_nodal_parameters(const Vector<double> &new_nodal_parameters);
+		double get_black_box_nodal_parameters(const unsigned &paramter_index) const;
 
-		//AB_index
-		void set_ab_index(const double &new_ab_index);
-		double ab_index() const ;
+		//Trans-Membrane Potential
+		void set_vm(const double &new_vm);
+		double get_vm() const ;
 
-		//RV_index
-		void set_rv_index(const double &new_rv_index);
-		double rv_index() const ;
+		//Mechanical Strain
+		void set_stress(const double &new_stress);
+		double get_stress() const ;
 
-		//IS_index
-		void set_is_index(const double &new_is_index);
-		double is_index() const ;
+		//Black-box external data
+		void set_black_box_external_data(const Vector<double> &new_external_data);
+		double get_black_box_external_data(const unsigned &data_index) const;
 
-		//dt Value
+		////Explicit variables////////
+		//Time step length
 		void set_dt(const double &new_dt);
-		double dt() const ;
+		double get_dt() const ;
 
 		//Previous values
 		void set_previous_variables(const Vector<double> &new_previous_variables);
-		double previous_variables(const unsigned &n) const ;
+		double get_previous_variables(const unsigned &n) const ;
+		//////////////////////////////
 
 
-		//Things changed by the cell model
+		//Total Membrane current
+		void set_membrane_current(const double &new_cell_membrane_current);
+		double get_membrane_current() const ;
 
-		//Currents
-		void set_ikr_current(const double &new_ikr_current);
-		double ikr() const ;
+		//Generated active strain 
+		void set_active_strain(const double &new_cell_model_strain);
+		double get_active_strain() const ;
 
-		void set_iks_current(const double &new_iks_current);
-		double iks() const ;
-
-		void set_ik1_current(const double &new_ik1_current);
-		double ik1() const ;
-		
-		void set_ito_current(const double &new_ito_current);
-		double ito() const ;
-
-		void set_ina_current(const double &new_ina_current);
-		double ina() const ;
-
-		void set_ibna_current(const double &new_ibna_current);
-		double ibna() const ;
-
-		void set_ical_current(const double &new_ical_current);
-		double ical() const ;
-
-		void set_ibca_current(const double &new_ibca_current);
-		double ibca() const ;
-
-		void set_inak_current(const double &new_inak_current);
-		double inak() const ;
-
-		void set_inaca_current(const double &new_inaca_current);
-		double inaca() const ;
-
-		void set_ipca_current(const double &new_ipca_current);
-		double ipca() const ;
-
-		void set_ipk_current(const double &new_ipk_current);
-		double ipk() const ;
-
-		void set_inal_current(const double &new_inal_current);
-		double inal() const ;
-
-		void set_ikatp_current(const double &new_ikatp_current);
-		double ikatp() const ;
-
-		void set_icat_current(const double &new_icat_current);
-		double icat() const ;
-
-		void set_isac_ca_current(const double &new_isac_ca_current);
-		double isac_ca() const ;
-
-		void set_ikv_current(const double &new_ikv_current);
-		double ikv() const ;
-
-		void set_ik1f_current(const double &new_ik1f_current);
-		double ik1f() const ;
-
-		void set_inakf_current(const double &new_inakf_current);
-		double inakf() const ;
-
-		void set_ibnaf_current(const double &new_ibnaf_current);
-		double ibnaf() const ;
-
-		void set_igap_current(const double &new_igap_current);
-		double igap() const ;
-
-		void set_ikur_current(const double &new_ikur_current);
-		double ikur() const ;
-
-		void set_ibk_current(const double &new_ibk_current);
-		double ibk() const ;
-
-		void set_isac_k_current(const double &new_isac_k_current);
-		double isac_k() const ;
-
-		void set_icap_current(const double &new_icap_current);
-		double icap() const ;
-
-		void set_isac_na_current(const double &new_isac_na_current);
-		double isac_na() const ;
-
-		void set_iab_current(const double &new_iab_current);
-		double iab() const ;
-
-		void set_cell_membrane_current(const double &new_cell_membrane_current);
-		double cell_membrane_current() const ;
-
-
-		//Reversal potentials
-		void set_ena(const double &new_ena);
-		double ena() const ;
-
-		void set_eca(const double &new_eca);
-		double eca() const ;
-
-		void set_ek(const double &new_ek);
-		double ek() const ;
-
-		void set_eks(const double &new_eks);
-		double eks() const ;
-
-		void set_ekf(const double &new_ekf);
-		double ekf() const ;
-
-		void set_enaf(const double &new_enaf);
-		double enaf() const ;
-
-		void set_cell_model_strain(const double &new_cell_model_strain);
-		double cell_model_strain() const ;
-
+		//General cell model data - changed by the model during a run sequence.
+		//	Allows for greater structuring of the cell model
+		void set_new_general_cell_model_data(const double &new_data); //appends to the general cell model data
+		void set_general_cell_model_data_index(const unsigned &data_index, const double &new_data); //change the value of a specific index general cell model data
+		void resize_general_cell_model_data(const unsigned &new_size);	//resize the vector representing general cell model data
+		double get_general_cell_model_data(const unsigned &data_index) const; //get the data at data_index
+		const Vector<double>* general_cell_model_data() const; //Return a const pointer to the general cell model data
 
 	private:
-		//Pointer to the cell model we are communicating with, useful for DPARANOID checks
-		// CellModelBase *Cell_model_pt;
-
 		//====================================================================
 		//Variables to be stored and accessed
 		//====================================================================
 
-		//General cell variables
-		DenseMatrix<double> Vars;
+		DenseMatrix<double> Cell_Variables_And_Derivatives;
+
 		DenseMatrix<double> Time_Stepper_Weights;
-		double Vm;
-		double Stress;
-		double Na_o;
-		double K_o;
-		double Ca_o;
+
 		unsigned Cell_Type;
-		unsigned Fibrosis_Type;
-		double AB_index;
-		double RV_index;
-		double IS_index;
+
+		Vector<double> Black_Box_Nodal_Parameters;
+
+		double Membrane_Potential;
+
+		double Mechanical_Stress;
+
+		Vector<double> Black_Box_External_Data;
+
+		//Explicit cell model variables
 		double Dt;
 		Vector<double> Previous_Variables;
 
-		//Currents
-		double IKr_current;
-		double IKs_current;
-		double IK1_current;
-		double Ito_current;
-		double INa_current;
-		double IbNa_current;
-		double ICaL_current;
-		double IbCa_current;
-		double INaK_current;
-		double INaCa_current;
-		double IpCa_current;
-		double IpK_current;
-		double INaL_current;
-		double IKATP_current;
 
-		double ICaT_current;
-		double ISAC_Ca_current;
-		double IKv_current;
-		double IK1f_current;
-		double INaKf_current;
-		double IbNaf_current;
-		double IGap_current;
+		double Membrane_Current;
 
-		double IKur_current;
-		double IbK_current;
-		double ISAC_K_current;
-		double ICap_current;
+		double Active_Strain;
 
-		double ISAC_Na_current;
-
-		double Iab_current;
-
-		double Cell_Membrane_Current;
-
-		//Reversal potentials
-		double ENa;
-		double ECa;
-		double EK;
-		double EKs;
-
-		double EKf;
-		double ENaf;
-
-		double Cell_Model_Strain;
+		Vector<double> General_cell_model_data;
 	};
 }
 

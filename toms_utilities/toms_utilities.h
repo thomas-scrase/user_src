@@ -2,3 +2,4 @@
 // and it will be remade automatically
 #include<toms_utilities/toms_integral.h> 
 #include<toms_utilities/diff_augmented_cell_wrapper.h> 
+#include<toms_utilities/enforce_positive_normal_flow_elements.h> 

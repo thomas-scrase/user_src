@@ -19,6 +19,7 @@
   #include <oomph-lib-config.h>
 #endif
 
+
 //oomph-lib headers
 #include "../generic/oomph_utilities.h"
 #include "../generic/orthpoly.h"
@@ -35,6 +36,442 @@ namespace oomph
 /// context this may be used. Replace by your own integration scheme
 /// that does what you want! 
 //=============================================================================
+
+class NodesOnlyHijackedPointIntegralScheme : public Integral
+{
+
+public:
+
+ /// Default constructor (empty)
+ NodesOnlyHijackedPointIntegralScheme(){};
+
+ /// Broken copy constructor
+ NodesOnlyHijackedPointIntegralScheme(const NodesOnlyHijackedPointIntegralScheme& dummy) 
+  { 
+   BrokenCopy::broken_copy("NodesOnlyHijackedPointIntegralScheme");
+  } 
+ 
+ /// Broken assignment operator
+ void operator=(const NodesOnlyHijackedPointIntegralScheme&) 
+  {
+   BrokenCopy::broken_assign("NodesOnlyHijackedPointIntegralScheme");
+  }
+
+ /// Number of integration points of the scheme
+ unsigned nweight() const {return 1;}
+
+ /// \short Return coordinate s[j] (j=0) of integration point i -- 
+ /// deliberately broken!
+ double knot(const unsigned &i, const unsigned &j) const 
+  {
+   throw OomphLibError(
+    "Local coordinate vector is of size zero, so this should never be called.",
+    OOMPH_CURRENT_FUNCTION, OOMPH_EXCEPTION_LOCATION);
+
+   // Dummy return
+   return 0.0;
+  }
+
+ /// Return weight of integration point i
+ double weight(const unsigned &i) const {return 1.0;}
+
+}; 
+
+//=========================================================
+/// Class for multidimensional Gaussian integration rules
+///
+/// Empty -- just establishes the template parameters.
+///
+/// General logic: The template parameters correspond to those
+/// of the QElement family so that the integration scheme
+/// GaussWithNodes<DIM,NNODE_1D> provides the default ("full") integration
+/// scheme for QElement<DIM,NNODE_1D>. "Full" integration
+/// means that for linear PDEs that are discretised on a uniform 
+/// mesh, all integrals arising in the Galerkin weak form of the PDE
+/// are evaluated exactly. In such problems the highest-order 
+/// polynomials arise from the products of the undifferentiated 
+/// shape and test functions so a 4 node quad needs 
+/// an integration scheme that can integrate fourth-order 
+/// polynomials exactly etc.
+//=========================================================
+template <unsigned DIM, unsigned NPTS_1D>
+class QNodesOnlyHijackedIntegralScheme 
+{
+};
+
+
+
+//=========================================================
+/// 1D Gaussian integration class.
+/// Two integration points. This integration scheme can 
+/// integrate up to third-order polynomials exactly and
+/// is therefore a suitable "full" integration scheme
+/// for linear (two-node) elements in which the
+/// highest-order polynomial is quadratic.
+//=========================================================
+template<>
+class QNodesOnlyHijackedIntegralScheme<1,2> : public Integral
+{
+  private:
+
+ /// Number of integration points in the scheme
+ static const unsigned Npts=2;
+ // /// Array to hold weights and knot points (defined in cc file)
+ // static const double Knot[2][1], Weight[2];
+
+public:
+
+
+ /// Default constructor (empty)
+ QNodesOnlyHijackedIntegralScheme(){};
+
+ /// Broken copy constructor
+ QNodesOnlyHijackedIntegralScheme(const QNodesOnlyHijackedIntegralScheme& dummy) 
+  { 
+   BrokenCopy::broken_copy("QNodesOnlyHijackedIntegralScheme");
+  } 
+ 
+ /// Broken assignment operator
+ void operator=(const QNodesOnlyHijackedIntegralScheme&) 
+  {
+   BrokenCopy::broken_assign("QNodesOnlyHijackedIntegralScheme");
+  }
+
+ /// Number of integration points of the scheme
+ unsigned nweight() const {return Npts;}
+
+ /// Return coordinate s[j] (j=0) of integration point i
+ double knot(const unsigned &i, const unsigned &j) const {
+    static const double Knot[2][1] = {{-1.0}, {1.0}};
+    return Knot[i][j];
+  }
+
+ /// Return weight of integration point i
+ double weight(const unsigned &i) const {
+  return 0.0;
+   // Weight[i];
+}
+
+};
+
+
+//=========================================================
+/// 2D Gaussian integration class.
+/// 2x2 integration points. This integration scheme can 
+/// integrate up to third-order polynomials exactly and
+/// is therefore a suitable "full" integration scheme
+/// for linear (four-node) elements in which the
+/// highest-order polynomial is quadratic.
+//=========================================================
+template<>
+class QNodesOnlyHijackedIntegralScheme<2,2> : public Integral
+{
+
+private:
+
+ /// Number of integration points in the scheme
+ static const unsigned Npts=4;//=4+4;
+ /// Array to hold the weight and know points (defined in cc file)
+ // static const double Knot[4][2], Weight[4];
+
+public:
+
+
+ /// Default constructor (empty)
+ QNodesOnlyHijackedIntegralScheme(){};
+
+ /// Broken copy constructor
+ QNodesOnlyHijackedIntegralScheme(const QNodesOnlyHijackedIntegralScheme& dummy) 
+  { 
+   BrokenCopy::broken_copy("QNodesOnlyHijackedIntegralScheme");
+  } 
+ 
+ /// Broken assignment operator
+ void operator=(const QNodesOnlyHijackedIntegralScheme&) 
+  {
+   BrokenCopy::broken_assign("QNodesOnlyHijackedIntegralScheme");
+  }
+
+ /// Number of integration points of the scheme
+ unsigned nweight() const {return Npts;}
+
+ /// Return coordinate x[j] of integration point i
+ double knot(const unsigned &i, const unsigned &j) const {
+  static const double Knot[4][2] = {{-1.0,-1.0},
+                                    {1.0,-1.0},
+                                    {-1.0,1.0},
+                                    {1.0,1.0}};
+  return Knot[i][j];
+}
+
+ /// Return weight of integration point i
+ double weight(const unsigned &i) const {return 0.0;
+  // Weight[i];
+}
+};
+
+
+//=========================================================
+/// 3D Gaussian integration class
+/// 2x2x2 integration points. This integration scheme can 
+/// integrate up to third-order polynomials exactly and
+/// is therefore a suitable "full" integration scheme
+/// for linear (eight-node) elements in which the
+/// highest-order polynomial is quadratic.
+//=========================================================
+template<>
+class QNodesOnlyHijackedIntegralScheme<3,2> : public Integral
+{
+  private:
+
+ /// Number of integration points in the scheme
+ static const unsigned Npts=8;//=8+8;
+ /// Array to hold the weights and knots (defined in cc file)
+ // static const double Knot[8][3], Weight[8];
+
+  public:
+
+
+ /// Default constructor (empty)
+ QNodesOnlyHijackedIntegralScheme(){};
+
+ /// Broken copy constructor
+ QNodesOnlyHijackedIntegralScheme(const QNodesOnlyHijackedIntegralScheme& dummy) 
+  { 
+   BrokenCopy::broken_copy("QNodesOnlyHijackedIntegralScheme");
+  } 
+ 
+ /// Broken assignment operator
+ void operator=(const QNodesOnlyHijackedIntegralScheme&) 
+  {
+   BrokenCopy::broken_assign("QNodesOnlyHijackedIntegralScheme");
+  }
+
+ /// Number of integration points of the scheme
+ unsigned nweight() const {return Npts;}
+
+ /// Return coordinate s[j] of integration point i
+ double knot(const unsigned &i, const unsigned &j) const
+  {static const double Knot[8][3] = {{-1, -1, -1},
+                                    {1, -1, -1},
+                                    {-1, 1, -1},
+                                    {1, 1, -1},
+                                    {-1, -1, 1},
+                                    {1, -1, 1},
+                                    {-1, 1, 1},
+                                    {1, 1, 1}};
+    return Knot[i][j];}
+
+ /// Return weight of integration point i
+ double weight(const unsigned &i) const {return 0.0;
+  // Weight[i];
+}
+
+};
+
+//=========================================================
+/// Class for Gaussian integration rules for triangles/tets.
+///
+/// Empty -- just establishes the template parameters
+///
+/// General logic: The template parameters correspond to those
+/// of the TElement family so that the integration scheme
+/// TGaussWithNodes<DIM,NNODE_1D> provides the default ("full") integration
+/// scheme for TElement<DIM,NNODE_1D>. "Full" integration
+/// means that for linear PDEs that are discretised on a uniform 
+/// mesh, all integrals arising in the Galerkin weak form of the PDE
+/// are evaluated exactly. In such problems the highest-order 
+/// polynomials arise from the products of the undifferentiated 
+/// shape and test functions so a three node triangle needs 
+/// an integration scheme that can integrate quadratic
+/// polynomials exactly etc.
+//=========================================================
+template<unsigned DIM, unsigned NPTS_1D>
+class TNodesOnlyHijackedIntegralScheme
+{
+};
+
+
+//=========================================================
+/// 1D Gaussian integration class for linear "triangular" elements.
+/// Two integration points. This integration scheme can 
+/// integrate up to second-order polynomials exactly and
+/// is therefore a suitable "full" integration scheme
+/// for linear (two-node) elements in which the
+/// highest-order polynomial is quadratic.
+//=========================================================
+template<>
+class TNodesOnlyHijackedIntegralScheme<1,2> : public Integral
+{
+  private:
+
+ /// Number of integration points in the scheme
+ static const unsigned Npts=2;
+
+ /// Array to hold the weights and knots (defined in cc file)
+ // static const double Knot[2][1], Weight[2];
+
+  public:
+
+
+ /// Default constructor (empty)
+ TNodesOnlyHijackedIntegralScheme(){};
+
+ /// Broken copy constructor
+ TNodesOnlyHijackedIntegralScheme(const TNodesOnlyHijackedIntegralScheme& dummy) 
+  { 
+   BrokenCopy::broken_copy("TNodesOnlyHijackedIntegralScheme");
+  } 
+ 
+ /// Broken assignment operator
+ void operator=(const TNodesOnlyHijackedIntegralScheme&) 
+  {
+   BrokenCopy::broken_assign("TNodesOnlyHijackedIntegralScheme");
+  }
+ 
+ /// Number of integration points of the scheme
+ unsigned nweight() const {return Npts;}
+
+ /// Return coordinate x[j] of integration point i
+ double knot(const unsigned &i, const unsigned &j) const{
+  static const double Knot[2][1] = {{0.0}, {1.0}};
+  return Knot[i][j];}
+
+ /// Return weight of integration point i
+ double weight(const unsigned &i) const {return 0.0;
+  // Weight[i];
+}
+
+};
+
+
+//=========================================================
+/// 2D Gaussian integration class for linear triangles.
+/// Three integration points. This integration scheme can 
+/// integrate up to second-order polynomials exactly and
+/// is therefore a suitable "full" integration scheme
+/// for linear (three-node) elements in which the
+/// highest-order polynomial is quadratic.
+//=========================================================
+template<>
+class TNodesOnlyHijackedIntegralScheme<2,2> : public Integral
+{
+  private:
+
+ /// Number of integration points in the scheme
+ static const unsigned Npts=3;
+
+ /// Array to hold the weights and knots (defined in cc file)
+ // static const double Knot[3][2], Weight[3];
+
+  public:
+
+
+ /// Default constructor (empty)
+ TNodesOnlyHijackedIntegralScheme(){};
+
+ /// Broken copy constructor
+ TNodesOnlyHijackedIntegralScheme(const TNodesOnlyHijackedIntegralScheme& dummy) 
+  { 
+   BrokenCopy::broken_copy("TNodesOnlyHijackedIntegralScheme");
+  } 
+ 
+ /// Broken assignment operator
+ void operator=(const TNodesOnlyHijackedIntegralScheme&) 
+  {
+   BrokenCopy::broken_assign("TNodesOnlyHijackedIntegralScheme");
+  }
+ 
+ /// Number of integration points of the scheme
+ unsigned nweight() const {return Npts;}
+
+ /// Return coordinate x[j] of integration point i
+ double knot(const unsigned &i, const unsigned &j) const{
+  static const double Knot[3][2] = {{0.0,0.0}, {1.0,0.0}, {0.0,1.0}};
+  return Knot[i][j];
+ }
+
+ /// Return weight of integration point i
+ double weight(const unsigned &i) const {return 0.0;
+  // Weight[i];
+}
+
+};
+
+//=========================================================
+/// 3D Gaussian integration class for tets.
+/// Four integration points. This integration scheme can 
+/// integrate up to second-order polynomials exactly and
+/// is therefore a suitable "full" integration scheme
+/// for linear (four-node) elements in which the
+/// highest-order polynomial is quadratic.
+//=========================================================
+template<>
+class TNodesOnlyHijackedIntegralScheme<3,2> : public Integral
+{
+  private:
+
+ /// Number of integration points in the scheme
+ static const unsigned Npts=4;
+ /// Array to hold the weights and knots (defined in cc file)
+ static const double Knot[4][3], Weight[4];
+
+  public:
+
+
+ /// Default constructor (empty)
+ TNodesOnlyHijackedIntegralScheme(){};
+
+ /// Broken copy constructor
+ TNodesOnlyHijackedIntegralScheme(const TNodesOnlyHijackedIntegralScheme& dummy) 
+  { 
+   BrokenCopy::broken_copy("TNodesOnlyHijackedIntegralScheme");
+  } 
+ 
+ /// Broken assignment operator
+ void operator=(const TNodesOnlyHijackedIntegralScheme&) 
+  {
+   BrokenCopy::broken_assign("TNodesOnlyHijackedIntegralScheme");
+  }
+
+ /// Number of integration points of the scheme
+ unsigned nweight() const {return Npts;}
+
+ /// Return coordinate x[j] of integration point i
+ double knot(const unsigned &i, const unsigned &j) const{
+    static const double Knot[4][3] = {{0.0,0.0,0.0},
+                                      {1.0,0.0,0.0},
+                                      {0.0,1.0,0.0},
+                                      {0.0,0.0,1.0}};
+    return Knot[i][j];}
+
+ /// Return weight of integration point i
+ double weight(const unsigned &i) const {return 0.0;
+  // Weight[i];
+ }
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+//=============================================================================
+/// Broken pseudo-integration scheme for points elements: Iit's not clear
+/// in general what this integration scheme is supposed to. It probably
+/// ought to evaluate integrals to zero but we're not sure in what
+/// context this may be used. Replace by your own integration scheme
+/// that does what you want! 
+//=============================================================================
+// class PointIntegralWithNodes;
+
 class PointIntegralWithNodes : public Integral
 {
 
@@ -145,7 +582,7 @@ public:
  /// Return weight of integration point i
  double weight(const unsigned &i) const {return Weight[i];}
 
-}; 
+};
 
 //=========================================================
 /// 1D Gaussian integration class.
@@ -1539,8 +1976,6 @@ GaussLegendreWithNodes<3,NPTS_1D>::GaussLegendreWithNodes()
      }
    }
 }
-
-
 
 
 }

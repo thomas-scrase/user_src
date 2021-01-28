@@ -49,11 +49,11 @@ namespace oomph{
 		/// the diff function might be determined by
 		/// another system of equations 
 		inline virtual void get_diff_monodomain(const unsigned& ipt,
-		                                            const Vector<double> &s,
-		                                            const Vector<double>& x,
-		                                            DenseMatrix<double>& D) const
+	                                            const Vector<double> &s,
+	                                            const Vector<double>& x,
+	                                            DenseMatrix<double>& D) const
 		{
-			//If no diff function has been set, return identity for the lols
+			//If no diff function has been set, return identity
 			if(Diff_fct_pt==0){
 				for(unsigned i=0; i<DIM; i++){
 					for(unsigned j=0; j<DIM; j++){
@@ -189,8 +189,62 @@ namespace oomph{
 
 	 /// \short Output function:  
 	 ///  x,y,u   or    x,y,z,u at n_plot^DIM plot points
-	 void output(std::ostream &outfile, const unsigned &n_plot)
-	  {BaseCellMembranePotentialEquations<DIM>::output(outfile,n_plot);}
+	 void output(std::ostream &outfile, const unsigned &nplot) override
+	 {
+	 	// std::cout << "BOOM\nBOOM\nBOOM\nBOOM\nBOOM" << std::endl;
+		//Vector of local coordinates
+		Vector<double> s(DIM);
+
+		// Tecplot header info
+		outfile << this->tecplot_zone_string(nplot);
+
+		const unsigned n_node = this->nnode();
+		const unsigned vm_index = this->vm_index_BaseCellMembranePotential();
+		// std::cout << "n_node " << n_node << std::endl;
+		Shape psi(n_node);
+		DShape dpsidx(n_node,DIM);
+
+		// Loop over plot points
+		unsigned num_plot_points=this->nplot_points(nplot);
+		for (unsigned iplot=0;iplot<num_plot_points;iplot++){
+			// Get local coordinates of plot point
+			this->get_s_plot(iplot,nplot,s);
+
+			// Get Eulerian coordinate of plot point
+			Vector<double> x(DIM);
+			this->interpolated_x(s,x);
+
+			for(unsigned i=0;i<DIM;i++) {outfile << x[i] << " ";}
+			outfile << this->interpolated_vm_BaseCellMembranePotential(s) << " ";
+
+			//Get the gradients
+			(void)this->dshape_eulerian(s,psi,dpsidx);
+			Vector<double> interpolated_dvmdx(DIM,0.0);
+			double dvmdt = 0.0;
+			for(unsigned n=0;n<n_node;n++){
+				const double vm_ = this->nodal_value(n,vm_index);
+				dvmdt += this->dvm_dt_BaseCellMembranePotential(n)*psi(n);
+				for(unsigned i=0;i<DIM;i++){interpolated_dvmdx[i] += vm_*dpsidx(n,i);}
+			}
+
+			outfile << dvmdt << " ";
+
+			for(unsigned i=0;i<DIM;i++){outfile << interpolated_dvmdx[i]  << " ";}
+
+			//Get diffusivity tensor
+			DenseMatrix<double> D(DIM,DIM,0.0);
+			this->get_diff_monodomain(iplot,s,x,D);
+			for(unsigned i=0; i<DIM; i++){
+				for(unsigned j=0; j<=i; j++){
+					outfile << D(i,j) << " ";
+				}
+			}
+
+			outfile  << std::endl;
+		}
+		// Write tecplot footer (e.g. FE connectivity lists)
+		this->write_tecplot_zone_footer(outfile,nplot);
+	}
 
 
 	 /// \short C-style output function:  
@@ -588,241 +642,6 @@ namespace oomph{
 	 FaceGeometry() : PointElement() {}
 
 	};
-
-
-	/////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////
-	// PointMonodomainElement
-	////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////
-
-
-	// //======================================================================
-	// /// \short PointMonodomainElement elements are isoparametric triangular 
-	// /// DIM-dimensional General Advection Diffusion Equations with.
-	// /// Inherits from PointElement and MonodomainEquations
-	// //======================================================================
-	// template <unsigned DIM>
-	//  class PointMonodomainElement : 
-	//  public virtual PointElement,
-	//  public virtual MonodomainEquations<DIM>
-	// {
-
-	// private:
-
-	//  /// \short Static array of ints to hold number of variables at 
-	//  /// nodes: Initial_Nvalue[n]
-	//  static const unsigned Initial_Nvalue;
-	 
-	//   public:
-
-
-	//  ///\short  Constructor: Call constructors for PointElement and 
-	//  /// Advection Diffusion equations
-	//  PointMonodomainElement() : PointElement(), 
-	//   MonodomainEquations<DIM>()
-	//   { }
-
-	//  /// Broken copy constructor
-	//  PointMonodomainElement(
-	//   const PointMonodomainElement<DIM>&  dummy) 
-	//   { 
-	//    BrokenCopy::broken_copy("PointMonodomainElement");
-	//   } 
-	 
-	//  /// Broken assignment operator
-	//  void operator=(const PointMonodomainElement<DIM>&) 
-	//   {
-	//    BrokenCopy::broken_assign("PointMonodomainElement");
-	//   }
-
-	//  /// \short  Required  # of `values' (pinned or dofs) 
-	//  /// at node n
-	//  inline unsigned required_nvalue(const unsigned &n) const 
-	//   {return Initial_Nvalue;}
-
-	//  /// \short Output function:  
-	//  ///  x,y,u   or    x,y,z,u
-	//  void output(std::ostream &outfile)
-	//   {BaseCellMembranePotentialEquations<DIM>::output(outfile);}
-
-	//  /// \short Output function:  
-	//  ///  x,y,u   or    x,y,z,u at n_plot^DIM plot points
-	//  void output(std::ostream &outfile, const unsigned &n_plot)
-	//   {BaseCellMembranePotentialEquations<DIM>::output(outfile,n_plot);}
-
-
-	//  /// \short C-style output function:  
-	//  ///  x,y,u   or    x,y,z,u
-	//  void output(FILE* file_pt)
-	//   {
-	//    BaseCellMembranePotentialEquations<DIM>::output(file_pt);
-	//   }
-
-	//  ///  \short C-style output function:  
-	//  ///   x,y,u   or    x,y,z,u at n_plot^DIM plot points
-	//  void output(FILE* file_pt, const unsigned &n_plot)
-	//   {
-	//    BaseCellMembranePotentialEquations<DIM>::output(file_pt,n_plot);
-	//   }
-
-	//  /// \short Output function for an exact solution:
-	//  ///  x,y,u_exact   or    x,y,z,u_exact at n_plot^DIM plot points
-	//  void output_fct(std::ostream &outfile, const unsigned &n_plot,
-	//                  FiniteElement::SteadyExactSolutionFctPt 
-	//                  exact_soln_pt)
-	//   {BaseCellMembranePotentialEquations<DIM>::output_fct(outfile,n_plot,exact_soln_pt);}
-
-
-	//  /// \short Output function for a time-dependent exact solution.
-	//  ///  x,y,u_exact   or    x,y,z,u_exact at n_plot^DIM plot points
-	//  /// (Calls the steady version)
-	//  void output_fct(std::ostream &outfile, const unsigned &n_plot,
-	//                  const double& time,
-	//                  FiniteElement::UnsteadyExactSolutionFctPt 
-	//                  exact_soln_pt)
-	//   {
-	//    BaseCellMembranePotentialEquations<DIM>::output_fct(outfile,n_plot,time,exact_soln_pt);
-	//   }
-
-
-	// protected:
-
-	//  /// Shape, test functions & derivs. w.r.t. to global coords. Return Jacobian.
-	//  inline double dshape_and_dtest_eulerian_BaseCellMembranePotential(
-	//   const Vector<double> &s, 
-	//   Shape &psi, 
-	//   DShape &dpsidx, 
-	//   Shape &test, 
-	//   DShape &dtestdx) const;
-	 
-	//  /// \short Shape, test functions & derivs. w.r.t. to global coords. at
-	//  /// integration point ipt. Return Jacobian.
-	//  inline double dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(
-	//   const unsigned& ipt,
-	//   Shape &psi, 
-	//   DShape &dpsidx, 
-	//   Shape &test,
-	//   DShape &dtestdx) 
-	//   const;
-
-	// };
-
-	// //Inline functions:
-
-
-	// //======================================================================
-	// /// \short Define the shape functions and test functions and derivatives
-	// /// w.r.t. global coordinates and return Jacobian of mapping.
-	// ///
-	// /// Galerkin: Test functions = shape functions
-	// //======================================================================
-	// template<unsigned DIM>
-	// double PointMonodomainElement<DIM>::
-	//  dshape_and_dtest_eulerian_BaseCellMembranePotential(const Vector<double> &s,
-	//                                          Shape &psi, 
-	//                                          DShape &dpsidx,
-	//                                          Shape &test, 
-	//                                          DShape &dtestdx) const
-	// {
-	//  //Call the geometrical shape functions and derivatives  
-	//  double J = this->dshape_eulerian(s,psi,dpsidx);
-
-	//  //Loop over the test functions and derivatives and set them equal to the
-	//  //shape functions
-	//  // for(unsigned i=0;i<NNODE_1D;i++)
-	//  //  {
-	//  //   test[i] = psi[i]; 
-	//  //   for(unsigned j=0;j<DIM;j++)
-	//  //    {
-	//  //     dtestdx(i,j) = dpsidx(i,j);
-	//  //    }
-	//  //  }
-	//  test[0] = 1.0;
-	//  dtestdx(0,0) = 0.0;
-	 
-	//  //Return the jacobian
-	//  return J;
-	// }
-
-
-
-	// //======================================================================
-	// /// Define the shape functions and test functions and derivatives
-	// /// w.r.t. global coordinates and return Jacobian of mapping.
-	// ///
-	// /// Galerkin: Test functions = shape functions
-	// //======================================================================
-	// template<unsigned DIM>
-	// double PointMonodomainElement<DIM>::
-	//  dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(
-	//  const unsigned &ipt,
-	//  Shape &psi, 
-	//  DShape &dpsidx,
-	//  Shape &test, 
-	//  DShape &dtestdx) const
-	// {
-	//  //Call the geometrical shape functions and derivatives  
-	//  double J = this->dshape_eulerian_at_knot(ipt,psi,dpsidx);
-
-	//  //Set the test functions equal to the shape functions (pointer copy)
-	//  test = psi;
-	//  dtestdx = dpsidx;
-
-	//  //Return the jacobian
-	//  return J;
-	// }
-
-
-	// ////////////////////////////////////////////////////////////////////////
-	// ////////////////////////////////////////////////////////////////////////
-	// ////////////////////////////////////////////////////////////////////////
-
-
-
-	// //=======================================================================
-	// /// \short Face geometry for the PointMonodomainElement elements: 
-	// /// The spatial dimension of the face elements is one lower than that 
-	// /// of the bulk element but they have the same number of points along 
-	// /// their 1D edges.
-	// //=======================================================================
-	// template<unsigned DIM>
-	// class FaceGeometry<PointMonodomainElement<DIM> >: 
-	//  public virtual PointElement
-	// {
-
-	//   public:
-	 
-	//  /// \short Constructor: Call the constructor for the
-	//  /// appropriate lower-dimensional PointElement
-	//  FaceGeometry() : PointElement() {}
-
-	// };
-
-
-
-	// ////////////////////////////////////////////////////////////////////////
-	// ////////////////////////////////////////////////////////////////////////
-	// ////////////////////////////////////////////////////////////////////////
-
-
-	// //=======================================================================
-	// /// Face geometry for the 1D PointMonodomainElement: Point elements
-	// //=======================================================================
-	// template<>
-	// class FaceGeometry<PointMonodomainElement<1> >: 
-	//  public virtual PointElement
-	// {
-
-	//   public:
-	 
-	//  /// \short Constructor: Call the constructor for the
-	//  /// appropriate lower-dimensional PointElement
-	//  FaceGeometry() : PointElement() {}
-
-	// };
-
-
 }
 
 

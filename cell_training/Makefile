@@ -248,13 +248,13 @@ BLACS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/mumps_and_sca
 BLAS_LIB = 
 CC = mpicc
 CCDEPMODE = depmode=gcc3
-CFLAGS = -O3
+CFLAGS = -O0
 CPP = mpicc -E
 CPPFLAGS = 
 CXX = mpic++
 CXXCPP = mpic++ -E
 CXXDEPMODE = depmode=gcc3
-CXXFLAGS = -O3 -DPARANOID -DRANGE_CHECKING -Wall
+CXXFLAGS = -O0 -DPARANOID -DRANGE_CHECKING -Wall -g
 CXXLD = $(CXX)
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
@@ -271,7 +271,7 @@ EXTERNAL_LIBS = -lHYPRE -lml -lifpack -lamesos -lanasazi -laztecoo -lepetraext -
 F77 = mpif77
 FC = gfortran
 FCFLAGS = -g -O2
-FFLAGS = -O3
+FFLAGS = -O0
 FFLAGS_NO_OPT = -O0
 FGREP = /bin/grep -F
 FLIBS =  -L/usr//lib -L/usr/lib/x86_64-linux-gnu/openmpi/lib -L/usr/lib/gcc/x86_64-linux-gnu/7 -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/7/../../.. -lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi -lgfortran -lm -lquadmath -lpthread
@@ -332,7 +332,7 @@ SHELL = /bin/bash
 STRIP = strip
 TRILINOS_INCLUDE = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/include
 TRILINOS_LIB = /home/thomas/oomph-lib-1.0.1306/external_distributions/trilinos/trilinos_default_installation/lib
-USER_DRIVERS_SUBDIRECTORIES = KCNQ1_antibodies/ cardiac_tissue_without_cells_test/ cell_model_test/ full_tissue_test/ monodomain/ multiphysics_test/ single_cell_analysis/ tissuedeformation/
+USER_DRIVERS_SUBDIRECTORIES = KCNQ1_antibodies/ SecondYearProgression/ cardiac_tissue_without_cells_test/ cell_model_test/ full_tissue_test/ monodomain/ multiphysics_test/ single_cell_analysis/ testoptimisation/ tissuedeformation/ towards_blood_flow_in_chambers/
 USER_SRC_SUBDIRECTORIES = anisotropic_constitutive/ anisotropic_solid/ cell_interface/ cell_membrane_potential/ cell_model/ cell_training/ component_multiphysics/ toms_utilities/
 VERSION = 1.0.0000
 abs_builddir = /home/thomas/oomph-lib-1.0.1306/user_src/cell_training
@@ -406,8 +406,9 @@ optimisation_elements.cc
 # Define the headers
 headers = \
 meta_problem_class.h \
-trainable_cell_class.h \
-optimisation_elements.h
+trainable_element.h \
+optimisation_elements.h \
+sub_problem_class.h
 
 
 # Define name of library
