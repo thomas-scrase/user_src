@@ -31,6 +31,10 @@ public:
 
 	NelderMeadOptimisation(){
 		Acceptable_Edge_Length = Default_Acceptable_Edge_Length;
+		alpha = 1.0;
+		gamma = 2.0;
+		rho = 0.5;
+		sigma = 0.5;
 	}
 
 	~NelderMeadOptimisation();
@@ -41,13 +45,14 @@ public:
 	void set_simplex_value(const unsigned& node, const unsigned& var, const double& value);
 
 	//run the nelder-mead simplex algorithm until convergence
-	void run_algorithm(std::ostream &outfile);
+	void run_algorithm(std::ostream &outfile,
+						std::ostream &raw_data_outfile);
 
 	//Add a trainable problem 
 	void add_trainable_problem(TrainableProblem& sub_prob_pt);
 
 	//report on the nodes
-	void output(const unsigned &iteration, Vector<double> &Node_Qualities, std::ostream &outfile);
+	void output(const unsigned &iteration, Vector<double> &Node_Fitnesses, std::ostream &outfile);
 
 	double n_variables() const {return N_Variables;}
 
@@ -55,11 +60,38 @@ public:
 	void set_acceptable_edge_length(const double &new_acceptable_edge_length){Acceptable_Edge_Length = new_acceptable_edge_length;}
 
 
+	void set_minimum_permitted_value(const Vector<double> &val){
+		if(val.size()!=N_Variables){std::cout << "Length of vector is not the right size" << std::endl; exit(0);}
+		for(unsigned i=0; i<N_Variables; i++){
+			Minimum_Permitted_Values[i] = val[i];
+		}
+	}
+	void set_maximum_permitted_value(const Vector<double> &val){
+		if(val.size()!=N_Variables){std::cout << "Length of vector is not the right size" << std::endl; exit(0);}
+		for(unsigned i=0; i<N_Variables; i++){
+			Maximum_Permitted_Values[i] = val[i];
+		}
+	}
+
+	void set_minimum_permitted_value(const double &val){
+		for(unsigned i=0; i<N_Variables; i++){
+			Minimum_Permitted_Values[i] = val;
+		}
+	}
+	void set_maximum_permitted_value(const double &val){
+		for(unsigned i=0; i<N_Variables; i++){
+			Maximum_Permitted_Values[i] = val;
+		}
+	}
+
+
 protected:
 
 
 
 private:
+
+	void check_node_for_forbidden_values(Vector<double> &node);
 
 	double termination_tolerance(){return Acceptable_Edge_Length;}
 
@@ -72,9 +104,11 @@ private:
 	//send a particular optimisation element to all dependent trainable elements
 	void push_optimisation_element_to_dependent_elements(Vector<double> &node);
 
-	void evaluate_quality_of_simplex();
+	void evaluate_fitness_of_simplex(std::ostream &raw_data_outfile);
 
-	void evaluate_quality_of_node(Vector<double> &node, double &quality);
+	void evaluate_fitness_of_node(Vector<double> &node,
+									double &fitness,
+									std::ostream &raw_data_outfile);
 
 	double simplex_maximum_edge_length();
 
@@ -89,9 +123,11 @@ private:
 	void replace_node(Vector<double> &node, Vector<double> &replacement_node);
 
 	void output(const Vector<double> &x, std::ostream &outfile){
+		outfile << "( ";
 		for(unsigned i=0; i<N_Variables; i++){
 			outfile << x[i] << " ";
 		}
+		outfile << ")";
 	}
 
 	//Optimisation equations used as a container for each node of the simplex
@@ -100,23 +136,224 @@ private:
 
 	Vector<Vector<double>> Simplex;
 
-	Vector<double> Node_Qualities;
+	Vector<double> Node_Fitnesses;
 
 	Vector<TrainableProblem*> Trainable_Problem_Pts;
 
 	Vector<TrainableElement*> Dependent_Elements;
 
 	//Parameters for operation of the simplex algorithm
-	double alpha = 1.0;
-	double gamma = 2.0;
-	double rho = 0.5;
-	double sigma = 0.5;
+	double alpha;
+	double gamma;
+	double rho;
+	double sigma;
 
 	//The convergence tolerance
 	double Acceptable_Edge_Length;
 	//And it's default value
 	static double Default_Acceptable_Edge_Length;
+
+	unsigned Evaluations_performed;
+
+
+	//Strongly applied boundaries
+	double Default_Minimum_Permitted_Value;
+	double Default_Maximum_Permitted_Value;
+
+	Vector<double> Minimum_Permitted_Values;
+	Vector<double> Maximum_Permitted_Values;
 };
+
+
+
+
+
+
+
+class GradientDescentOptimisation{
+public:
+
+	GradientDescentOptimisation(){
+		N_Variables = 0;
+
+		Convergence_Test_Constant = 1e-4;
+
+		Finite_Difference_Step = 1e-9;
+	}
+
+	//Setup the simplex, construct n+1 optimisation equations each with n internal data
+	void setup_optimisation(const unsigned &n_values);
+
+	void set_initial_position(const Vector<double>& v_0);
+
+	//run the gradient descent algorithm until convergence
+	void run_algorithm(std::ostream &outfile,
+						std::ostream &raw_data_outfile);
+
+	//Add a trainable problem 
+	void add_trainable_problem(TrainableProblem& trainable_problem){
+		Trainable_Problem_Pts.push_back(&trainable_problem);
+	}
+
+	void set_convergence_test_constant(const double& val){
+		Convergence_Test_Constant = val;
+	}
+
+	void set_finite_difference_step(const double& val){
+		Finite_Difference_Step = val;
+	}
+
+private:
+
+	void push_optimisation_element_to_dependent_elements(Vector<double> &node);
+
+	//add all trainable elements from all trainable problems
+	void evaluate_fitness_of_point(Vector<double>& point,
+									double& fitness,
+									std::ostream &raw_data_outfile);
+
+	void add_trainable_element_as_dependent(TrainableElement* dependent_element);
+	void add_all_trainable_elements_from_trainable_problems_as_dependents();
+
+	void evaluate_fitness_of_current_point(std::ostream &raw_data_outfile);
+
+	Vector<Vector<double>>  History_Points;
+
+	Vector<double> History_Fitness;
+
+	Vector<Vector<double>>  History_Gradients;
+
+	Vector<double> Current_Point;
+
+	double Current_Fitness;
+
+	Vector<TrainableProblem*> Trainable_Problem_Pts;
+
+	Vector<TrainableElement*> Dependent_Elements;
+
+	//The largest value of F(x_n+1)-F(x_n) which
+	//	terminates the program
+	double Convergence_Test_Constant;
+
+	double Finite_Difference_Step;
+
+	unsigned N_Variables;
+};
+
+
+class ParticleSwarmOptimisation{
+public:
+
+	ParticleSwarmOptimisation()
+	{
+		N_Variables = 0;
+	}
+
+	//Setup the simplex, construct n+1 optimisation equations each with n internal data
+	void setup_optimisation(const unsigned &n_variables, const unsigned &n_swarm,
+							const Vector<double>& centre, const double& radius,
+							const unsigned &max_iters = 10, const uint64_t &random_seed = 0xa1b2c3d4e5f6,
+							const double &w = 1.0, const double &c1 = 2.025, const double &c2 = 2.025);
+
+	//run the nelder-mead simplex algorithm until convergence
+	void run_algorithm(std::ostream &outfile,
+						std::ostream &raw_data_outfile);
+
+	//Add a trainable problem 
+	void add_trainable_problem(TrainableProblem& trainable_problem){
+		Trainable_Problem_Pts.push_back(&trainable_problem);
+	}
+
+	//report on the nodes
+	void output(const unsigned &iteration, Vector<double> &Node_Fitnesses, std::ostream &outfile){}
+
+private:
+
+	//add dependent element
+	void add_trainable_element_as_dependent(TrainableElement* dependent_element){
+		Dependent_Elements.push_back(dependent_element);
+	}
+
+	//add all trainable elements from all trainable problems
+	void add_all_trainable_elements_from_trainable_problems_as_dependents(){
+		//loop over the sub problems
+		for(unsigned i=0; i< Trainable_Problem_Pts.size(); i++){
+			//a temporary vector
+			Vector<TrainableElement*> trainable_elements_from_sub_problem;
+			//get the list of trainable elements from the problem
+			Trainable_Problem_Pts[i]->get_all_trainable_elements(trainable_elements_from_sub_problem);
+			//loop over the elements
+			for(unsigned j=0; j<trainable_elements_from_sub_problem.size(); j++){
+				//add them all
+				add_trainable_element_as_dependent(trainable_elements_from_sub_problem[j]);
+			}
+		}
+	}
+
+	//send a particular optimisation element to all dependent trainable elements
+	void push_optimisation_element_to_dependent_elements(const unsigned &particle){
+		for(unsigned i=0; i<Dependent_Elements.size(); i++){
+			Dependent_Elements[i]->set_parameter_source_pt(Current_Swarm[particle]);
+		}
+	}
+
+	void evaluate_fitness_of_particle(const unsigned &particle,
+									double &fitness,
+									std::ostream &raw_data_outfile){
+		//push the particle to all dependent elements
+		push_optimisation_element_to_dependent_elements(particle);
+		//condense the residuals from each trainable problem into
+		//	a single number and pass it to fitness
+		for(unsigned i=0; i<Trainable_Problem_Pts.size(); i++){
+			fitness += Trainable_Problem_Pts[i]->run();
+		}
+
+		//So it's easy to match run number with output from sub problems
+		raw_data_outfile << Evaluations_performed << "\t\t";
+		for(unsigned var=0; var<N_Variables; var++){
+			raw_data_outfile << Current_Swarm[particle][var] << " ";
+		}
+		raw_data_outfile << fitness << std::endl;
+
+		Evaluations_performed++;
+	}
+
+	double W;
+	double C1;
+	double C2;
+
+	unsigned Max_Iters;
+
+	unsigned Evaluations_performed;
+
+	Vector<TrainableProblem*> Trainable_Problem_Pts;
+
+	Vector<TrainableElement*> Dependent_Elements;
+
+	uint64_t Random_Seed;
+
+	//The number of particles in the swarm
+	unsigned N_Swarm;
+
+	//The number of variables we are fitting to
+	unsigned N_Variables;
+
+	//The values defining the N_Ball
+	Vector<double> N_Ball_Centre;
+	double N_Ball_Radius;
+
+	//The coordinates of the current swarm
+	std::vector<Vector<double>> Current_Swarm;
+	
+	//The previous coordinates held by particles in the swarm
+	//	N_Swarm, Previous time, Coordinates
+	std::vector<std::vector<Vector<double>>> Previous_Swarm; 
+	//The previous fitnesses of the particles in the swarm
+	//	N_Swarm, Previous time
+	std::vector<Vector<double>> Previous_Fitness;
+};
+
+
 
 }//end namespace
 

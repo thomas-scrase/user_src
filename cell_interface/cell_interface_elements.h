@@ -1214,8 +1214,8 @@ namespace oomph
 
 
 	//Bidomain Single cell element
-	//Does not inherit from Bidomain equations
-	//	it's more efficient to just reimplement it
+	//In the limit of a point the Bidomain equations simplify down to the Monodomain equations
+	// so we don't need to make a bidomain version
 
 
 
@@ -1245,8 +1245,6 @@ namespace oomph
 		// {return Point_Monodomain_Source_fct_pt;}
 
 		CellModelBase* const & cell_model_pt() const{
-			// std::cout << "BOOM" << std::endl;
-			// std::cout << "BOOM" << ipt_not_at_nodes << std::endl;
 			#ifdef PARANOID
 			if(Cell_Model_pt==nullptr){
 				//throw an error			    
@@ -1411,6 +1409,10 @@ namespace oomph
 		Vector<double> Custom_Output_Vect;
 	};
 
+
+	//Fast Bidomain Single cell
+	//In the limit of a point the Bidomain equations simplify down to the Monodomain equations
+	// so we don't need to make a bidomain version
 
 //Namespace, helper functions for dealing with cell interface elements
 namespace Oomph_Cell_Interface_Helpers

@@ -375,19 +375,4 @@ namespace oomph{
   template class TBidomainElement<3,2>;
   template class TBidomainElement<3,3>;
 
-
-
-  /////////////////////////////////////////////////////////////////////////
-  // PointMonodomainElement
-  /////////////////////////////////////////////////////////////////////////
-
-
-  //====================================================================
-  // Force build of templates
-  //====================================================================
-  // template class PointMonodomainElement<1>;
-  // template class PointMonodomainElement<2>;
-  // template class PointMonodomainElement<3>;
-
-
 }

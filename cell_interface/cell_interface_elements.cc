@@ -311,6 +311,35 @@ namespace oomph
 	template class PointCellInterfaceElement<3,34>;
 
 
+	//Force build for the TNNP with Rice myofilament and markov iks cell model
+	template class QCellInterfaceElement<1,50,2>;
+	template class QCellInterfaceElement<1,50,3>;
+	// template class QCellInterfaceElement<1,50,4>;
+
+	template class QCellInterfaceElement<2,50,2>;
+	template class QCellInterfaceElement<2,50,3>;
+	// template class QCellInterfaceElement<2,50,4>;
+
+	template class QCellInterfaceElement<3,50,2>;
+	template class QCellInterfaceElement<3,50,3>;
+	// template class QCellInterfaceElement<3,50,4>;
+
+
+	template class TCellInterfaceElement<1,50,2>;
+	template class TCellInterfaceElement<1,50,3>;
+	// template class TCellInterfaceElement<1,50,4>;
+
+	template class TCellInterfaceElement<2,50,2>;
+	template class TCellInterfaceElement<2,50,3>;
+	// template class TCellInterfaceElement<2,50,4>;
+
+	template class TCellInterfaceElement<3,50,2>;
+	template class TCellInterfaceElement<3,50,3>;
+	// template class TCellInterfaceElement<3,50,4>;
+
+	template class PointCellInterfaceElement<1,50>;
+	template class PointCellInterfaceElement<2,50>;
+	template class PointCellInterfaceElement<3,50>;
 
 
 	//Force build for the 1D variable cell models
