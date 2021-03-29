@@ -48,11 +48,11 @@
 // Web: http://rudylab.wustl.edu
 // 
 
-#include "Explicit_OHaraRudy_Vent.h"
+#include "Explicit_OHaraRudy_Vent_MarkovChain_IKs.h"
 
 namespace oomph{
 
-ExplicitOHaraRudyVent::ExplicitOHaraRudyVent() : CellModelBase(){
+ExplicitOHaraRudyVentMarkovChainIKs::ExplicitOHaraRudyVentMarkovChainIKs() : CellModelBase(){
 	Intrinsic_dt = 0.02;
 
 	//constants
@@ -83,6 +83,7 @@ ExplicitOHaraRudyVent::ExplicitOHaraRudyVent() : CellModelBase(){
 	R=8314.0;
 	T=310.0;
 	F=96485.0;
+	FNORT=F/(R*T);
 
 	//cell geometry
 	L=0.01;
@@ -98,7 +99,7 @@ ExplicitOHaraRudyVent::ExplicitOHaraRudyVent() : CellModelBase(){
 	vss=0.02*vcell;
 }
 
-bool ExplicitOHaraRudyVent::compatible_cell_types(const unsigned& cell_type){
+bool ExplicitOHaraRudyVentMarkovChainIKs::compatible_cell_types(const unsigned& cell_type){
 	//Model is written for endo mcell endo with no distinction between left
 	//	and right ventricles. Choose to use left ventricle identifiers.
 	switch(cell_type){
@@ -110,17 +111,38 @@ bool ExplicitOHaraRudyVent::compatible_cell_types(const unsigned& cell_type){
 }
 
 //return the initial membrane potential for the cell_typeth cell type
-inline void ExplicitOHaraRudyVent::return_initial_membrane_potential(double &v, const unsigned &cell_type){
-	v = -87.5;
+inline void ExplicitOHaraRudyVentMarkovChainIKs::return_initial_membrane_potential(double &v, const unsigned &cell_type){
+	double Vars[6] = {
+		-87.8151, 
+		-87.6416,
+		-87.8994,
+		-87.8453,
+		-87.7917,
+		-87.738
+	};
+	v = Vars[cell_type-100];
 }
 
 //Return the initial condition for the nth variable and cell_typeth cell type
-inline bool ExplicitOHaraRudyVent::return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type){
-	double Vars[40] = {
-		7.0, 7.0, 145.0, 145.0, 1.0e-4, 1.0e-4, 1.2, 1.2, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
-		1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0};
-
-	if(n>=0 && n<=40 && cell_type>=100 && cell_type<=102){v = Vars[n]; return true;}
+inline bool ExplicitOHaraRudyVentMarkovChainIKs::return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type){
+	//ExplicitOHaraRudyVentMCIKs_ICs, from timestep 0.02ms, and S1 protocol of 50 of length 1000ms.
+	// Stimulus was of strength -200, with a duration of 0.5ms
+	double Vars[6][55] = 
+	{
+		//Cell Type 100
+		{7.13956, 7.13963, 144.077, 144.077, 7.94538e-05, 7.81862e-05, 2.0638, 2.02481, 0.0074834, 0.691598, 0.691589, 0.691533, 0.447377, 0.691494, 0.000195062, 0.497131, 0.270499, 0.00101378, 0.999539, 0.999529, 0.000516553, 0.999539, 0.999537, 2.44648e-09, 1, 0.915013, 1, 0.999857, 0.99998, 0.00200126, 1, 1, 8.27624e-06, 0.440429, 0.000213079, 1.19847e-06, 0.00124662, 0.0214874, 0.13908, 0.400963, 0.435117, 7.21118e-06, 9.9613e-05, 0.000498621, 0.00104412, 2.49651e-07, 9.31923e-06, 0.00012992, 1.08147e-06, 6.33196e-05, 3.84848e-05, 0.996808, 4.86248e-07, 6.07748e-07, 0.0142741},
+		//Cell Type 101
+		{7.72052, 7.72062, 143.515, 143.515, 8.80981e-05, 8.63278e-05, 1.83581, 1.75845, 0.00761503, 0.685487, 0.685463, 0.685327, 0.440291, 0.685232, 0.000201594, 0.479395, 0.238926, 0.00102571, 0.999525, 0.532361, 0.000522632, 0.999525, 0.577427, 2.5489e-09, 1, 0.852147, 1, 0.99935, 0.999913, 0.00292749, 1, 1, 9.17279e-06, 0.508732, 0.00101879, 5.76412e-06, 0.000817917, 0.0159474, 0.116981, 0.383379, 0.475582, 1.27429e-05, 0.00021066, 0.0013127, 0.00357001, 1.18399e-06, 4.46513e-05, 0.000622305, 5.19178e-06, 0.000303214, 0.000184241, 0.996853, 1.49028e-06, 1.86198e-06, 0.0225784},
+		//Cell Type 102
+		{6.79241, 6.79249, 144.549, 144.549, 8.19533e-05, 8.09211e-05, 1.51851, 1.47792, 0.00742021, 0.694546, 0.694531, 0.694447, 0.450785, 0.69439, 0.000191963, 0.498089, 0.26774, 0.00100804, 0.999546, 0.589104, 0.000513624, 0.999546, 0.641365, 2.3982e-09, 1, 0.909048, 1, 0.999806, 0.999976, 0.00228429, 1, 1, 8.1979e-06, 0.454561, 0.000274334, 1.53857e-06, 0.00118188, 0.0206974, 0.136141, 0.399009, 0.440477, 7.58651e-06, 0.000107622, 0.000558691, 0.00123258, 3.18347e-07, 1.19582e-05, 0.000167091, 1.38978e-06, 8.14647e-05, 4.95181e-05, 0.996787, 2.02689e-07, 2.53214e-07, 0.0104987},
+		//Cell Type 103
+		{6.75213, 6.7522, 144.288, 144.288, 8.19084e-05, 8.08766e-05, 1.51757, 1.47696, 0.00746067, 0.692658, 0.692642, 0.692558, 0.448586, 0.692501, 0.000193945, 0.496268, 0.266271, 0.00101172, 0.999542, 0.588477, 0.000515501, 0.999542, 0.640506, 2.42906e-09, 1, 0.908701, 1, 0.999805, 0.999976, 0.00227947, 1, 1, 8.26569e-06, 0.455584, 0.000278295, 1.56366e-06, 0.00117624, 0.0206283, 0.135884, 0.398838, 0.440947, 7.64812e-06, 0.000108683, 0.000565236, 0.00124918, 3.23605e-07, 1.21472e-05, 0.000169604, 1.41157e-06, 8.26793e-05, 5.02528e-05, 0.996801, 2.04574e-07, 2.55568e-07, 0.0104913},
+		//Cell Type 104
+		{6.72113, 6.7212, 144.018, 144.018, 8.17809e-05, 8.07536e-05, 1.51439, 1.47374, 0.00750102, 0.690778, 0.690763, 0.690678, 0.446407, 0.690621, 0.000195931, 0.494478, 0.264859, 0.00101538, 0.999537, 0.587938, 0.000517369, 0.999537, 0.639758, 2.46006e-09, 1, 0.908449, 1, 0.999803, 0.999976, 0.0022662, 1, 1, 8.33331e-06, 0.456513, 0.000281612, 1.58519e-06, 0.00117127, 0.0205674, 0.135656, 0.398688, 0.441362, 7.70539e-06, 0.000109655, 0.000571141, 0.00126379, 3.28145e-07, 1.23085e-05, 0.000171726, 1.43012e-06, 8.37034e-05, 5.08716e-05, 0.996815, 2.05112e-07, 2.56239e-07, 0.0104516},
+		//Cell Type 105
+		{6.69605, 6.69612, 143.742, 143.742, 8.1669e-05, 8.06457e-05, 1.51159, 1.47091, 0.00754165, 0.688889, 0.688874, 0.688788, 0.444226, 0.688731, 0.00019794, 0.492691, 0.263466, 0.00101907, 0.999533, 0.587444, 0.000519247, 0.999533, 0.639065, 2.4915e-09, 1, 0.908253, 1, 0.999802, 0.999976, 0.00225461, 1, 1, 8.40151e-06, 0.4574, 0.000284577, 1.60481e-06, 0.00116666, 0.0205108, 0.135445, 0.398548, 0.441748, 7.76078e-06, 0.000110588, 0.000576733, 0.00127739, 3.32303e-07, 1.2455e-05, 0.000173637, 1.44693e-06, 8.46236e-05, 5.14273e-05, 0.996828, 2.05871e-07, 2.57186e-07, 0.0104161}
+	};
+	if(n>=0 && n<=55 && cell_type>=100 && cell_type<=102){v = Vars[cell_type-100][n]; return true;}
 	else{return false;}
 }//End get initial conditions
 
@@ -128,14 +150,14 @@ inline bool ExplicitOHaraRudyVent::return_initial_state_variable(const unsigned 
 //	we implement this as virtual so that in the case this class is used in a
 //	combined cell model class. Then it can be overloaded so that black box nodal
 //	parameters associated with each model have a unique index
-inline void ExplicitOHaraRudyVent::extract_black_box_parameters_ExplicitOHaraRudyVent(double &abindex,
+inline void ExplicitOHaraRudyVentMarkovChainIKs::extract_black_box_parameters_ExplicitOHaraRudyVent(double &abindex,
 																					double &isindex,
 																					double &rvindex,
 																					CellState &Cellstate){
 	//There are no black box parameters for this model
 }
 
-void ExplicitOHaraRudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new_state){
+void ExplicitOHaraRudyVentMarkovChainIKs::explicit_timestep(CellState &Cellstate, Vector<double> &new_state){
 
 	//Extract the variables
 	double nai=new_state[0];
@@ -172,12 +194,34 @@ void ExplicitOHaraRudyVent::explicit_timestep(CellState &Cellstate, Vector<doubl
 	double fcafp=new_state[31];
 	double xrf=new_state[32];
 	double xrs=new_state[33];
-	double xs1=new_state[34];
-	double xs2=new_state[35];
-	double xk1=new_state[36];
-	double Jrelnp=new_state[37];
-	double Jrelp=new_state[38];
-	double CaMKt=new_state[39];
+
+	//HH IKs
+	// double xs1=new_state[34];
+	// double xs2=new_state[35];
+
+	//MC IKs
+	double iks_o2 = new_state[34];
+	double iks_o1 = new_state[35];
+	double iks_c1 = new_state[36];
+	double iks_c2 = new_state[37];
+	double iks_c3 = new_state[38];
+	double iks_c4 = new_state[39];
+	double iks_c5 = new_state[40];
+	double iks_c6 = new_state[41];
+	double iks_c7 = new_state[42];
+	double iks_c8 = new_state[43];
+	double iks_c9 = new_state[44];
+	double iks_c10 = new_state[45];
+	double iks_c11 = new_state[46];
+	double iks_c12 = new_state[47];
+	double iks_c13 = new_state[48];
+	double iks_c14 = new_state[49];
+	double iks_c15 = new_state[50];
+
+	double xk1=new_state[51];
+	double Jrelnp=new_state[52];
+	double Jrelp=new_state[53];
+	double CaMKt=new_state[54];
 
 	double v=Cellstate.get_vm();
 	double dt = Cellstate.get_dt();
@@ -186,7 +230,7 @@ void ExplicitOHaraRudyVent::explicit_timestep(CellState &Cellstate, Vector<doubl
 
 	//introduce varaibles for reversal potentials, currents, fluxes, and CaMK
 	double ENa,EK,EKs;
-	double INa,INaL,Ito,ICaL,ICaNa,ICaK,IKr,IKs,IK1,INaCa_i,INaCa_ss,INaCa,INaK,IKb,INab,IpCa,ICab/*,Ist*/;
+	double INa,INaL,Ito,ICaL,ICaNa,ICaK,IKr,IKs,IK1,INaCa_i,INaCa_ss,INaCa,INaK,IKb,INab,IpCa,ICab,Ist;
 	double Jrel,Jup,Jtr,Jdiff,JdiffNa,JdiffK,Jleak;
 	double CaMKa,CaMKb;
 
@@ -369,22 +413,83 @@ void ExplicitOHaraRudyVent::explicit_timestep(CellState &Cellstate, Vector<doubl
 	}
 	IKr=GKr*sqrt(ko/5.4)*xr*rkr*(v-EK);
 
-	double xs1ss=1.0/(1.0+exp((-(v+11.60))/8.932));
-	double txs1=817.3+1.0/(2.326e-4*exp((v+48.28)/17.80)+0.001292*exp((-(v+210.0))/230.0));
-	xs1=xs1ss-(xs1ss-xs1)*exp(-dt/txs1);
-	double xs2ss=xs1ss;
-	double txs2=1.0/(0.01*exp((v-50.0)/20.0)+0.0193*exp((-(v+66.54))/31.0));
-	xs2=xs2ss-(xs2ss-xs2)*exp(-dt/txs2);
-	double KsCa=1.0+0.6/(1.0+pow(3.8e-5/cai,1.4));
+
+	// double xs1ss=1.0/(1.0+exp((-(v+11.60))/8.932));
+	// double txs1=817.3+1.0/(2.326e-4*exp((v+48.28)/17.80)+0.001292*exp((-(v+210.0))/230.0));
+	// xs1=xs1ss-(xs1ss-xs1)*exp(-dt/txs1);
+	// double xs2ss=xs1ss;
+	// double txs2=1.0/(0.01*exp((v-50.0)/20.0)+0.0193*exp((-(v+66.54))/31.0));
+	// xs2=xs2ss-(xs2ss-xs2)*exp(-dt/txs2);
+
+	// double KsCa=1.0+0.6/(1.0+pow(3.8e-5/cai,1.4));
+	// double GKs=0.0034;
+	// if (celltype==100)
+	// {
+	// GKs*=1.4;
+	// }
+	// IKs=GKs*KsCa*xs1*xs2*(v-EKs);
+
+
+	const double alpha=3.72e-003*exp(v*FNORT*2.10e-001);
+	const double beta=2.35e-004*exp(v*FNORT*-2.42e-001);
+	const double gamma=7.25e-003*exp(v*FNORT*2.43e+000);
+	const double delta_iks=1.53e-003*exp(v*FNORT*-6.26e-001);
+	const double theta=1.96e-003;
+	const double eta=1.67e-002*exp(v*FNORT*-1.34e+000);
+	const double psi=0.00852459080491*exp(v*FNORT*0.0124);
+	const double omega=0.001631335712234*exp(v*FNORT*-0.457531296450783);
+
+	const double diks_o2 = psi*iks_o1-omega*iks_o2;
+	const double diks_o1 = theta*iks_c15+omega*iks_o2-(psi+eta)*iks_o1;
+	const double diks_c15 = gamma*iks_c14+eta*iks_o1-(4*delta_iks+theta)*iks_c15;
+	const double diks_c14 = alpha*iks_c13+4*delta_iks*iks_c15+2*gamma*iks_c12-(beta+3*delta_iks+gamma)*iks_c14;
+	const double diks_c13 = beta*iks_c14+gamma*iks_c11-(alpha+3*delta_iks)*iks_c13;
+	const double diks_c12 = alpha*iks_c11+3*delta_iks*iks_c14+3*gamma*iks_c9-(2*beta+2*delta_iks+2*gamma)*iks_c12;
+	const double diks_c11 = 2*alpha*iks_c10+2*beta*iks_c12+2*gamma*iks_c8+3*delta_iks*iks_c13-(beta+alpha+gamma+2*delta_iks)*iks_c11;
+	const double diks_c10 = beta*iks_c11+gamma*iks_c7-(2*alpha+2*delta_iks)*iks_c10;
+	const double diks_c9 = alpha*iks_c8+2*delta_iks*iks_c12+4*gamma*iks_c5-(3*beta+delta_iks+3*gamma)*iks_c9;
+	const double diks_c8 = 2*alpha*iks_c7+3*beta*iks_c9+3*gamma*iks_c4+2*delta_iks*iks_c11-(2*beta+alpha+2*gamma+delta_iks)*iks_c8;
+	const double diks_c7 = 3*alpha*iks_c6+2*beta*iks_c8+2*gamma*iks_c3+2*delta_iks*iks_c10-(beta+2*alpha+delta_iks+gamma)*iks_c7;
+	const double diks_c6 = beta*iks_c7+gamma*iks_c2-(3*alpha+delta_iks)*iks_c6;
+	const double diks_c5 = alpha*iks_c4+delta_iks*iks_c9-(4*beta+4*gamma)*iks_c5;
+	const double diks_c4 = 2*alpha*iks_c3+4*beta*iks_c5+delta_iks*iks_c8-(3*beta+alpha+3*gamma)*iks_c4;
+	const double diks_c3 = 3*alpha*iks_c2+3*beta*iks_c4+delta_iks*iks_c7-(2*beta+2*alpha+2*gamma)*iks_c3;
+	const double diks_c2 = 4*alpha*iks_c1+2*beta*iks_c3+delta_iks*iks_c6-(beta+3*alpha+gamma)*iks_c2;
+	const double diks_c1 = beta*iks_c2-4*alpha*iks_c1;
+
+	//Incremement the channel Markov states
+	iks_o2 += diks_o2*dt;
+	iks_o1 += diks_o1*dt;
+	iks_c1 += diks_c1*dt;
+	iks_c2 += diks_c2*dt;
+	iks_c3 += diks_c3*dt;
+	iks_c4 += diks_c4*dt;
+	iks_c5 += diks_c5*dt;
+	iks_c6 += diks_c6*dt;
+	iks_c7 += diks_c7*dt;
+	iks_c8 += diks_c8*dt;
+	iks_c9 += diks_c9*dt;
+	iks_c10 += diks_c10*dt;
+	iks_c11 += diks_c11*dt;
+	iks_c12 += diks_c12*dt;
+	iks_c13 += diks_c13*dt;
+	iks_c14 += diks_c14*dt;
+	iks_c15 += diks_c15*dt;
+
+
 	double GKs=0.0034;
 	if (celltype==100)
 	{
 	GKs*=1.4;
 	}
-	IKs=GKs*KsCa*xs1*xs2*(v-EKs);
+	GKs*=1.0+0.6/(1.0+pow(3.8e-5/cai,1.4));
+
+	IKs = GKs*(iks_o1 + iks_o2)*(v-EKs);
 
 	//Let's record IKs
 	Cellstate.set_new_general_cell_model_data(IKs);
+
+	//End Markov Chain IKs
 
 
 	double xk1ss=1.0/(1.0+exp(-(v+2.5538*ko+144.59)/(1.5692*ko+3.8115)));
@@ -632,7 +737,7 @@ void ExplicitOHaraRudyVent::explicit_timestep(CellState &Cellstate, Vector<doubl
 	nai+=dt*(-(INa+INaL+3.0*INaCa_i+3.0*INaK+INab)*Acap/(F*vmyo)+JdiffNa*vss/vmyo);
 	nass+=dt*(-(ICaNa+3.0*INaCa_ss)*Acap/(F*vss)-JdiffNa);
 
-	ki+=dt*(-(Ito+IKr+IKs+IK1+IKb/*+Ist*/-2.0*INaK)*Acap/(F*vmyo)+JdiffK*vss/vmyo);
+	ki+=dt*(-(Ito+IKr+IKs+IK1+IKb+Ist-2.0*INaK)*Acap/(F*vmyo)+JdiffK*vss/vmyo);
 	kss+=dt*(-(ICaK)*Acap/(F*vss)-JdiffK);
 
 	double Bcai;
@@ -690,16 +795,38 @@ void ExplicitOHaraRudyVent::explicit_timestep(CellState &Cellstate, Vector<doubl
 	new_state[31] = fcafp;
 	new_state[32] = xrf;
 	new_state[33] = xrs;
-	new_state[34] = xs1;
-	new_state[35] = xs2;
-	new_state[36] = xk1;
-	new_state[37] = Jrelnp;
-	new_state[38] = Jrelp;
-	new_state[39] = CaMKt;
+
+	//HH IKs
+	// new_state[34] = xs1;
+	// new_state[35] = xs2;
+
+	//MC IKs
+	new_state[34] = iks_o2;
+	new_state[35] = iks_o1;
+	new_state[36] = iks_c1;
+	new_state[37] = iks_c2;
+	new_state[38] = iks_c3;
+	new_state[39] = iks_c4;
+	new_state[40] = iks_c5;
+	new_state[41] = iks_c6;
+	new_state[42] = iks_c7;
+	new_state[43] = iks_c8;
+	new_state[44] = iks_c9;
+	new_state[45] = iks_c10;
+	new_state[46] = iks_c11;
+	new_state[47] = iks_c12;
+	new_state[48] = iks_c13;
+	new_state[49] = iks_c14;
+	new_state[50] = iks_c15;
+
+	new_state[51] = xk1;
+	new_state[52] = Jrelnp;
+	new_state[53] = Jrelp;
+	new_state[54] = CaMKt;
 
 	//The active strain and ion membrane current
 	Cellstate.set_active_strain(0.0);
-	Cellstate.set_membrane_current(INa+INaL+Ito+ICaL+ICaNa+ICaK+IKr+IKs+IK1+INaCa+INaK+INab+IKb+IpCa+ICab/*+Ist*/);
+	Cellstate.set_membrane_current(INa+INaL+Ito+ICaL+ICaNa+ICaK+IKr+IKs+IK1+INaCa+INaK+INab+IKb+IpCa+ICab+Ist);
 
 }
 

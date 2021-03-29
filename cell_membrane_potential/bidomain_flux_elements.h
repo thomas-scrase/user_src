@@ -165,12 +165,12 @@ protected:
    //If the function pointer is zero return zero
    if(Intracellular_Flux_fct_pt == 0)
     {
-     flux=0.0;
+     flux_i=0.0;
     }
    //Otherwise call the function
    else
     {
-     (*Intracellular_Flux_fct_pt)(x,flux);
+     (*Intracellular_Flux_fct_pt)(x,flux_i);
     }
   }
 
@@ -179,12 +179,12 @@ protected:
    //If the function pointer is zero return zero
    if(Extracellular_Flux_fct_pt == 0)
     {
-     flux=0.0;
+     flux_e=0.0;
     }
    //Otherwise call the function
    else
     {
-     (*Extracellular_Flux_fct_pt)(x,flux);
+     (*Extracellular_Flux_fct_pt)(x,flux_e);
     }
   }
 
@@ -260,8 +260,9 @@ BidomainFluxElement(FiniteElement* const &bulk_el_pt,
  }
 #endif
 
- // Initialise the prescribed-flux function pointer to zero
- Flux_fct_pt = 0;
+ // Initialise the prescribed-flux function pointers to zero
+ Intracellular_Flux_fct_pt = 0;
+ Extracellular_Flux_fct_pt = 0;
  
  // Extract the dimension of the problem from the dimension of 
  // the first node

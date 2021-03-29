@@ -185,6 +185,47 @@ namespace oomph{
 			}
 		}
 
+		unsigned nscalar_paraview() const
+		{
+			return 1;
+		}
+
+		void scalar_value_paraview(std::ofstream& file_out,
+									const unsigned& i,
+									const unsigned& nplot) const
+		{
+			//Vector of local coordinates
+			Vector<double> s(DIM);
+
+			const unsigned n_node = this->nnode();
+			const unsigned vm_index = this->vm_index_BaseCellMembranePotential();
+			Shape psi(n_node);
+			DShape dpsidx(n_node,DIM);
+
+			// Loop over plot points
+			unsigned num_plot_points=this->nplot_points_paraview(nplot);
+			for (unsigned iplot=0;iplot<num_plot_points;iplot++){
+				// Get local coordinates of plot point
+				this->get_s_plot(iplot,nplot,s);
+
+				file_out << this->interpolated_vm_BaseCellMembranePotential(s) << " ";
+			}
+		}
+
+		void scalar_value_fct_paraview(std::ofstream& file_out,
+										const unsigned& i,
+										const unsigned& nplot,
+										FiniteElement::SteadyExactSolutionFctPt
+										exact_soln_pt) const
+		{
+			scalar_value_paraview(file_out,i,nplot);
+		}
+
+		std::string scalar_name_paraview(const unsigned& i) const
+		{
+			return "Transmembrane potential";
+		}
+
 	protected:
 		/// Pointer to diffusivity function:
 		///		function typedef is given in BaseCellMembranePotentialEquations

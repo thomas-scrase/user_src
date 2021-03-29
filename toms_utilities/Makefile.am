@@ -9,7 +9,9 @@ toms_integral.cc
 headers =  \
 toms_integral.h \
 diff_augmented_cell_wrapper.h \
-enforce_positive_normal_flow_elements.h
+enforce_positive_normal_flow_elements.h \
+toms_point_element.h \
+cell_probe_utilities.h
 
 # Define name of library
 libname = toms_utilities

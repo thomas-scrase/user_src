@@ -1,8 +1,8 @@
-#include "Explicit_CNZ_Atria.h"
+#include "Explicit_CNZ_Atria_MarkovChain_IKs.h"
 
 namespace oomph{
 
-void ExplicitCNZAtria::return_initial_membrane_potential(double &v,
+void ExplicitCNZAtriaMarkovChainIKs::return_initial_membrane_potential(double &v,
 														const unsigned &cell_type)
 {
     // CNZ_explicit_ICs, from timestep 0.01ms, and S1 protocol of 50 of length 1000ms.
@@ -36,38 +36,60 @@ void ExplicitCNZAtria::return_initial_membrane_potential(double &v,
 	v = -76.079842; // V
 }
 
-bool ExplicitCNZAtria::return_initial_state_variable(const unsigned &n,
+bool ExplicitCNZAtriaMarkovChainIKs::return_initial_state_variable(const unsigned &n,
 													double &v,
 													const unsigned &cell_type)
 {
     // CNZ_explicit_ICs, from timestep 0.01ms, and S1 protocol of 50 of length 1000ms.
     // Stimulus was of strength -200, with a duration of 0.5ms
-    double Vars[11][49] = 
+    double Vars[11][65] = 
     {
     //Cell Type 0
-    {0.0204848, 0.63893, 0.656517, 0.000627182, 0.923934, 0.00487268, 0.030318, 11.7542, 0.000193042, 114.183, 0.662918, 0.0094161, 0.911657, 0.000657262, 0.912159, 0.000177977, 1.16729, 1.16325, 0.0121987, 0.012045, 0.000128865, 0.999025, 0.226348, 0.000157088, 0.998321, 0.234896, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000658229, 0.937388, 0, 0, 0, 0, 0, 0.998106, 0.000267965, 0.00142445, 2.19553, 0.00700019, 1.12128e-07, 0.040893, 0.299062, -0.0134044},
+    {0.0204848, 0.63893, 0.656517, 0.000627182, 0.923934, 0.00487268,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	11.7542, 0.000193042, 114.183, 0.662918, 0.0094161, 0.911657, 0.000657262, 0.912159, 0.000177977, 1.16729, 1.16325, 0.0121987, 0.012045, 0.000128865, 0.999025, 0.226348, 0.000157088, 0.998321, 0.234896, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000658229, 0.937388, 0, 0, 0, 0, 0, 0.998106, 0.000267965, 0.00142445, 2.19553, 0.00700019, 1.12128e-07, 0.040893, 0.299062, -0.0134044},
     //Cell Type 1
-    {0.0198247, 0.649526, 0.666663, 0.00061082, 0.927897, 0.00430366, 0.030066, 12.0746, 0.000183771, 112.955, 0.667043, 0.0092382, 0.912624, 0.000641478, 0.919331, 0.000174714, 1.08817, 1.08403, 0.0110552, 0.0109386, 0.000142862, 0.998669, 0.220004, 0.000180425, 0.997606, 0.221512, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000642313, 0.94087, 0, 0, 0, 0, 0, 0.998348, 0.00023372, 0.00124225, 2.19611, 0.00700012, 7.20405e-08, 0.0390045, 0.288805, -0.0116609},
+    {0.0198247, 0.649526, 0.666663, 0.00061082, 0.927897, 0.00430366,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	12.0746, 0.000183771, 112.955, 0.667043, 0.0092382, 0.912624, 0.000641478, 0.919331, 0.000174714, 1.08817, 1.08403, 0.0110552, 0.0109386, 0.000142862, 0.998669, 0.220004, 0.000180425, 0.997606, 0.221512, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000642313, 0.94087, 0, 0, 0, 0, 0, 0.998348, 0.00023372, 0.00124225, 2.19611, 0.00700012, 7.20405e-08, 0.0390045, 0.288805, -0.0116609},
     //Cell Type 2
-    {0.0209107, 0.633511, 0.654411, 0.000637658, 0.90251, 0.00825254, 0.0306657, 12.7504, 0.000243316, 110.826, 0.618104, 0.0124612, 0.906548, 0.000666623, 0.870512, 0.000216253, 1.52867, 1.52435, 0.0171394, 0.0169334, 0.000103389, 0.999499, 0.271199, 9.86035e-05, 0.999215, 0.29916, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00066811, 0.916331, 0, 0, 0, 0, 0, 0.996506, 0.000494314, 0.00262854, 2.1916, 0.00700061, 3.55828e-07, 0.0510036, 0.34983, -0.0251525},
+    {0.0209107, 0.633511, 0.654411, 0.000637658, 0.90251, 0.00825254,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	12.7504, 0.000243316, 110.826, 0.618104, 0.0124612, 0.906548, 0.000666623, 0.870512, 0.000216253, 1.52867, 1.52435, 0.0171394, 0.0169334, 0.000103389, 0.999499, 0.271199, 9.86035e-05, 0.999215, 0.29916, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00066811, 0.916331, 0, 0, 0, 0, 0, 0.996506, 0.000494314, 0.00262854, 2.1916, 0.00700061, 3.55828e-07, 0.0510036, 0.34983, -0.0251525},
     //Cell Type 3
-    {0.0215256, 0.621137, 0.635825, 0.000652866, 0.922931, 0.00590413, 0.0308958, 12.4461, 0.00016968, 109.732, 0.672509, 0.00925793, 0.911239, 0.000682783, 0.90356, 0.000170449, 0.98544, 0.981677, 0.0095577, 0.00951667, 0.000145689, 0.998586, 0.21516, 0.000204893, 0.996564, 0.203694, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000683478, 0.930838, 0, 0, 0, 0, 0, 0.99868, 0.000186797, 0.000992801, 2.1969, 0.00700009, 4.97112e-08, 0.0361215, 0.272686, -0.00928785},
+    {0.0215256, 0.621137, 0.635825, 0.000652866, 0.922931, 0.00590413,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	12.4461, 0.00016968, 109.732, 0.672509, 0.00925793, 0.911239, 0.000682783, 0.90356, 0.000170449, 0.98544, 0.981677, 0.0095577, 0.00951667, 0.000145689, 0.998586, 0.21516, 0.000204893, 0.996564, 0.203694, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000683478, 0.930838, 0, 0, 0, 0, 0, 0.99868, 0.000186797, 0.000992801, 2.1969, 0.00700009, 4.97112e-08, 0.0361215, 0.272686, -0.00928785},
     //Cell Type 4
-    {0.039402, 0.398179, 0.400515, 0.00107433, 0.951192, 0.00432078, 0.0359441, 11.8893, 0.000152959, 109.547, 0.683274, 0.0052876, 0.891556, 0.00108624, 0.941291, 0.000162248, 0.832689, 0.826944, 0.00737684, 0.00738093, 0.000268894, 0.99101, 0.188672, 0.000420634, 0.969018, 0.165813, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00108671, 0.949503, 0, 0, 0, 0, 0, 0.999022, 0.000138398, 0.000735443, 2.19771, 0.00700003, 1.66103e-08, 0.032677, 0.25255, -0.0068565},
+    {0.039402, 0.398179, 0.400515, 0.00107433, 0.951192, 0.00432078,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	11.8893, 0.000152959, 109.547, 0.683274, 0.0052876, 0.891556, 0.00108624, 0.941291, 0.000162248, 0.832689, 0.826944, 0.00737684, 0.00738093, 0.000268894, 0.99101, 0.188672, 0.000420634, 0.969018, 0.165813, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00108671, 0.949503, 0, 0, 0, 0, 0, 0.999022, 0.000138398, 0.000735443, 2.19771, 0.00700003, 1.66103e-08, 0.032677, 0.25255, -0.0068565},
     //Cell Type 5
-    {0.0242497, 0.579067, 0.591548, 0.000719237, 0.949455, 0.00292322, 0.0314736, 11.9549, 0.000164069, 108.792, 0.680307, 0.00725872, 0.911564, 0.000747197, 0.944882, 0.000164487, 0.916976, 0.912088, 0.00857261, 0.00851597, 0.000203902, 0.996101, 0.199158, 0.000263766, 0.992773, 0.190596, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000747917, 0.953472, 0, 0, 0, 0, 0, 0.998804, 0.000169303, 0.000899595, 2.1972, 0.00700002, 9.2451e-09, 0.034967, 0.265988, -0.00840555},
+    {0.0242497, 0.579067, 0.591548, 0.000719237, 0.949455, 0.00292322,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	11.9549, 0.000164069, 108.792, 0.680307, 0.00725872, 0.911564, 0.000747197, 0.944882, 0.000164487, 0.916976, 0.912088, 0.00857261, 0.00851597, 0.000203902, 0.996101, 0.199158, 0.000263766, 0.992773, 0.190596, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000747917, 0.953472, 0, 0, 0, 0, 0, 0.998804, 0.000169303, 0.000899595, 2.1972, 0.00700002, 9.2451e-09, 0.034967, 0.265988, -0.00840555},
     //Cell Type 6
-    {0.0548708, 0.306818, 0.343496, 0.00142218, 0.866055, 0.0199257, 0.0383209, 11.9625, 0.000230945, 105.717, 0.617857, 0.0125815, 0.879897, 0.0013852, 0.7942, 0.000216583, 1.44535, 1.4417, 0.0160526, 0.0159112, 9.32797e-05, 0.999648, 0.274349, 9.39627e-05, 0.999185, 0.287842, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00140056, 0.861856, 0, 0, 0, 0, 0, 0.996962, 0.000429771, 0.00228378, 2.19275, 0.00700011, 6.358e-08, 0.0485277, 0.337785, -0.0217468},
+    {0.0548708, 0.306818, 0.343496, 0.00142218, 0.866055, 0.0199257,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	11.9625, 0.000230945, 105.717, 0.617857, 0.0125815, 0.879897, 0.0013852, 0.7942, 0.000216583, 1.44535, 1.4417, 0.0160526, 0.0159112, 9.32797e-05, 0.999648, 0.274349, 9.39627e-05, 0.999185, 0.287842, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00140056, 0.861856, 0, 0, 0, 0, 0, 0.996962, 0.000429771, 0.00228378, 2.19275, 0.00700011, 6.358e-08, 0.0485277, 0.337785, -0.0217468},
     //Cell Type 7
-    {0.0289815, 0.515879, 0.53061, 0.000832208, 0.934135, 0.00442895, 0.0327781, 12.2193, 0.000188111, 104.564, 0.656546, 0.00840642, 0.905433, 0.000854575, 0.923563, 0.000183114, 1.09567, 1.09058, 0.0111701, 0.0110694, 0.000175929, 0.997517, 0.222155, 0.000199974, 0.996851, 0.222748, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000856137, 0.943235, 0, 0, 0, 0, 0, 0.998242, 0.000248744, 0.00132181, 2.19586, 0.00700005, 3.04935e-08, 0.0398872, 0.29355, -0.0124215},
+    {0.0289815, 0.515879, 0.53061, 0.000832208, 0.934135, 0.00442895,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	12.2193, 0.000188111, 104.564, 0.656546, 0.00840642, 0.905433, 0.000854575, 0.923563, 0.000183114, 1.09567, 1.09058, 0.0111701, 0.0110694, 0.000175929, 0.997517, 0.222155, 0.000199974, 0.996851, 0.222748, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.000856137, 0.943235, 0, 0, 0, 0, 0, 0.998242, 0.000248744, 0.00132181, 2.19586, 0.00700005, 3.04935e-08, 0.0398872, 0.29355, -0.0124215},
     //Cell Type 8
-    {0.0315468, 0.483887, 0.496835, 0.000892547, 0.931086, 0.00613675, 0.0336286, 12.3356, 0.000196315, 103.478, 0.648226, 0.00884273, 0.9021, 0.000912321, 0.906765, 0.000189955, 1.15275, 1.14755, 0.0119965, 0.0118857, 0.000170353, 0.997748, 0.229957, 0.000188048, 0.997339, 0.232774, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00091384, 0.931775, 0, 0, 0, 0, 0, 0.998023, 0.000279714, 0.00148647, 2.19533, 0.00700008, 4.70069e-08, 0.041555, 0.302499, -0.0140003},
+    {0.0315468, 0.483887, 0.496835, 0.000892547, 0.931086, 0.00613675,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	12.3356, 0.000196315, 103.478, 0.648226, 0.00884273, 0.9021, 0.000912321, 0.906765, 0.000189955, 1.15275, 1.14755, 0.0119965, 0.0118857, 0.000170353, 0.997748, 0.229957, 0.000188048, 0.997339, 0.232774, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00091384, 0.931775, 0, 0, 0, 0, 0, 0.998023, 0.000279714, 0.00148647, 2.19533, 0.00700008, 4.70069e-08, 0.041555, 0.302499, -0.0140003},
     //Cell Type 9
-    {0.126826, 0.0923382, 0.092969, 0.00303776, 0.951655, 0.0045224, 0.0467843, 12.0373, 0.000183631, 103.126, 0.635653, 0.00581924, 0.804828, 0.00284012, 0.95223, 0.000200698, 0.961567, 0.951568, 0.00925222, 0.00926958, 0.000414325, 0.968708, 0.214001, 0.000375735, 0.980924, 0.199303, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00285152, 0.957113, 0, 0, 0, 0, 0, 0.998377, 0.00022968, 0.00121888, 2.1962, 0.00699961, -2.2976e-07, 0.0389639, 0.288146, -0.0114399},
+    {0.126826, 0.0923382, 0.092969, 0.00303776, 0.951655, 0.0045224,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	12.0373, 0.000183631, 103.126, 0.635653, 0.00581924, 0.804828, 0.00284012, 0.95223, 0.000200698, 0.961567, 0.951568, 0.00925222, 0.00926958, 0.000414325, 0.968708, 0.214001, 0.000375735, 0.980924, 0.199303, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.00285152, 0.957113, 0, 0, 0, 0, 0, 0.998377, 0.00022968, 0.00121888, 2.1962, 0.00699961, -2.2976e-07, 0.0389639, 0.288146, -0.0114399},
     //Cell Type 10
-    {0.417485, 0.0065458, 0.00771405, 0.0119873, 0.857518, 0.0402585, 0.0645055, 10.4456, 0.000163256, 102.662, 0.635511, 0.0115898, 0.628725, 0.00975439, 0.782779, 0.000201068, 0.949193, 0.945484, 0.00904131, 0.0092475, 0.000157883, 0.998389, 0.242598, 0.000445288, 0.966196, 0.173899, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.0100439, 0.844813, 0, 0, 0, 0, 0, 0.998839, 0.000164283, 0.000871689, 2.19729, 0.00699971, -1.66093e-07, 0.0347853, 0.264463, -0.00814142}
+    {0.417485, 0.0065458, 0.00771405, 0.0119873, 0.857518, 0.0402585,
+    	1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    	10.4456, 0.000163256, 102.662, 0.635511, 0.0115898, 0.628725, 0.00975439, 0.782779, 0.000201068, 0.949193, 0.945484, 0.00904131, 0.0092475, 0.000157883, 0.998389, 0.242598, 0.000445288, 0.966196, 0.173899, 0.003182, 0.637475, 0.011694, 0.996878, 129.435, 8.5547, -43.8063, 0.0100439, 0.844813, 0, 0, 0, 0, 0, 0.998839, 0.000164283, 0.000871689, 2.19729, 0.00699971, -1.66093e-07, 0.0347853, 0.264463, -0.00814142}
     };
-    if(n>=0 && n<49 && cell_type>=0 && cell_type<11){v = Vars[cell_type][n]; return true;}
+    if(n>=0 && n<65 && cell_type>=0 && cell_type<11){v = Vars[cell_type][n]; return true;}
     else{return false;}
 	// switch(n){
 	// 	case 0 : v = 0.006676; // m
@@ -174,12 +196,12 @@ bool ExplicitCNZAtria::return_initial_state_variable(const unsigned &n,
 	// return true;
 }
 
-double ExplicitCNZAtria::cm(CellState &state)
+double ExplicitCNZAtriaMarkovChainIKs::cm(CellState &state)
 {
 	return 1.0;
 }
 
-void ExplicitCNZAtria::explicit_timestep(CellState &Cellstate, Vector<double> &new_state)
+void ExplicitCNZAtriaMarkovChainIKs::explicit_timestep(CellState &Cellstate, Vector<double> &new_state)
 {
 	double Ena, Ek, Eca, Ekf, Enaf;
 	double alpha, beta, tau, inf, a, b;
@@ -195,51 +217,69 @@ void ExplicitCNZAtria::explicit_timestep(CellState &Cellstate, Vector<double> &n
 	double d         = new_state[3];
 	double f         = new_state[4];
 	double xr        = new_state[5];
-	double xs        = new_state[6];
-	double nai       = new_state[7];
-	double cai       = new_state[8];
-	double ki        = new_state[9];
-	double fca       = new_state[10];
-	double itr       = new_state[11];
-	double its       = new_state[12];
-	double isusr     = new_state[13];
-	double isuss     = new_state[14];
-	double Cass      = new_state[15];
-	double CaSR1     = new_state[16];
-	double CaSR2     = new_state[17];
-	double SERCACa   = new_state[18];
-	double SERCACass = new_state[19];
-	double RyRoss    = new_state[20];
-	double RyRcss    = new_state[21];
-	double RyRass    = new_state[22];
-	double RyRo3     = new_state[23];
-	double RyRc3     = new_state[24];
-	double RyRa3     = new_state[25];
-	double dd        = new_state[26];
-	double ff        = new_state[27];
-	double rkv       = new_state[28];
-	double skv       = new_state[29];
-	double kif       = new_state[30];
-	double naif      = new_state[31];
-	double Vmf       = new_state[32];
-	double CNZ_a     = new_state[33];
-	double CNZ_i     = new_state[34];
-	double ACh_i 	 = new_state[35];
-	double ACh_j 	 = new_state[36];
-	double If_y      = new_state[37];
+
+	double iks_o2 = new_state[6];
+	double iks_o1 = new_state[7];
+	double iks_c1 = new_state[8];
+	double iks_c2 = new_state[9];
+	double iks_c3 = new_state[10];
+	double iks_c4 = new_state[11];
+	double iks_c5 = new_state[12];
+	double iks_c6 = new_state[13];
+	double iks_c7 = new_state[14];
+	double iks_c8 = new_state[15];
+	double iks_c9 = new_state[16];
+	double iks_c10 = new_state[17];
+	double iks_c11 = new_state[18];
+	double iks_c12 = new_state[19];
+	double iks_c13 = new_state[20];
+	double iks_c14 = new_state[21];
+	double iks_c15 = new_state[22];
+
+	double nai       = new_state[23];
+	double cai       = new_state[24];
+	double ki        = new_state[25];
+	double fca       = new_state[26];
+	double itr       = new_state[27];
+	double its       = new_state[28];
+	double isusr     = new_state[29];
+	double isuss     = new_state[30];
+	double Cass      = new_state[31];
+	double CaSR1     = new_state[32];
+	double CaSR2     = new_state[33];
+	double SERCACa   = new_state[34];
+	double SERCACass = new_state[35];
+	double RyRoss    = new_state[36];
+	double RyRcss    = new_state[37];
+	double RyRass    = new_state[38];
+	double RyRo3     = new_state[39];
+	double RyRc3     = new_state[40];
+	double RyRa3     = new_state[41];
+	double dd        = new_state[42];
+	double ff        = new_state[43];
+	double rkv       = new_state[44];
+	double skv       = new_state[45];
+	double kif       = new_state[46];
+	double naif      = new_state[47];
+	double Vmf       = new_state[48];
+	double CNZ_a     = new_state[49];
+	double CNZ_i     = new_state[50];
+	double ACh_i 	 = new_state[51];
+	double ACh_j 	 = new_state[52];
+	double If_y      = new_state[53];
 	// incorporation of INa state dependent drug effects
-	double BA 		 = new_state[38];   // Blockade of INa channel,
-	double BI 		 = new_state[39];    // blockade of INa channel.
+	double BA 		 = new_state[54];   // Blockade of INa channel,
+	double BI 		 = new_state[55];    // blockade of INa channel.
     ///Rice myofillament variables
-	double N         = new_state[40];
-	double XBprer    = new_state[41];
-	double XBpostr   = new_state[42];
-	double SL        = new_state[43];
-	double xXBpostr  = new_state[44];
-	double xXBprer   = new_state[45];
-	double TRPNCaL   = new_state[46];
-	double TRPNCaH   = new_state[47];
-	double intf      = new_state[48];
+	double N         = new_state[56];
+	double XBprer    = new_state[57];
+	double XBpostr   = new_state[58];
+	double SL        = new_state[59];
+	double xXBpostr  = new_state[60];
+	double xXBprer   = new_state[61];
+	double TRPNCaL   = new_state[62];
+	double TRPNCaH   = new_state[63];
+	double intf      = new_state[64];
 
 	double dt = Cellstate.get_dt();
 
@@ -832,20 +872,67 @@ void ExplicitCNZAtria::explicit_timestep(CellState &Cellstate, Vector<double> &n
 	inf = 1 / (1 + exp((V + IKr_ac_shift + 14.1) / (-6.5 * IKr_ac_grad)));
 	xr = inf + (xr - inf) * exp(-dt / tau);
 	// end CRN IKr
-	// IKs
-	IKs = GKs * Cm * CRN_gks * xs * xs * (V - Ek);
 
-	// xs gate
-	a = 0.00004 * (V - 19.9) / (1 - exp((V - 19.9) / -17));
-	b = 0.000035 * (V - 19.9) / (exp((V - 19.9) / 9) - 1);
-	if (fabs(V - 19.9) < 1e-10) /* denominator = 0 */
-	{
-	a = 0.00068;
-	b = 0.000315;
-	}
-	tau = 0.5 / (a + b); // note lagrer taus may be more accurate
-	inf = sqrt(1 / (1 + exp((V - 19.9 - IKs_shift) / (-12.7 * IKs_grad))));
-	xs = inf + (xs - inf) * exp(-dt / tau);
+
+
+	// IKs
+	//Original H-H type IKs
+	// IKs = GKs * Cm * CRN_gks * xs * xs * (V - Ek);
+
+	IKs = GKs * Cm * CRN_gks * (iks_o1 + iks_o2) * (V - Ek);
+
+	// IKs = 0.779*(1.0 + 0.6/(1.0 + pow((3.8e-5)/cai, 1.4))) * (iks_o1 + iks_o2) * (Vm - Eks);
+
+	const double alpha_iks=3.72e-003*exp(V*FNORT*2.10e-001);
+	const double beta_iks=2.35e-004*exp(V*FNORT*-2.42e-001);
+	const double gamma_iks=7.25e-003*exp(V*FNORT*2.43e+000);
+	const double delta_iks=1.53e-003*exp(V*FNORT*-6.26e-001);
+	const double theta_iks=1.96e-003;
+	const double eta_iks=1.67e-002*exp(V*FNORT*-1.34e+000);
+	const double psi_iks=0.00852459080491*exp(V*FNORT*0.0124);
+	const double omega_iks=0.001631335712234*exp(V*FNORT*-0.457531296450783);
+
+	//Calculate changes to the channel state variables
+	const double diks_o2 = psi_iks*iks_o1-omega_iks*iks_o2;
+	const double diks_o1 = theta_iks*iks_c15+omega_iks*iks_o2-(psi_iks+eta_iks)*iks_o1;
+	const double diks_c15 = gamma_iks*iks_c14+eta_iks*iks_o1-(4*delta_iks+theta_iks)*iks_c15;
+	const double diks_c14 = alpha_iks*iks_c13+4*delta_iks*iks_c15+2*gamma_iks*iks_c12-(beta_iks+3*delta_iks+gamma_iks)*iks_c14;
+	const double diks_c13 = beta_iks*iks_c14+gamma_iks*iks_c11-(alpha_iks+3*delta_iks)*iks_c13;
+	const double diks_c12 = alpha_iks*iks_c11+3*delta_iks*iks_c14+3*gamma_iks*iks_c9-(2*beta_iks+2*delta_iks+2*gamma_iks)*iks_c12;
+	const double diks_c11 = 2*alpha_iks*iks_c10+2*beta_iks*iks_c12+2*gamma_iks*iks_c8+3*delta_iks*iks_c13-(beta_iks+alpha_iks+gamma_iks+2*delta_iks)*iks_c11;
+	const double diks_c10 = beta_iks*iks_c11+gamma_iks*iks_c7-(2*alpha_iks+2*delta_iks)*iks_c10;
+	const double diks_c9 = alpha_iks*iks_c8+2*delta_iks*iks_c12+4*gamma_iks*iks_c5-(3*beta_iks+delta_iks+3*gamma_iks)*iks_c9;
+	const double diks_c8 = 2*alpha_iks*iks_c7+3*beta_iks*iks_c9+3*gamma_iks*iks_c4+2*delta_iks*iks_c11-(2*beta_iks+alpha_iks+2*gamma_iks+delta_iks)*iks_c8;
+	const double diks_c7 = 3*alpha_iks*iks_c6+2*beta_iks*iks_c8+2*gamma_iks*iks_c3+2*delta_iks*iks_c10-(beta_iks+2*alpha_iks+delta_iks+gamma_iks)*iks_c7;
+	const double diks_c6 = beta_iks*iks_c7+gamma_iks*iks_c2-(3*alpha_iks+delta_iks)*iks_c6;
+	const double diks_c5 = alpha_iks*iks_c4+delta_iks*iks_c9-(4*beta_iks+4*gamma_iks)*iks_c5;
+	const double diks_c4 = 2*alpha_iks*iks_c3+4*beta_iks*iks_c5+delta_iks*iks_c8-(3*beta_iks+alpha_iks+3*gamma_iks)*iks_c4;
+	const double diks_c3 = 3*alpha_iks*iks_c2+3*beta_iks*iks_c4+delta_iks*iks_c7-(2*beta_iks+2*alpha_iks+2*gamma_iks)*iks_c3;
+	const double diks_c2 = 4*alpha_iks*iks_c1+2*beta_iks*iks_c3+delta_iks*iks_c6-(beta_iks+3*alpha_iks+gamma_iks)*iks_c2;
+	const double diks_c1 = beta_iks*iks_c2-4*alpha_iks*iks_c1;
+
+	//Incremement the channel Markov states
+	iks_o2 += diks_o2*dt;
+	iks_o1 += diks_o1*dt;
+	iks_c1 += diks_c1*dt;
+	iks_c2 += diks_c2*dt;
+	iks_c3 += diks_c3*dt;
+	iks_c4 += diks_c4*dt;
+	iks_c5 += diks_c5*dt;
+	iks_c6 += diks_c6*dt;
+	iks_c7 += diks_c7*dt;
+	iks_c8 += diks_c8*dt;
+	iks_c9 += diks_c9*dt;
+	iks_c10 += diks_c10*dt;
+	iks_c11 += diks_c11*dt;
+	iks_c12 += diks_c12*dt;
+	iks_c13 += diks_c13*dt;
+	iks_c14 += diks_c14*dt;
+	iks_c15 += diks_c15*dt;
+
+	//End Markov Chain IKs
+
+
 
 	//ICaL
 	ICaL = 2.125 * GCaL * Cm * CRN_gcaL * d * f * fca * (V - CRN_ErL);
@@ -1311,51 +1398,71 @@ void ExplicitCNZAtria::explicit_timestep(CellState &Cellstate, Vector<double> &n
 	new_state[3] = d;
 	new_state[4] = f;
 	new_state[5] = xr;
-	new_state[6] = xs;
-	new_state[7] = nai;
-	new_state[8] = cai;
-	new_state[9] = ki;
-	new_state[10] = fca;
-	new_state[11] = itr;
-	new_state[12] = its;
-	new_state[13] = isusr;
-	new_state[14] = isuss;
-	new_state[15] = Cass;
-	new_state[16] = CaSR1;
-	new_state[17] = CaSR2;
-	new_state[18] = SERCACa;
-	new_state[19] = SERCACass;
-	new_state[20] = RyRoss;
-	new_state[21] = RyRcss;
-	new_state[22] = RyRass;
-	new_state[23] = RyRo3;
-	new_state[24] = RyRc3;
-	new_state[25] = RyRa3;
-	new_state[26] = dd;
-	new_state[27] = ff;
-	new_state[28] = rkv;
-	new_state[29] = skv;
-	new_state[30] = kif;
-	new_state[31] = naif;
-	new_state[32] = Vmf;
-	new_state[33] = CNZ_a;
-	new_state[34] = CNZ_i;
-	new_state[35] = ACh_i;
-	new_state[36] = ACh_j;
-	new_state[37] = If_y;
-	// incorporation of INa state dependent drug effects
-	new_state[38] = BA;   // Blockade of INa channel,
-	new_state[39] = BA;    // blockade of INa channel.
 
-	new_state[40] = N;
-	new_state[41] = XBprer;
-	new_state[42] = XBpostr;
-	new_state[43] = SL;
-	new_state[44] = xXBpostr;
-	new_state[45] = xXBprer;
-	new_state[46] = TRPNCaL;
-	new_state[47] = TRPNCaH;
-	new_state[48] = intf;
+	// new_state[6] = xs;
+	
+	new_state[6]  = iks_o2;
+	new_state[7]  = iks_o1;
+	new_state[8]  = iks_c1;
+	new_state[9]  = iks_c2;
+	new_state[10]  = iks_c3;
+	new_state[11]  = iks_c4;
+	new_state[12]  = iks_c5;
+	new_state[13]  = iks_c6;
+	new_state[14]  = iks_c7;
+	new_state[15]  = iks_c8;
+	new_state[16]  = iks_c9;
+	new_state[17]  = iks_c10;
+	new_state[18]  = iks_c11;
+	new_state[19]  = iks_c12;
+	new_state[20]  = iks_c13;
+	new_state[21]  = iks_c14;
+	new_state[22]  = iks_c15;
+
+	new_state[23] = nai;
+	new_state[24] = cai;
+	new_state[25] = ki;
+	new_state[26] = fca;
+	new_state[27] = itr;
+	new_state[28] = its;
+	new_state[29] = isusr;
+	new_state[30] = isuss;
+	new_state[31] = Cass;
+	new_state[32] = CaSR1;
+	new_state[33] = CaSR2;
+	new_state[34] = SERCACa;
+	new_state[35] = SERCACass;
+	new_state[36] = RyRoss;
+	new_state[37] = RyRcss;
+	new_state[38] = RyRass;
+	new_state[39] = RyRo3;
+	new_state[40] = RyRc3;
+	new_state[41] = RyRa3;
+	new_state[42] = dd;
+	new_state[43] = ff;
+	new_state[44] = rkv;
+	new_state[45] = skv;
+	new_state[46] = kif;
+	new_state[47] = naif;
+	new_state[48] = Vmf;
+	new_state[49] = CNZ_a;
+	new_state[50] = CNZ_i;
+	new_state[51] = ACh_i;
+	new_state[52] = ACh_j;
+	new_state[53] = If_y;
+	// incorporation of INa state dependent drug effects
+	new_state[54] = BA;   // Blockade of INa channel,
+	new_state[55] = BA;    // blockade of INa channel.
+
+	new_state[56] = N;
+	new_state[57] = XBprer;
+	new_state[58] = XBpostr;
+	new_state[59] = SL;
+	new_state[60] = xXBpostr;
+	new_state[61] = xXBprer;
+	new_state[62] = TRPNCaL;
+	new_state[63] = TRPNCaH;
+	new_state[64] = intf;
 
 	// keep log of currents; Fri 15 Apr 2016 11:51:29 BST
 	// temp1 = INa / Cm;
@@ -1385,7 +1492,7 @@ void ExplicitCNZAtria::explicit_timestep(CellState &Cellstate, Vector<double> &n
 
 
 
-ExplicitCNZAtria::ExplicitCNZAtria(){
+ExplicitCNZAtriaMarkovChainIKs::ExplicitCNZAtriaMarkovChainIKs(){
     //The largest timestep such that this model converges
     Intrinsic_dt = 0.02;
 	//CNZ constants
@@ -1398,6 +1505,7 @@ ExplicitCNZAtria::ExplicitCNZAtria(){
 	CRN_Csp = 1e+6; /* pF/cm2 */
 	F = 96.4867; /* coul/mmol */
 	R = 8.3143; /* J K-1 mol-1 */
+	FNORT = F/(R*T);
 	CRN_kb = 5.4; /* mM */
 	CRN_nab = 140; /* mM */
 	CRN_cab = 1.8; /* mM */
@@ -1575,7 +1683,7 @@ ExplicitCNZAtria::ExplicitCNZAtria(){
     SLrest = 1.9;       //   (um) rest SL length for 0 passive force
 }
 
-bool ExplicitCNZAtria::compatible_cell_types(const unsigned& cell_type){
+bool ExplicitCNZAtriaMarkovChainIKs::compatible_cell_types(const unsigned& cell_type){
     switch(cell_type){
         case 0 : return true; //RA
         case 1 : return true; //PM

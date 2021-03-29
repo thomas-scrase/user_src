@@ -126,7 +126,7 @@ public:
 	//Intended for use with strang-splitting. To this aim a bool is provided
 	//	pre_shift. pre_shift indicates that the time history values should be
 	//	shifted before the explicit step is taken. It also means that the previously
-	//	current values, those which were shifted to be the last values, are used as
+	//	current values, those which were shifted to be the prior values, are used as
 	//	the initial conditions of the expliit solve. If pre_shift is set to false
 	//	this indicates that the currently accepted value - the value achieved through
 	//	the first segregated solve - is used as the initial value.
@@ -144,6 +144,7 @@ public:
 				for(unsigned i=0; i<NUM_VARS; i++){
 					new_state[i] = this->node_pt(l)->value(this->min_index_CellInterfaceEquations() + i);
 				}
+				//Sort out shifting of data
 				if(pre_shift){
 					//Shift the Data associated with the nodes with the Node's own timestepper
 					for (int t=nprev_steps;t>0;t--){ 
@@ -151,22 +152,23 @@ public:
 						for(unsigned i=0; i<NUM_VARS; i++){
 							//Shift them
 							this->node_pt(l)->
-							set_value(t,
-							this->min_index_CellInterfaceEquations() + i,
-							this->node_pt(l)->value(t-1,this->min_index_CellInterfaceEquations() + i));
+								set_value(t,
+										this->min_index_CellInterfaceEquations() + i,
+										this->node_pt(l)->value(t-1,this->min_index_CellInterfaceEquations() + i));
 						}
 						//Shift the membrane current
 						this->node_pt(l)->
 							set_value(t,
-							this->membrane_current_index_SegregatedCellInterfaceEquations(),
-							this->node_pt(l)->value(t-1,this->membrane_current_index_SegregatedCellInterfaceEquations()));
+									this->membrane_current_index_SegregatedCellInterfaceEquations(),
+									this->node_pt(l)->value(t-1,this->membrane_current_index_SegregatedCellInterfaceEquations()));
 						//...and the active strain
 						this->node_pt(l)->
 							set_value(t,
-							this->active_strain_SegregatedCellInterfaceEquations(),
-							this->node_pt(l)->value(t-1,this->active_strain_SegregatedCellInterfaceEquations()));
+									this->active_strain_SegregatedCellInterfaceEquations(),
+									this->node_pt(l)->value(t-1,this->active_strain_SegregatedCellInterfaceEquations()));
 					}
 				}
+				
 				//fill in the cell state container
 				this->fill_state_container_at_node(l, Persistent_Cell_States[l]);
 				//If override_dt has been set we assume that it is at least zero, then we override the 
@@ -195,7 +197,7 @@ protected:
 		DenseMatrix<double> &mass_matrix, unsigned flag)
 	{
 		//This function intentionally does nothing - we assume that all
-		//	variables are pinned
+		//	variables are pinned and are solved for when doing the above perform_segregated_solve
 	}
 
 

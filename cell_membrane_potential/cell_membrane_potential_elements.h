@@ -310,6 +310,33 @@ public:
    return interpolated_vm;
   }
 
+  /// Return FE representation of function value u(s) at local coordinate s
+ inline double interpolated_dvm_dt_BaseCellMembranePotential(const Vector<double> &s) const
+  {
+   //Find number of nodes
+   unsigned n_node = nnode();
+
+   //Get the nodal index at which the unknown is stored
+   unsigned vm_nodal_index = vm_index_BaseCellMembranePotential();
+
+   //Local shape function
+   Shape psi(n_node);
+
+   //Find values of shape function
+   shape(s,psi);
+
+   //Initialise value of u
+   double interpolated_vm = 0.0;
+
+   //Loop over the local nodes and sum
+   for(unsigned l=0;l<n_node;l++) 
+    {
+     interpolated_vm += dvm_dt_BaseCellMembranePotential(l)*psi[l];
+    }
+
+   return interpolated_vm;
+  }
+
 
  /// \short Self-test: Return 0 for OK
  unsigned self_test();

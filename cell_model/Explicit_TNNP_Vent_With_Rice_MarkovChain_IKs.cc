@@ -1,7 +1,7 @@
-#include "Explicit_TNNP_Vent_With_Rice.h"
+#include "Explicit_TNNP_Vent_With_Rice_MarkovChain_IKs.h"
 
 namespace oomph{
-ExplicitTNNPVentWithRice::ExplicitTNNPVentWithRice() : CellModelBase(){
+ExplicitTNNPVentWithRiceMarkovChainIKs::ExplicitTNNPVentWithRiceMarkovChainIKs() : CellModelBase(){
 
 	//The largest timestep such that this model converges
 	Intrinsic_dt = 0.02;
@@ -129,7 +129,7 @@ ExplicitTNNPVentWithRice::ExplicitTNNPVentWithRice() : CellModelBase(){
     //End assign rice myofilament constants
 }
 
-bool ExplicitTNNPVentWithRice::compatible_cell_types(const unsigned& cell_type){
+bool ExplicitTNNPVentWithRiceMarkovChainIKs::compatible_cell_types(const unsigned& cell_type){
     switch(cell_type){
         case 100 : return true; //LVEPI
         case 101 : return true; //LVMCELL
@@ -145,22 +145,22 @@ bool ExplicitTNNPVentWithRice::compatible_cell_types(const unsigned& cell_type){
 }
 
 //return the initial membrane potential for the cell_typeth cell type
-inline void ExplicitTNNPVentWithRice::return_initial_membrane_potential(double &v, const unsigned &cell_type){
+inline void ExplicitTNNPVentWithRiceMarkovChainIKs::return_initial_membrane_potential(double &v, const unsigned &cell_type){
 	// TNNP_explicit_With_Rice_ICs, from timestep 0.01ms, and S1 protocol of 50 of length 1000ms.
 	// Stimulus was of strength -200, with a duration of 0.5ms
 	double Potents[6] = {
 		//Cell Type 100
-		-85.6435,
+		-85.6977,
 		//Cell Type 101
-		-85.3843,
+		-85.238,
 		//Cell Type 102
-		-85.5237,
+		-85.2158,
 		//Cell Type 103
-		-85.5265,
+		-85.0891,
 		//Cell Type 104
-		-85.3843,
+		-84.8348,
 		//Cell Type 105
-		-85.5237
+		-84.831
 	};
 
 	if(cell_type>=100 && cell_type<106){v = Potents[cell_type-100];}
@@ -168,37 +168,40 @@ inline void ExplicitTNNPVentWithRice::return_initial_membrane_potential(double &
 }
 
 //Return the initial condition for the nth variable and cell_typeth cell type
-inline bool ExplicitTNNPVentWithRice::return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type){
-	// TNNP_explicit_With_Rice_ICs, from timestep 0.005ms, and S1 protocol of 50 of length 1000ms.
+inline bool ExplicitTNNPVentWithRiceMarkovChainIKs::return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type){
+	// TNNP_explicit_With_Rice_ICs, from timestep 0.01ms, and S1 protocol of 50 of length 1000ms.
 	// Stimulus was of strength -200, with a duration of 0.5ms
 	double Vars[6][50] = 
 	{
-		//Cell Type 100
-		{8.37604e-05, 2.43747, 0.000187031, 8.66537, 135.875, 0.00157112, 0.756077, 0.755924, 0, 1,
-			6.89887e-24, 1.74656e-18, 0.156871, 0.369442, 0.326288, 0.128122, 0.0189051, 9.24159e-05, 0.000163242, 9.61494e-05, 1.89167e-05, 2.04175e-08, 2.40518e-08, 7.09812e-09, 2.00552e-12, 1.18375e-12, 7.40385e-17, //MC IKS
-			0.999998, 2.25571e-08, 3.19131e-05, 0.988368, 0.999517, 0.999982, 0.991112, 0.00029464, 0.427938, 0.998997, 5.46719e-05, 0.000619172, 0.000306603, 2.2339e-05, 0.999848, 2.1554e-05, 0.000114638, 2.19965, 0.00700003, 1.84508e-08, 0.0181649, 0.156304, -0.00105964},
-		//Cell Type 101
-		{9.49936e-05, 3.02001, 0.000202782, 8.72602, 135.707, 0.00166011, 0.749115, 0.748807, 0, 1,
-			1.41158e-23, 3.41548e-18, 0.115371, 0.330199, 0.354426, 0.169183, 0.0303846, 8.64031e-05, 0.000185485, 0.000132811, 3.18036e-05, 2.42679e-08, 3.47526e-08, 1.24833e-08, 3.03125e-12, 2.17772e-12, 1.42485e-16, //MC IKS
-			0.999996, 2.35533e-08, 3.30352e-05, 0.981555, 0.999499, 0.999977, 0.989834, 0.000309505, 0.415331, 0.998728, 0.000146077, 0.000713499, 0.000352412, 6.01965e-05, 0.999771, 3.2432e-05, 0.000172512, 2.19947, 0.00700005, 3.06805e-08, 0.0205513, 0.173646, -0.00159578},
-		//Cell Type 102
-		{8.45909e-05, 2.48002, 0.00018953, 8.57782, 135.955, 0.00161163, 0.752879, 0.75267, 0, 1,
-			8.82515e-24, 2.18799e-18, 0.144564, 0.3594, 0.335085, 0.138911, 0.0216485, 9.1776e-05, 0.000171134, 0.000106416, 2.2113e-05, 2.18503e-08, 2.71744e-08, 8.47026e-09, 2.31308e-12, 1.442e-12, 9.20701e-17, //MC IKS
-			0.699156, 2.3012e-08, 3.24267e-05, 0.98727, 0.999509, 0.999981, 0.990825, 0.000301417, 0.422925, 0.998918, 8.02978e-05, 0.000648029, 0.000320643, 3.29355e-05, 0.999843, 2.22677e-05, 0.000118438, 2.19963, 0.00700003, 1.9706e-08, 0.0183418, 0.157616, -0.00109481},
-		//Cell Type 103
-		{8.39527e-05, 2.44599, 0.00018794, 8.64708, 135.892, 0.00161068, 0.752954, 0.752759, 0, 1,
-			7.80986e-24, 1.93723e-18, 0.155313, 0.368233, 0.32741, 0.129432, 0.0192315, 9.39584e-05, 0.000167084, 9.90781e-05, 1.96288e-05, 2.13166e-08, 2.52808e-08, 7.51285e-09, 2.15022e-12, 1.27801e-12, 8.15355e-17, //MC IKS
-			0.999998, 2.30013e-08, 3.24146e-05, 0.988345, 0.999509, 0.999982, 0.991101, 0.000301257, 0.423664, 0.998981, 5.71666e-05, 0.00062761, 0.000310764, 2.34694e-05, 0.999847, 2.17167e-05, 0.000115503, 2.19964, 0.00700003, 1.86343e-08, 0.0182058, 0.156607, -0.00106766},
-		//Cell Type 104
-		{9.49936e-05, 3.02001, 0.000202782, 8.72601, 135.707, 0.00166011, 0.749115, 0.748807, 0, 1,
-			1.41159e-23, 3.4155e-18, 0.115371, 0.330199, 0.354426, 0.169183, 0.0303846, 8.64032e-05, 0.000185485, 0.000132811, 3.18036e-05, 2.4268e-08, 3.47527e-08, 1.24834e-08, 3.03126e-12, 2.17773e-12, 1.42486e-16, //MC IKS
-			0.999996, 2.35534e-08, 3.30353e-05, 0.981555, 0.999499, 0.999977, 0.989834, 0.000309506, 0.415331, 0.998728, 0.000146077, 0.0007135, 0.000352412, 6.01966e-05, 0.999771, 3.2432e-05, 0.000172512, 2.19947, 0.00700005, 3.06805e-08, 0.0205513, 0.173646, -0.00159578},
-		//Cell Type 105
-		{8.45909e-05, 2.48002, 0.00018953, 8.57782, 135.955, 0.00161164, 0.752878, 0.75267, 0, 1,
-			8.82522e-24, 2.18801e-18, 0.144564, 0.3594, 0.335085, 0.138911, 0.0216485, 9.17761e-05, 0.000171134, 0.000106417, 2.2113e-05, 2.18503e-08, 2.71745e-08, 8.47028e-09, 2.31309e-12, 1.442e-12, 9.20706e-17, //MC IKS
-			0.699156, 2.30121e-08, 3.24267e-05, 0.98727, 0.999509, 0.999981, 0.990825, 0.000301417, 0.422925, 0.998918, 8.02979e-05, 0.00064803, 0.000320643, 3.29355e-05, 0.999843, 2.22677e-05, 0.000118438, 2.19963, 0.00700003, 1.9706e-08, 0.0183418, 0.157616, -0.00109481}
+	//Cell Type 100
+	{9.48162e-05, 3.03525, 0.000202384, 8.05137, 136.964, 0.00155309, 0.75751, 0.757259, 0, 1,
+		1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		0.999998, 2.23544e-08, 3.16832e-05, 0.979515, 0.999521, 0.999975, 0.989472, 0.000291621, 0.425051, 0.998551, 0.000221463, 0.000761795, 0.000375546, 9.00317e-05, 0.999772, 3.22574e-05, 0.000171593, 2.19947, 0.00700006, 3.21296e-08, 0.0205139, 0.17339, -0.00158723},
+	//Cell Type 101
+	{0.000107514, 3.70656, 0.000222606, 8.48193, 135.835, 0.00171251, 0.745116, 0.744476, 0, 1,
+		1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		0.999996, 2.41353e-08, 3.3686e-05, 0.967199, 0.999488, 0.999965, 0.987972, 0.000318226, 0.403233, 0.997317, 0.000659563, 0.00117496, 0.000575796, 0.000273157, 0.99966, 4.81499e-05, 0.000256181, 2.19921, 0.0070001, 5.58389e-08, 0.023198, 0.192184, -0.0023722},
+	//Cell Type 102
+	{9.90921e-05, 3.2338, 0.000209902, 8.81018, 135.001, 0.0017206, 0.744511, 0.744102, 0, 1,
+		1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		0.65201, 2.42244e-08, 3.37859e-05, 0.977341, 0.999487, 0.999972, 0.989015, 0.000319571, 0.407727, 0.998216, 0.000328376, 0.00088403, 0.000435047, 0.000136166, 0.999738, 3.71479e-05, 0.000197613, 2.19939, 0.00700007, 3.78458e-08, 0.0214192, 0.179807, -0.00182853},
+	//Cell Type 103
+	{9.8968e-05, 3.21785, 0.000208811, 9.05708, 134.173, 0.00176749, 0.741012, 0.740632, 0, 1,
+		1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		0.999998, 2.47413e-08, 3.43614e-05, 0.979594, 0.999477, 0.999974, 0.989382, 0.000327353, 0.405002, 0.99843, 0.000245524, 0.000818418, 0.000403396, 0.000102372, 0.999739, 3.69795e-05, 0.000196706, 2.19939, 0.00700006, 3.59041e-08, 0.0213928, 0.179611, -0.00182015},
+	//Cell Type 104
+	{0.000109918, 3.81239, 0.000226331, 9.10696, 133.439, 0.00186542, 0.733875, 0.733128, 0, 1,
+		1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		0.999996, 2.58129e-08, 3.55465e-05, 0.967707, 0.999458, 0.999965, 0.987961, 0.00034355, 0.390844, 0.997229, 0.000674337, 0.00121626, 0.000596158, 0.000284009, 0.999635, 5.15933e-05, 0.000274497, 2.19915, 0.0070001, 5.91844e-08, 0.0237044, 0.195636, -0.00254244},
+	//Cell Type 105
+	{0.000100855, 3.30963, 0.000213242, 9.19457, 132.851, 0.00186691, 0.733774, 0.7333, 0, 1,
+		1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+		0.647914, 2.58288e-08, 3.55644e-05, 0.977432, 0.999458, 0.999972, 0.988975, 0.000343797, 0.395611, 0.998129, 0.000346202, 0.000923847, 0.000454625, 0.000145877, 0.999722, 3.92833e-05, 0.00020897, 2.19935, 0.00700007, 3.95529e-08, 0.0217919, 0.182418, -0.00193392}
 	};
-	if(n>=0 && n<required_nodal_variables() && cell_type>=100 && cell_type<106){v = Vars[cell_type-100][n]; return true;}
+	if(n>=0 && n<50 && cell_type>=100 && cell_type<106){
+		v = Vars[cell_type-100][n];
+		return true;
+	}
 	else{return false;}
 }//End get initial conditions
 
@@ -207,7 +210,7 @@ inline bool ExplicitTNNPVentWithRice::return_initial_state_variable(const unsign
 //	we implement this as virtual so that in the case this class is used in a
 //	combined cell model class. Then it can be overloaded so that black box nodal
 //	parameters associated with each model have a unique index
-inline void ExplicitTNNPVentWithRice::extract_black_box_parameters_ExplicitTNNPVentWithRice(double &abindex,
+inline void ExplicitTNNPVentWithRiceMarkovChainIKs::extract_black_box_parameters_ExplicitTNNPVentWithRice(double &abindex,
 																double &isindex,
 																double &rvindex,
 																CellState &Cellstate){
@@ -216,7 +219,7 @@ inline void ExplicitTNNPVentWithRice::extract_black_box_parameters_ExplicitTNNPV
 	rvindex = Cellstate.get_black_box_nodal_parameters(2);
 }
 
-void ExplicitTNNPVentWithRice::explicit_timestep(CellState &Cellstate, Vector<double> &new_state){
+void ExplicitTNNPVentWithRiceMarkovChainIKs::explicit_timestep(CellState &Cellstate, Vector<double> &new_state){
 	double Vm  	  = Cellstate.get_vm(); // -86.2;
 	double cai 	  = new_state[0]; // 0.00007;
 	double CaSR   = new_state[1]; // 1.3;
@@ -228,32 +231,50 @@ void ExplicitTNNPVentWithRice::explicit_timestep(CellState &Cellstate, Vector<do
 	double sj     = new_state[7]; // 0.75;
 	double sxr1   = new_state[8]; // 0.0;
 	double sxr2   = new_state[9]; // 1.0;
-	double sxs    = new_state[10]; // 0.0;
-	double ss     = new_state[11]; // 1.0;
-	double sr     = new_state[12]; // 0.0;
-	double sd     = new_state[13]; // 0.0;
-	double sf     = new_state[14]; // 1.0;
-	double sf2    = new_state[15]; // 1.0;
-	double sfcass = new_state[16]; // 1.0;
-	double sRR    = new_state[17]; // 1.0;
-	double mNaL   = new_state[18];
-	double hNaL   = new_state[19];
-	double wt_C3  = new_state[20];  // 1.0;
-	double wt_O   = new_state[21];  // 0.0;
-	double wt_C1  = new_state[22];  // 0.0;
-	double wt_C2  = new_state[23];  // 0.0;
-	double wt_I   = new_state[24];  // 0.0;
+
+	double iks_o2 = new_state[10];
+	double iks_o1 = new_state[11];
+	double iks_c1 = new_state[12];
+	double iks_c2 = new_state[13];
+	double iks_c3 = new_state[14];
+	double iks_c4 = new_state[15];
+	double iks_c5 = new_state[16];
+	double iks_c6 = new_state[17];
+	double iks_c7 = new_state[18];
+	double iks_c8 = new_state[19];
+	double iks_c9 = new_state[20];
+	double iks_c10 = new_state[21];
+	double iks_c11 = new_state[22];
+	double iks_c12 = new_state[23];
+	double iks_c13 = new_state[24];
+	double iks_c14 = new_state[25];
+	double iks_c15 = new_state[26];
+
+	double ss     = new_state[27]; // 1.0;
+	double sr     = new_state[28]; // 0.0;
+	double sd     = new_state[29]; // 0.0;
+	double sf     = new_state[30]; // 1.0;
+	double sf2    = new_state[31]; // 1.0;
+	double sfcass = new_state[32]; // 1.0;
+	double sRR    = new_state[33]; // 1.0;
+	double mNaL   = new_state[34];
+	double hNaL   = new_state[35];
+	double wt_C3  = new_state[36];  // 1.0;
+	double wt_O   = new_state[37];  // 0.0;
+	double wt_C1  = new_state[38];  // 0.0;
+	double wt_C2  = new_state[39];  // 0.0;
+	double wt_I   = new_state[40];  // 0.0;
 
 	///Rice myofillament variables
-	double N         = new_state[25];
-	double XBprer    = new_state[26];
-	double XBpostr   = new_state[27];
-	double SL        = new_state[28];
-	double xXBpostr  = new_state[29];
-	double xXBprer   = new_state[30];
-	double TRPNCaL   = new_state[31];
-	double TRPNCaH   = new_state[32];
-	double intf      = new_state[33];
+	double N         = new_state[41];
+	double XBprer    = new_state[42];
+	double XBpostr   = new_state[43];
+	double SL        = new_state[44];
+	double xXBpostr  = new_state[45];
+	double xXBprer   = new_state[46];
+	double TRPNCaL   = new_state[47];
+	double TRPNCaH   = new_state[48];
+	double intf      = new_state[49];
 
 	unsigned m_celltype = Cellstate.get_cell_type();
 
@@ -605,13 +626,64 @@ void ExplicitTNNPVentWithRice::explicit_timestep(CellState &Cellstate, Vector<do
 	//////////////////
 
 	/* IKs */
-	double IKs = GKs_ABh * Gks * sxs * sxs * (Vm - Eks);  // with apicalbasal heterogeneity wit direct scaling factor, by haibo
-	double Xs_INF = 1. / (1. + exp((-5. - Vm) / 14.));
-	// double Axs = (1400. / (sqrt(1. + exp((5. - Vm) / 6))));
-	// double Bxs = (1. / (1. + exp((Vm - 35.) / 15.)));
-	double TAU_Xs = (1400. / (sqrt(1. + exp((5. - Vm) / 6)))) * (1. / (1. + exp((Vm - 35.) / 15.))) + 80;
-	TAU_Xs = TauKs_ABh * TAU_Xs;
-	sxs = Xs_INF - (Xs_INF - sxs) * exp(-dt / TAU_Xs);
+	// double IKs = GKs_ABh * Gks * sxs * sxs * (Vm - Eks);  // with apicalbasal heterogeneity wit direct scaling factor, by haibo
+	// double Xs_INF = 1. / (1. + exp((-5. - Vm) / 14.));
+	// // double Axs = (1400. / (sqrt(1. + exp((5. - Vm) / 6))));
+	// // double Bxs = (1. / (1. + exp((Vm - 35.) / 15.)));
+	// double TAU_Xs = (1400. / (sqrt(1. + exp((5. - Vm) / 6)))) * (1. / (1. + exp((Vm - 35.) / 15.))) + 80;
+	// TAU_Xs = TauKs_ABh * TAU_Xs;
+	// sxs = Xs_INF - (Xs_INF - sxs) * exp(-dt / TAU_Xs);
+	
+	// double IKs = 0.779*(1.0 + 0.6/(1.0 + pow((3.8e-5)/cai, 1.4))) * (iks_o1 + iks_o2) * (Vm - Eks);
+
+	double IKs = GKs_ABh * Gks * (iks_o1 + iks_o2) * (Vm - Eks);  // with apicalbasal heterogeneity wit direct scaling factor, by haibo
+	
+	double alpha=3.72e-003*exp(Vm/TTCell_RTONF*2.10e-001);
+	double beta=2.35e-004*exp(Vm/TTCell_RTONF*-2.42e-001);
+	double gamma=7.25e-003*exp(Vm/TTCell_RTONF*2.43e+000);
+	double delta_iks=1.53e-003*exp(Vm/TTCell_RTONF*-6.26e-001);
+	double theta=1.96e-003;
+	double eta=1.67e-002*exp(Vm/TTCell_RTONF*-1.34e+000);
+	double psi=0.00852459080491*exp(Vm/TTCell_RTONF*0.0124);
+	double omega=0.001631335712234*exp(Vm/TTCell_RTONF*-0.457531296450783);
+
+	//Calculate changes to the channel state variables
+	double diks_o2 = psi*iks_o1-omega*iks_o2;
+	double diks_o1 = theta*iks_c15+omega*iks_o2-(psi+eta)*iks_o1;
+	double diks_c15 = gamma*iks_c14+eta*iks_o1-(4*delta_iks+theta)*iks_c15;
+	double diks_c14 = alpha*iks_c13+4*delta_iks*iks_c15+2*gamma*iks_c12-(beta+3*delta_iks+gamma)*iks_c14;
+	double diks_c13 = beta*iks_c14+gamma*iks_c11-(alpha+3*delta_iks)*iks_c13;
+	double diks_c12 = alpha*iks_c11+3*delta_iks*iks_c14+3*gamma*iks_c9-(2*beta+2*delta_iks+2*gamma)*iks_c12;
+	double diks_c11 = 2*alpha*iks_c10+2*beta*iks_c12+2*gamma*iks_c8+3*delta_iks*iks_c13-(beta+alpha+gamma+2*delta_iks)*iks_c11;
+	double diks_c10 = beta*iks_c11+gamma*iks_c7-(2*alpha+2*delta_iks)*iks_c10;
+	double diks_c9 = alpha*iks_c8+2*delta_iks*iks_c12+4*gamma*iks_c5-(3*beta+delta_iks+3*gamma)*iks_c9;
+	double diks_c8 = 2*alpha*iks_c7+3*beta*iks_c9+3*gamma*iks_c4+2*delta_iks*iks_c11-(2*beta+alpha+2*gamma+delta_iks)*iks_c8;
+	double diks_c7 = 3*alpha*iks_c6+2*beta*iks_c8+2*gamma*iks_c3+2*delta_iks*iks_c10-(beta+2*alpha+delta_iks+gamma)*iks_c7;
+	double diks_c6 = beta*iks_c7+gamma*iks_c2-(3*alpha+delta_iks)*iks_c6;
+	double diks_c5 = alpha*iks_c4+delta_iks*iks_c9-(4*beta+4*gamma)*iks_c5;
+	double diks_c4 = 2*alpha*iks_c3+4*beta*iks_c5+delta_iks*iks_c8-(3*beta+alpha+3*gamma)*iks_c4;
+	double diks_c3 = 3*alpha*iks_c2+3*beta*iks_c4+delta_iks*iks_c7-(2*beta+2*alpha+2*gamma)*iks_c3;
+	double diks_c2 = 4*alpha*iks_c1+2*beta*iks_c3+delta_iks*iks_c6-(beta+3*alpha+gamma)*iks_c2;
+	double diks_c1 = beta*iks_c2-4*alpha*iks_c1;
+
+	//Incremement the channel Markov states
+	iks_o2 += diks_o2*dt;
+	iks_o1 += diks_o1*dt;
+	iks_c1 += diks_c1*dt;
+	iks_c2 += diks_c2*dt;
+	iks_c3 += diks_c3*dt;
+	iks_c4 += diks_c4*dt;
+	iks_c5 += diks_c5*dt;
+	iks_c6 += diks_c6*dt;
+	iks_c7 += diks_c7*dt;
+	iks_c8 += diks_c8*dt;
+	iks_c9 += diks_c9*dt;
+	iks_c10 += diks_c10*dt;
+	iks_c11 += diks_c11*dt;
+	iks_c12 += diks_c12*dt;
+	iks_c13 += diks_c13*dt;
+	iks_c14 += diks_c14*dt;
+	iks_c15 += diks_c15*dt;
 
 	
 	
@@ -875,31 +947,52 @@ void ExplicitTNNPVentWithRice::explicit_timestep(CellState &Cellstate, Vector<do
 	new_state[7]   = sj     ;
 	new_state[8]   = sxr1   ;
 	new_state[9]  = sxr2   ;
-	new_state[10]  = sxs    ;
-	new_state[11]  = ss     ;
-	new_state[12]  = sr     ;
-	new_state[13]  = sd     ;
-	new_state[14]  = sf     ;
-	new_state[15]  = sf2    ;
-	new_state[16]  = sfcass ;
-	new_state[17]  = sRR    ;
-	new_state[18]  = mNaL   ;
-	new_state[19]  = hNaL   ;
-	new_state[20]  = wt_C3  ;
-	new_state[21]  = wt_O   ;
-	new_state[22]  = wt_C1  ;
-	new_state[23]  = wt_C2  ;
-	new_state[24]  = wt_I   ;
+	// new_state[10]  = sxs    ;
 
-	new_state[25] = N;
-	new_state[26] = XBprer;
-	new_state[27] = XBpostr;
-	new_state[28] = SL;
-	new_state[29] = xXBpostr;
-	new_state[30] = xXBprer;
-	new_state[31] = TRPNCaL;
-	new_state[32] = TRPNCaH;
-	new_state[33] = intf;
+
+	new_state[10]  = iks_o2;
+	new_state[11]  = iks_o1;
+	new_state[12]  = iks_c1;
+	new_state[13]  = iks_c2;
+	new_state[14]  = iks_c3;
+	new_state[15]  = iks_c4;
+	new_state[16]  = iks_c5;
+	new_state[17]  = iks_c6;
+	new_state[18]  = iks_c7;
+	new_state[19]  = iks_c8;
+	new_state[20]  = iks_c9;
+	new_state[21]  = iks_c10;
+	new_state[22]  = iks_c11;
+	new_state[23]  = iks_c12;
+	new_state[24]  = iks_c13;
+	new_state[25]  = iks_c14;
+	new_state[26]  = iks_c15;
+
+
+	new_state[27]  = ss     ;
+	new_state[28]  = sr     ;
+	new_state[29]  = sd     ;
+	new_state[30]  = sf     ;
+	new_state[31]  = sf2    ;
+	new_state[32]  = sfcass ;
+	new_state[33]  = sRR    ;
+	new_state[34]  = mNaL   ;
+	new_state[35]  = hNaL   ;
+	new_state[36]  = wt_C3  ;
+	new_state[37]  = wt_O   ;
+	new_state[38]  = wt_C1  ;
+	new_state[39]  = wt_C2  ;
+	new_state[40]  = wt_I   ;
+
+	new_state[41] = N;
+	new_state[42] = XBprer;
+	new_state[43] = XBpostr;
+	new_state[44] = SL;
+	new_state[45] = xXBpostr;
+	new_state[46] = xXBprer;
+	new_state[47] = TRPNCaL;
+	new_state[48] = TRPNCaH;
+	new_state[49] = intf;
 
 	Cellstate.set_active_strain(-(SL - SLset) / SLset);
 

@@ -455,6 +455,119 @@ namespace oomph
      }
    }
 
+
+
+  unsigned nscalar_paraview() const
+  {
+    return (dim()+1 + dim()*dim());
+  }
+
+  void scalar_value_paraview(std::ofstream& file_out,
+                            const unsigned& i,
+                            const unsigned& nplot) const
+  {
+    Vector<double> x(dim());
+    Vector<double> xi(dim());
+    Vector<double> s(dim());
+    DenseMatrix<double> stress_or_strain(dim(),dim());
+
+    // Loop over plot points
+    unsigned num_plot_points=this->nplot_points_paraview(nplot);
+    for (unsigned iplot=0;iplot<num_plot_points;iplot++)
+    {
+      // Get local coordinates of plot point
+      this->get_s_plot(iplot,nplot,s);
+
+      // Get Eulerian and Lagrangian coordinates
+      this->interpolated_x(s,x);
+      this->interpolated_xi(s,xi);
+
+      //xi
+      if(i<dim())
+      {
+        file_out << xi[i] << std::endl;
+        continue;
+      }
+      //isotropic growth
+      if(i<dim()+1)
+      {
+        // Get isotropic growth
+        double gamma;
+        // Dummy integration point
+        unsigned ipt=0;
+        this->get_isotropic_growth(ipt,s,xi,gamma);
+        file_out << gamma << std::endl;
+        continue;
+      }
+      //strain
+      if(i<(dim()+1 + (dim()*dim())))
+      {
+        this->get_strain(s,stress_or_strain);
+        file_out << stress_or_strain(i%dim(),unsigned(i/dim())) << std::endl;
+        continue;
+
+      }
+      // //stress
+      // if(i<(2*DIM+1 + (DIM^2)))
+      // {
+      //   this->get_stress(s,stress_or_strain);
+      //   for(unsigned i=0;i<DIM;i++)
+      //   {
+      //     for(unsigned j=0;j<=i;j++)
+      //     {
+      //       file_out << stress_or_strain(j,i) << std::endl;
+      //     }
+      //   }
+      //   return;
+      // }
+
+      //Never get here
+    #ifdef PARANOID
+      std::stringstream error_stream;
+      error_stream << "paraview anisotropic solid output died" << std::endl;
+      throw OomphLibError(
+        error_stream.str(),
+        OOMPH_CURRENT_FUNCTION,
+        OOMPH_EXCEPTION_LOCATION);
+    #endif
+    }
+  }
+
+  void scalar_value_fct_paraview(std::ofstream& file_out,
+                                const unsigned& i,
+                                const unsigned& nplot,
+                                FiniteElement::SteadyExactSolutionFctPt
+                                exact_soln_pt) const
+  {
+    scalar_value_paraview(file_out,i,nplot);
+  }
+
+  std::string scalar_name_paraview(const unsigned& i) const
+  {
+    //xi
+    if(i<dim())
+    {
+      return ("xi"+std::to_string(i));
+    }
+    //isotropic growth
+    if(i<dim()+1)
+    {
+      return "Isotropic growth";
+    }
+    //strain
+    if(i<(dim()+1+(dim()*dim())))
+    {
+      return ("Strain"+std::to_string(i-(dim()+1)));
+    }
+
+    throw OomphLibError(
+        "Requested variable index is too large",
+        OOMPH_CURRENT_FUNCTION,
+        OOMPH_EXCEPTION_LOCATION);
+  }
+
+
+
   protected:
    
    /// Pointer to isotropic growth function

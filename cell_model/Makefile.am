@@ -9,7 +9,16 @@ Implicit_TNNP_Vent.cc \
 Implicit_CNZ_Atria.cc \
 Explicit_CNZ_Atria.cc \
 Explicit_TNNP_Vent_With_Rice.cc \
-Explicit_OHaraRudy_Vent.cc
+Explicit_OHaraRudy_Vent.cc \
+Explicit_CNZ_Atria_MarkovChain_IKs.cc \
+Explicit_OHaraRudy_Vent_MarkovChain_IKs.cc \
+Explicit_TNNP_Vent_With_Rice_MarkovChain_IKs.cc \
+TomekORudy.cc \
+TomekORudy_MarkovChain_IKs.cc \
+TomekORudy_Anti_KCNQ1.cc \
+TomekORudy_new.cc \
+TNNP_06_Vent.cc
+
 
 # Define the headers
 headers =  \
@@ -20,7 +29,15 @@ Implicit_TNNP_Vent.h \
 Implicit_CNZ_Atria.h \
 Explicit_CNZ_Atria.h \
 Explicit_TNNP_Vent_With_Rice.h \
-Explicit_OHaraRudy_Vent.h
+Explicit_OHaraRudy_Vent.h \
+Explicit_CNZ_Atria_MarkovChain_IKs.h \
+Explicit_OHaraRudy_Vent_MarkovChain_IKs.h \
+Explicit_TNNP_Vent_With_Rice_MarkovChain_IKs.h \
+TomekORudy.h \
+TomekORudy_MarkovChain_IKs.h \
+TomekORudy_Anti_KCNQ1.h \
+TomekORudy_new.h \
+TNNP_06_Vent.h
 
 # Define name of library
 libname = cell_model

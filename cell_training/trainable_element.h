@@ -26,7 +26,10 @@ public:
 	TrainableElement()	:	Parameter_Source_Pt(0)	{}
 
 	void set_parameter_source_pt(Vector<double> &new_parameter_source_pt){
+		//Set the source element
 		Parameter_Source_Pt = &new_parameter_source_pt;
+		//Extract the parameter values
+		extract_parameters_from_parameter_source(Current_Optimisation_Parameters);
 	}
 
 	void extract_parameters_from_parameter_source(Vector<double> &parameters) const {
@@ -39,9 +42,11 @@ public:
 
 		parameters = (*Parameter_Source_Pt);
 	}
-
+protected:
+	Vector<double> Current_Optimisation_Parameters;
 private:
 	Vector<double>* Parameter_Source_Pt;
+
 };
 
 }

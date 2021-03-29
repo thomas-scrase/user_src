@@ -78,7 +78,7 @@ namespace oomph
 											                                               DenseMatrix<double> &jacobian, 
 											                                               DenseMatrix<double> &mass_matrix,
 											                                               unsigned flag)
-	{
+	{		
 		//Get the number of nodes in the element
 		const unsigned n_node = nnode();
  		//Preallocate storage vectors for the local_index and local_eqn numbers for the single cell data
@@ -97,7 +97,7 @@ namespace oomph
 
 			//If cells are represented by a point and this cell should not
 			//	be computed then skip it
-			if(Cells_Are_Points && !Cell_Inds_To_Compute[l]){continue;}
+			if(Cells_Are_Points && Cell_Inds_To_Compute[l]!=1){/*std::cout << "Passing a cell" << std::endl;*/ continue;}
 
 			// Get the local ind and local eqn of the cell data
 			for(unsigned var=0; var<cell_model_pt()->required_nodal_variables(); var++){
@@ -114,6 +114,21 @@ namespace oomph
 																			residual_sub,
 																			jacobian_sub,
 																			flag);
+
+			//Check if the residual and jacobian is small
+			// double res_size = 0.0;
+			// double jac_size = 0.0;
+			// for(unsigned var=0; var<cell_model_pt()->required_nodal_variables(); var++){
+			// 	res_size+=residual_sub[var]*residual_sub[var];
+			// 	for(unsigned var1=0; var1<cell_model_pt()->required_nodal_variables(); var1++){
+			// 		jac_size+=jacobian_sub(var,var1)*jacobian_sub(var,var1);
+			// 	}
+			// }
+
+			// std::cout << "Node: " << l << std::endl;
+			// std::cout << res_size << std::endl;
+			// std::cout << jac_size << std::endl;
+
 			// Loop over the entries in the residual and jacobian
 			for(unsigned var=0; var<cell_model_pt()->required_nodal_variables(); var++){
 				if(local_eqn[var]>=0){
@@ -121,12 +136,16 @@ namespace oomph
 					//Compute Jacobian?
 					if(flag){
 						for(unsigned var1=0; var1<cell_model_pt()->required_nodal_variables(); var1++){
-							jacobian(local_eqn[var], local_eqn[var1]) += jacobian_sub(var, var1);
+							if(local_eqn[var1]>=0){
+								jacobian(local_eqn[var], local_eqn[var1]) += jacobian_sub(var, var1);
+							}
 						}
 					}
 				}
 			}
+
 		}
+
 	}
 
 
@@ -341,6 +360,36 @@ namespace oomph
 	template class PointCellInterfaceElement<2,50>;
 	template class PointCellInterfaceElement<3,50>;
 
+	//Force build for the TomekORudy cell model
+	template class QCellInterfaceElement<1,42,2>;
+	template class QCellInterfaceElement<1,42,3>;
+	// template class QCellInterfaceElement<1,42,4>;
+
+	template class QCellInterfaceElement<2,42,2>;
+	template class QCellInterfaceElement<2,42,3>;
+	// template class QCellInterfaceElement<2,42,4>;
+
+	template class QCellInterfaceElement<3,42,2>;
+	template class QCellInterfaceElement<3,42,3>;
+	// template class QCellInterfaceElement<3,42,4>;
+
+
+	template class TCellInterfaceElement<1,42,2>;
+	template class TCellInterfaceElement<1,42,3>;
+	// template class TCellInterfaceElement<1,42,4>;
+
+	template class TCellInterfaceElement<2,42,2>;
+	template class TCellInterfaceElement<2,42,3>;
+	// template class TCellInterfaceElement<2,42,4>;
+
+	template class TCellInterfaceElement<3,42,2>;
+	template class TCellInterfaceElement<3,42,3>;
+	// template class TCellInterfaceElement<3,42,4>;
+
+	template class PointCellInterfaceElement<1,42>;
+	template class PointCellInterfaceElement<2,42>;
+	template class PointCellInterfaceElement<3,42>;
+
 
 	//Force build for the 1D variable cell models
 	template class QCellInterfaceElement<1,1,2>;
@@ -376,6 +425,12 @@ namespace oomph
 	template class MonodomainSingleCellElement<1>;
 	template class MonodomainSingleCellElement<25>;
 	template class MonodomainSingleCellElement<34>;
+	template class MonodomainSingleCellElement<40>;
+	template class MonodomainSingleCellElement<42>;
+	template class MonodomainSingleCellElement<44>;
 	template class MonodomainSingleCellElement<45>;
 	template class MonodomainSingleCellElement<49>;
+	template class MonodomainSingleCellElement<50>;
+	template class MonodomainSingleCellElement<55>;
+	template class MonodomainSingleCellElement<65>;
 }

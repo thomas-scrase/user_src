@@ -21,15 +21,21 @@ namespace oomph{
 		                       	OOMPH_CURRENT_FUNCTION,
 		                       	OOMPH_EXCEPTION_LOCATION);
 		}
+
+		if(n_values==1){
+			throw OomphLibError("Nelder Mead cannot solve for a single variable",
+		                       	OOMPH_CURRENT_FUNCTION,
+		                       	OOMPH_EXCEPTION_LOCATION);
+		}
 		//set the number of variables used in problem
-		N_Variables = n_values;
+		this->n_variables() = n_values;
 		//make the simplex
 		Simplex.resize(n_values+1);
 		for(unsigned i=0; i< n_values+1; i++){
 			Simplex[i].resize(n_values);
 		}
 
-		Node_Fitnesses.resize(N_Variables+1);
+		Node_Fitnesses.resize(this->n_variables()+1);
 
 		//Get all elements which depend on parameters supplied by the simplex
 		add_all_trainable_elements_from_trainable_problems_as_dependents();
@@ -40,9 +46,9 @@ namespace oomph{
 		//Set these to a big value
 		Default_Minimum_Permitted_Value = -1e9;
 		Default_Maximum_Permitted_Value = 1e9;
-		Minimum_Permitted_Values.resize(N_Variables);
-		Maximum_Permitted_Values.resize(N_Variables);
-		for(unsigned i=0; i<N_Variables; i++){
+		Minimum_Permitted_Values.resize(this->n_variables());
+		Maximum_Permitted_Values.resize(this->n_variables());
+		for(unsigned i=0; i<this->n_variables(); i++){
 			Minimum_Permitted_Values[i] = Default_Minimum_Permitted_Value;
 			Maximum_Permitted_Values[i] = Default_Maximum_Permitted_Value;
 		}
@@ -52,16 +58,11 @@ namespace oomph{
 		Simplex[node][var] = value;
 	}
 
-	//Add a sub problem 
-	void NelderMeadOptimisation::add_trainable_problem(TrainableProblem& trainable_problem){
-		Trainable_Problem_Pts.push_back(&trainable_problem);
-	}
-
 	//report on the nodes
 	void NelderMeadOptimisation::output(const unsigned &iteration, Vector<double> &Node_Fitnesses, std::ostream &outfile){
-		for(unsigned i=0; i<N_Variables+1; i++){
+		for(unsigned i=0; i<this->n_variables()+1; i++){
 			outfile << "Node " << i << ": ( ";
-			for(unsigned var=0; var<N_Variables; var++){
+			for(unsigned var=0; var<this->n_variables(); var++){
 				outfile << Simplex[i][var] << " ";
 			}
 			outfile << ") -> " << Node_Fitnesses[i] << std::endl;
@@ -69,47 +70,15 @@ namespace oomph{
 	}
 
 	void NelderMeadOptimisation::check_node_for_forbidden_values(Vector<double> &node){
-		for(unsigned i=0; i<N_Variables; i++){
+		for(unsigned i=0; i<this->n_variables(); i++){
 			if(node[i]<Minimum_Permitted_Values[i]){node[i] = Minimum_Permitted_Values[i];}
 			if(node[i]>Maximum_Permitted_Values[i]){node[i] = Maximum_Permitted_Values[i];}
 		}
 	}
 
-
-	//add dependent element
-	void NelderMeadOptimisation::add_trainable_element_as_dependent(TrainableElement* dependent_element){
-		Dependent_Elements.push_back(dependent_element);
-	}
-
-	//add all trainable elements from all sub problems
-	void NelderMeadOptimisation::add_all_trainable_elements_from_trainable_problems_as_dependents(){
-		//loop over the sub problems
-		for(unsigned i=0; i< Trainable_Problem_Pts.size(); i++){
-			//a temporary vector
-			Vector<TrainableElement*> trainable_elements_from_sub_problem;
-			//get the list of trainable elements from the problem
-			Trainable_Problem_Pts[i]->get_all_trainable_elements(trainable_elements_from_sub_problem);
-			//loop over the elements
-			for(unsigned j=0; j<trainable_elements_from_sub_problem.size(); j++){
-				//add them all
-				add_trainable_element_as_dependent(trainable_elements_from_sub_problem[j]);
-			}
-		}
-	}
-
-
-	//send a particular optimisation element to all dependent trainable elements
-	//	performed before sub problems are run
-	void NelderMeadOptimisation::push_optimisation_element_to_dependent_elements(Vector<double> &node){
-		for(unsigned i=0; i<Dependent_Elements.size(); i++){
-			Dependent_Elements[i]->set_parameter_source_pt(node);
-		}
-	}
-
-
 	void NelderMeadOptimisation::evaluate_fitness_of_simplex(std::ostream &raw_data_outfile){
 		double fitness;
-		for(unsigned n=0; n < N_Variables+1; n++){
+		for(unsigned n=0; n < this->n_variables()+1; n++){
 			fitness=0.0;
 			evaluate_fitness_of_node(Simplex[n], fitness, raw_data_outfile);
 			Node_Fitnesses[n] = fitness;
@@ -121,16 +90,19 @@ namespace oomph{
 														double &fitness,
 														std::ostream &raw_data_outfile){
 		//push the node to all dependent elements
-		push_optimisation_element_to_dependent_elements(node);
+		push_optimisation_parameter_values_to_dependent_elements(node);
 		//condense the residuals from each trainable problem into
 		//	a single number and pass it to fitness
 		for(unsigned i=0; i<Trainable_Problem_Pts.size(); i++){
 			fitness += Trainable_Problem_Pts[i]->run();
 		}
+		if(std::isnan(fitness)){
+			fitness = 1e300;
+		}
 
 		//So it's easy to match run number with output from sub problems
 		raw_data_outfile << Evaluations_performed << "\t\t";
-		for(unsigned var=0; var<N_Variables; var++){
+		for(unsigned var=0; var<this->n_variables(); var++){
 			raw_data_outfile << node[var] << " ";
 		}
 		raw_data_outfile << fitness << std::endl;
@@ -141,10 +113,10 @@ namespace oomph{
 	double NelderMeadOptimisation::simplex_maximum_edge_length(){
 		double max_length = 0.0;
 		//loop over all edges and get their lengths
-		for(unsigned node1=0; node1<N_Variables+1; node1++){
-			for(unsigned node2=node1+1; node2<N_Variables+1; node2++){
+		for(unsigned node1=0; node1<this->n_variables()+1; node1++){
+			for(unsigned node2=node1+1; node2<this->n_variables()+1; node2++){
 				double length = 0.0;
-				for(unsigned index=0; index<N_Variables; index++){
+				for(unsigned index=0; index<this->n_variables(); index++){
 					length += Simplex[node1][index] - Simplex[node2][index];
 				}
 				if(std::abs(length) > max_length){max_length = std::abs(length);}
@@ -158,14 +130,10 @@ namespace oomph{
 	void NelderMeadOptimisation::sort_nodes(Vector<unsigned> &sorted_node_indexes){
 		//index sorting algorithm
 		sorted_node_indexes.resize(Node_Fitnesses.size());
-		for(unsigned i=0; i<N_Variables+1; i++){sorted_node_indexes[i] = i;}
-		
-		// std::sort(sorted_node_indexes.begin(), sorted_node_indexes.end(), Node_Fitnesses);;
-
-
-
-		for(unsigned i=0; i < N_Variables;i++){
-			for(unsigned j=0; j < N_Variables-i; j++){
+		for(unsigned i=0; i<this->n_variables()+1; i++){sorted_node_indexes[i] = i;}
+	
+		for(unsigned i=0; i < this->n_variables();i++){
+			for(unsigned j=0; j < this->n_variables()-i; j++){
 				if(std::abs(Node_Fitnesses[sorted_node_indexes[j]]) > std::abs(Node_Fitnesses[sorted_node_indexes[j+1]])){
 					unsigned tmp = sorted_node_indexes[j];
 					sorted_node_indexes[j] = sorted_node_indexes[j+1];
@@ -178,40 +146,40 @@ namespace oomph{
 
 	void NelderMeadOptimisation::fill_in_x0(Vector<double> &node, Vector<unsigned> &sorted_node_indexes){
 		//loop over the variables
-		for(unsigned var=0; var<N_Variables; var++){
+		for(unsigned var=0; var<this->n_variables(); var++){
 			node[var] = 0.0;
 			//loop over the nodes in the simplex, skipping the worst one
-			for(unsigned n=0; n<N_Variables; n++){
+			for(unsigned n=0; n<this->n_variables(); n++){
 				//get the index of the current node
 				unsigned index = sorted_node_indexes[n];
 				//add the value from that node
 				node[var] += Simplex[index][var];
 			}
 			//take average
-			node[var]/=N_Variables;
+			node[var]/=this->n_variables();
 		}
 	}
 
 	void NelderMeadOptimisation::fill_in_xr(Vector<double> &node, Vector<double> &x0, Vector<double> &xnp1){
-		for(unsigned var=0; var<N_Variables; var++){
+		for(unsigned var=0; var<this->n_variables(); var++){
 			node[var] = x0[var] + alpha*(x0[var] - xnp1[var]);
 		}
 	}
 
 	void NelderMeadOptimisation::fill_in_xe(Vector<double> &node, Vector<double> &x0, Vector<double> &xr){
-		for(unsigned var=0; var<N_Variables; var++){
+		for(unsigned var=0; var<this->n_variables(); var++){
 			node[var] = x0[var] + gamma*(xr[var] - x0[var]);
 		}
 	}
 
 	void NelderMeadOptimisation::fill_in_xc(Vector<double> &node, Vector<double> &x0, Vector<double> &xnp1){
-		for(unsigned var=0; var<N_Variables; var++){
+		for(unsigned var=0; var<this->n_variables(); var++){
 			node[var] = x0[var] + rho*(xnp1[var] - x0[var]);
 		}
 	}
 
 	void NelderMeadOptimisation::shrink_node(Vector<double> &node, Vector<double> &x0){
-		for(unsigned var=0; var<N_Variables; var++){
+		for(unsigned var=0; var<this->n_variables(); var++){
 			double val = 
 			node[var] = x0[var] + sigma*(node[var] - x0[var]);
 		}
@@ -225,11 +193,11 @@ namespace oomph{
 	void NelderMeadOptimisation::run_algorithm(std::ostream &outfile,
 												std::ostream &raw_data_outfile){
 		outfile << "This is the Nelder-Mead Coordinator." << std::endl;
-		unsigned iteration = 0;
+		Iterations = 0;
 		unsigned best_node_index;
 		unsigned worst_node_index;
 		unsigned second_worst_node_index;
-		Vector<unsigned> Sorted_node_indexes(N_Variables+1);
+		Vector<unsigned> Sorted_node_indexes(this->n_variables()+1);
 
 		//evaluate entire simplex
 		evaluate_fitness_of_simplex(raw_data_outfile);
@@ -237,42 +205,42 @@ namespace oomph{
 		//rely on calculations from previous run, this way only nodes which are changed
 		//	need to be reevaluated
 		double Maximum_Edge_Length = simplex_maximum_edge_length();
-		while(Maximum_Edge_Length > Acceptable_Edge_Length){
+		while(Maximum_Edge_Length > Acceptable_Edge_Length && Iterations < Max_Iters){
 			//Calculate maximum edge length
 			Maximum_Edge_Length = simplex_maximum_edge_length();
-			iteration++;
+			Iterations++;
 
 			//sort indexes from best to worst
 			sort_nodes(Sorted_node_indexes);
 			outfile << "Sorted indices: ";
-			for(unsigned i=0; i<N_Variables+1; i++){
+			for(unsigned i=0; i<this->n_variables()+1; i++){
 				outfile << "\t" << Sorted_node_indexes[i] << " (" << Node_Fitnesses[Sorted_node_indexes[i]] << ")\t";
 			}
 			outfile << std::endl << std::endl;
 
 			best_node_index = Sorted_node_indexes[0];
-			worst_node_index = Sorted_node_indexes[N_Variables];
-			second_worst_node_index = Sorted_node_indexes[N_Variables-1];
+			worst_node_index = Sorted_node_indexes[this->n_variables()];
+			second_worst_node_index = Sorted_node_indexes[this->n_variables()-1];
 
 
 			//Detailed output
 			outfile << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-			outfile << "Begin detailed rundown, pre iteration " << iteration << "." << std::endl;
+			outfile << "Begin detailed rundown, pre Iterations " << Iterations << "." << std::endl;
 			//report on the state of the simplex
-			output(iteration, Node_Fitnesses, outfile);
-			outfile << "Start of iteration detailed rundown: " << std::endl;
+			output(Iterations, Node_Fitnesses, outfile);
+			outfile << "Start of Iterations detailed rundown: " << std::endl;
 			outfile << "best node: " << best_node_index << ": (";
-			for(unsigned var=0; var<N_Variables; var++){
+			for(unsigned var=0; var<this->n_variables(); var++){
 				outfile << Simplex[best_node_index][var] << " ";
 			}
 			outfile << ") -> " << Node_Fitnesses[best_node_index] << std::endl;
 			outfile << "worst node: " << worst_node_index << ": (";
-			for(unsigned var=0; var<N_Variables; var++){
+			for(unsigned var=0; var<this->n_variables(); var++){
 				outfile << Simplex[worst_node_index][var] << " ";
 			}
 			outfile << ") -> " << Node_Fitnesses[worst_node_index] << std::endl;
 			outfile << "second worst node: " << second_worst_node_index << ": (";
-			for(unsigned var=0; var<N_Variables; var++){
+			for(unsigned var=0; var<this->n_variables(); var++){
 				outfile << Simplex[second_worst_node_index][var] << " ";
 			}
 			outfile << ") -> " << Node_Fitnesses[second_worst_node_index] << std::endl;
@@ -282,26 +250,24 @@ namespace oomph{
 			
 
 			//make x0
-			Vector<double> x0(N_Variables);
-			// x0.create_internal_data(N_Variables);
+			Vector<double> x0(this->n_variables());
 			fill_in_x0(x0, Sorted_node_indexes);
 			check_node_for_forbidden_values(x0);
 			outfile << "Centroid: ( ";
-			for(unsigned var=0; var<N_Variables; var++){
+			for(unsigned var=0; var<this->n_variables(); var++){
 				outfile << x0[var] << " ";
 			}
 			outfile << ")" << std::endl;
 
 			//make xr
-			Vector<double> xr(N_Variables);
-			// xr.create_internal_data(N_Variables);
+			Vector<double> xr(this->n_variables());
 			fill_in_xr(xr, x0, Simplex[worst_node_index]);
 			check_node_for_forbidden_values(xr);
 			//evaluate fitness of xr
 			double xr_fitness=0.0;
 			evaluate_fitness_of_node(xr, xr_fitness, raw_data_outfile);
 			outfile << "xr: ( ";
-			for(unsigned var=0; var<N_Variables; var++){
+			for(unsigned var=0; var<this->n_variables(); var++){
 				outfile << xr[var] << " ";
 			}
 			outfile << ") -> " << xr_fitness <<  std::endl;
@@ -321,15 +287,14 @@ namespace oomph{
 			//if the reflected node fitness is better than that of the best node
 			if(std::abs(xr_fitness) < std::abs(Node_Fitnesses[best_node_index])){
 				//make xe
-				Vector<double> xe(N_Variables);
-				// xe.create_internal_data(N_Variables);
+				Vector<double> xe(this->n_variables());
 				fill_in_xe(xe, x0, xr);
 				check_node_for_forbidden_values(xe);
 				//evaluate fitness of xe
 				double xe_fitness=0.0;
 				evaluate_fitness_of_node(xe, xe_fitness, raw_data_outfile);
 				outfile << "xe: ( ";
-				for(unsigned var=0; var<N_Variables; var++){
+				for(unsigned var=0; var<this->n_variables(); var++){
 					outfile << xe[var] << " ";
 				}
 				outfile << ") -> " << xe_fitness <<  std::endl;
@@ -356,15 +321,14 @@ namespace oomph{
 
 
 			//make xc
-			Vector<double> xc(N_Variables);
-			// xc.create_internal_data(N_Variables);
+			Vector<double> xc(this->n_variables());
 			fill_in_xc(xc, x0, Simplex[worst_node_index]);
 			check_node_for_forbidden_values(xc);
 			//evaluate fitness of xc
 			double xc_fitness=0.0;
 			evaluate_fitness_of_node(xc, xc_fitness, raw_data_outfile);
 			outfile << "xc: ( ";
-			for(unsigned var=0; var<N_Variables; var++){
+			for(unsigned var=0; var<this->n_variables(); var++){
 				outfile << xc[var] << " ";
 			}
 			outfile << ") -> " << xc_fitness <<  std::endl;
@@ -382,7 +346,7 @@ namespace oomph{
 
 
 			//shrink all points towards best
-			for(unsigned i=1; i<N_Variables+1; i++){
+			for(unsigned i=1; i<this->n_variables()+1; i++){
 				unsigned node_index = Sorted_node_indexes[i];
 				shrink_node(Simplex[node_index],Simplex[best_node_index]);
 				//calculate the fitness of the new node
@@ -392,7 +356,7 @@ namespace oomph{
 				Node_Fitnesses[node_index] = new_node_fitness;
 
 				outfile << "shrank node " << node_index << ": ( ";
-				for(unsigned var=0; var<N_Variables; var++){
+				for(unsigned var=0; var<this->n_variables(); var++){
 					outfile << Simplex[node_index][var] << " ";
 				}
 				outfile << ") -> " << new_node_fitness <<  std::endl;
@@ -404,8 +368,8 @@ namespace oomph{
 
 		//report on the state of the simplex
 		outfile << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
-		outfile << "Simplex at end of program, took " << iteration << " iterations." << std::endl;
-		output(iteration, Node_Fitnesses, outfile);
+		outfile << "Simplex at end of program, took " << Iterations << " Iterationss." << std::endl;
+		output(Iterations, Node_Fitnesses, outfile);
 		outfile << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 
 	}
@@ -415,51 +379,21 @@ namespace oomph{
 
 
 
-
-
-
-
-
-
-
-
-
 	///Gradient descent
 	void GradientDescentOptimisation::setup_optimisation(const unsigned &n_values){
 		//can only be called once
-		if(N_Variables>0){
+		if(this->n_variables()>0){
 			throw OomphLibError("Gradient descent can only be setup once",
 		                       	OOMPH_CURRENT_FUNCTION,
 		                       	OOMPH_EXCEPTION_LOCATION);
 		}
 		//set the number of variables used in problem
-		N_Variables = n_values;
+		this->n_variables() = n_values;
 		//make the current point
 		Current_Point.resize(n_values);
 
 		//Get all elements which depend on parameters supplied by the simplex
 		add_all_trainable_elements_from_trainable_problems_as_dependents();
-	}
-
-	//add dependent element
-	void GradientDescentOptimisation::add_trainable_element_as_dependent(TrainableElement* dependent_element){
-		Dependent_Elements.push_back(dependent_element);
-	}
-
-	//add all trainable elements from all sub problems
-	void GradientDescentOptimisation::add_all_trainable_elements_from_trainable_problems_as_dependents(){
-		//loop over the sub problems
-		for(unsigned i=0; i< Trainable_Problem_Pts.size(); i++){
-			//a temporary vector
-			Vector<TrainableElement*> trainable_elements_from_sub_problem;
-			//get the list of trainable elements from the problem
-			Trainable_Problem_Pts[i]->get_all_trainable_elements(trainable_elements_from_sub_problem);
-			//loop over the elements
-			for(unsigned j=0; j<trainable_elements_from_sub_problem.size(); j++){
-				//add them all
-				add_trainable_element_as_dependent(trainable_elements_from_sub_problem[j]);
-			}
-		}
 	}
 
 	void GradientDescentOptimisation::set_initial_position(const Vector<double>& v_0){
@@ -468,20 +402,11 @@ namespace oomph{
 		History_Points[0] = v_0;
 	}
 
-
-	//send a particular optimisation element to all dependent trainable elements
-	//	performed before sub problems are run
-	void GradientDescentOptimisation::push_optimisation_element_to_dependent_elements(Vector<double> &node){
-		for(unsigned i=0; i<Dependent_Elements.size(); i++){
-			Dependent_Elements[i]->set_parameter_source_pt(node);
-		}
-	}
-
 	void GradientDescentOptimisation::evaluate_fitness_of_point(Vector<double>& point,
 																double& fitness,
 																std::ostream &raw_data_outfile){
 		//push the node to all dependent elements
-		push_optimisation_element_to_dependent_elements(point);
+		push_optimisation_parameter_values_to_dependent_elements(point);
 		//condense the residuals from each trainable problem into
 		//	a single number and pass it to fitness
 		fitness = 0.0;
@@ -490,7 +415,7 @@ namespace oomph{
 		}
 
 		//Output the evaluation to the raw data output file
-		for(unsigned var=0; var<N_Variables; var++){
+		for(unsigned var=0; var<this->n_variables(); var++){
 			raw_data_outfile << point[var] << " ";
 		}
 		raw_data_outfile << fitness << std::endl;
@@ -510,7 +435,15 @@ namespace oomph{
 		unsigned iterations = 0;
 
 		while(true){
-			outfile << "Entering iteration " << iterations << std::endl;
+			outfile << std::endl << "Entering iteration " << iterations << std::endl;
+
+			outfile << "Current point: {";
+			for(unsigned j=0; j<this->n_variables(); j++){
+				outfile << std::setprecision(15) << " " << Current_Point[j];
+			}
+			outfile << " }" << std::endl;
+
+
 			//Evaluate current point
 			evaluate_fitness_of_current_point(raw_data_outfile);
 			History_Fitness.push_back(Current_Fitness);
@@ -525,56 +458,64 @@ namespace oomph{
 			}
 
 			//Perform finite difference in all dimensions to find Grad.F
-			Vector<double> GradF(N_Variables, 0.0);
+			Vector<double> GradF(this->n_variables(), 0.0);
 			outfile << "Calculating gradient:";
-			for(unsigned i=0; i<N_Variables; i++){
-				outfile << " " << i << "\/" << N_Variables;
+			for(unsigned i=0; i<this->n_variables(); i++){
+				outfile << " " << i+1 << " of " << this->n_variables();
 				GradF[i] = 0.0;
 				double perturbed_fitness = 0.0;
 				Current_Point[i] += Finite_Difference_Step;
+
+				outfile << "{";
+				for(unsigned j=0; j<this->n_variables(); j++){
+					outfile << std::setprecision(15) << " " << Current_Point[j];
+				}
+				outfile << " }";
+
 				evaluate_fitness_of_point(Current_Point,
 										perturbed_fitness,
 										raw_data_outfile);
+				outfile << ". Perturbed fitness: " << perturbed_fitness << std::endl;
 				//Calculate the gradient wrt the perturbed quantity;
 				GradF[i] = (perturbed_fitness - Current_Fitness)/Finite_Difference_Step;
 				Current_Point[i] -= Finite_Difference_Step;
 			}
-			outfile << std::endl;
 			History_Gradients.push_back(GradF);
-			outfile << "Gradient is";
-			for(unsigned i=0; i<N_Variables; i++){
-				outfile << " " << GradF[i];
+			outfile << "Gradient is {";
+			for(unsigned i=0; i<this->n_variables(); i++){
+				outfile << std::setprecision(15) << " " << GradF[i];
 			}
-			outfile << std::endl;
+			outfile << " }"<< std::endl;
 
 			///Calculate Gamma
 			///	If it is the first iteration use a very small value of gamma,
 			///	Maybe the finite difference step length?
 			outfile << "Calculating gamma..." << std::endl;
 			double gamma;
-			if(iterations==0){
-				gamma = Finite_Difference_Step;
-				outfile << "This is the first iteration so we are using the value " << gamma << std::endl;
-			}
+			// if(iterations==0){
+				// gamma = Finite_Difference_Step;
+				gamma = 1e-9;
+				// outfile << "This is the first iteration so we are using the value " << gamma << std::endl;
+			// }
 			//Otherwise calculate it assuming the Wolfe conditions apply
 			// (dubious, I know...but fun!)
-			else{
-				gamma = 0.0;
-				double grad_norm = 0.0;
-				for(unsigned i=0; i<N_Variables; i++){
-					gamma += std::abs((Current_Point[i] - History_Points[iterations-1][i])*
-								(GradF[i] - History_Gradients[iterations-1][i]));
+			// else{
+			// 	gamma = 0.0;
+			// 	double grad_norm = 0.0;
+			// 	for(unsigned i=0; i<this->n_variables(); i++){
+			// 		gamma += std::abs((Current_Point[i] - History_Points[iterations-1][i])*
+			// 					(GradF[i] - History_Gradients[iterations-1][i]));
 
-					grad_norm += pow(GradF[i] - History_Gradients[iterations-1][i], 2.0);
-				}
+			// 		grad_norm += pow(GradF[i] - History_Gradients[iterations-1][i], 2.0);
+			// 	}
 
-				gamma /= pow(grad_norm, 0.5);
-				outfile << "This is not the first iteration so we are using the value " << gamma << std::endl;
-			}
+			// 	gamma /= pow(grad_norm, 0.5);
+			// 	outfile << "This is not the first iteration so we are using the value " << gamma << std::endl;
+			// }
 
 			//Update the current point
 			History_Points.push_back(Current_Point); //Record it first
-			for(unsigned i=0; i<N_Variables; i++){
+			for(unsigned i=0; i<this->n_variables(); i++){
 				double new_point = 0.0;
 				new_point = Current_Point[i] - gamma * GradF[i];
 				Current_Point[i] = new_point;
@@ -600,55 +541,65 @@ namespace oomph{
 
 
 
-
-
-
-
-
 	//Setup the simplex, construct n+1 optimisation equations each with n internal data
-	void ParticleSwarmOptimisation::setup_optimisation(const unsigned &n_variables, const unsigned &n_swarm,
-														const Vector<double>& centre, const double& radius,
-														const unsigned &max_iters, const uint64_t &random_seed,
-														const double &w, const double &c1, const double &c2){
+	void ParticleSwarmOptimisation::setup_optimisation(const unsigned &n_variables){
 		//can only be called once
-		if(N_Variables>0){
+		if(this->n_variables()>0){
 			throw OomphLibError("Particle Swarm can only be setup once",
 		                       	OOMPH_CURRENT_FUNCTION,
 		                       	OOMPH_EXCEPTION_LOCATION);
 		}
 
+		//Display a warning
+		throw OomphLibWarning("The particle swarm optimisation algorithm requires several parameters for which defaults are provided,\nmake sure you understand and have set them appropriately.",
+		                       	OOMPH_CURRENT_FUNCTION,
+		                       	OOMPH_EXCEPTION_LOCATION);
+
+		//If number of particles is 0
+		if(N_Swarm == 0)
+		{
+			throw OomphLibError("N_Swarm is zero",
+		                       	OOMPH_CURRENT_FUNCTION,
+		                       	OOMPH_EXCEPTION_LOCATION);
+		}
+
+		//If the bounding ball is of radius 0
+		if(N_Ball_Radius<1e-12)
+		{
+			throw OomphLibError("Bounding hypersphere has radius zero",
+		                       	OOMPH_CURRENT_FUNCTION,
+		                       	OOMPH_EXCEPTION_LOCATION);
+		}
+
+		//If the bounding ball is of radius 0
+		if(Max_Iters==0)
+		{
+			throw OomphLibError("Max iterations is zero",
+		                       	OOMPH_CURRENT_FUNCTION,
+		                       	OOMPH_EXCEPTION_LOCATION);
+		}
+
+
 		//Get all elements which depend on parameters supplied by the simplex
 		add_all_trainable_elements_from_trainable_problems_as_dependents();
 
-		W = w;
-		C1 = c1;
-		C2 = c2;
-
-		Max_Iters = max_iters;
 
 		//The record of number of fitness evaluations performed
 		Evaluations_performed = 0;
 
-		N_Ball_Centre = centre;
-		N_Ball_Radius = radius;
+		this->n_variables() = n_variables;
 
-		N_Variables = n_variables;
+		Current_Swarm.resize(N_Swarm);
+		Previous_Swarm.resize(N_Swarm);
+		Previous_Fitness.resize(N_Swarm);
 
-		N_Swarm = n_swarm;
-
-		Random_Seed = random_seed;
-
-		Current_Swarm.resize(n_swarm);
-		Previous_Swarm.resize(n_swarm);
-		Previous_Fitness.resize(n_swarm);
-
-		for(unsigned i=0; i<n_swarm; i++){
-			Current_Swarm[i].resize(N_Variables);
-			Previous_Swarm[i].resize(max_iters);
-			for(unsigned t=0; t<max_iters; t++){
-				Previous_Swarm[i][t].resize(N_Variables);
+		for(unsigned i=0; i<N_Swarm; i++){
+			Current_Swarm[i].resize(this->n_variables());
+			Previous_Swarm[i].resize(Max_Iters);
+			for(unsigned t=0; t<Max_Iters; t++){
+				Previous_Swarm[i][t].resize(this->n_variables());
 			}
-			Previous_Fitness[i].resize(max_iters);
+			Previous_Fitness[i].resize(Max_Iters);
 		}
 	}
 
@@ -656,7 +607,7 @@ namespace oomph{
 	void ParticleSwarmOptimisation::run_algorithm(std::ostream &outfile,
 													std::ostream &raw_data_outfile){
 
-		outfile << "This is the Particle Swarm Coordinator...I won't be using this file." << std::endl;
+		outfile << "This is the Particle Swarm Coordinator..." << std::endl;
 
 		//Set up the swarm, we do this here because we need a random number generator and we may as well use this one
 		
@@ -671,21 +622,21 @@ namespace oomph{
 		//Loop over the particles
 		for(unsigned p=0; p<N_Swarm; p++){
 			//Construct a random unit vector
-			Vector<double> unit_vector(N_Variables);
+			Vector<double> unit_vector(this->n_variables());
 			double Vect_Len = 0.0;
-			for(unsigned i=0; i< N_Variables; i++){
+			for(unsigned i=0; i< this->n_variables(); i++){
 				unit_vector[i] = unif(rng)-0.5;
 				Vect_Len += pow(unit_vector[i],2.0);
 			}
 			//Normalize our vector
-			for(unsigned i=0; i< N_Variables; i++){
+			for(unsigned i=0; i< this->n_variables(); i++){
 				unit_vector[i]/=std::sqrt(Vect_Len);
 			}
 
 			//Now set the particle coordinate to be N_Ball_Centre perturbed by a vector of
 			//	length between 0 and N_Ball_Radius
 			double R = unif(rng)*N_Ball_Radius;
-			for(unsigned i=0; i<N_Variables; i++){
+			for(unsigned i=0; i<this->n_variables(); i++){
 				Current_Swarm[p][i] = N_Ball_Centre[i] + R*unit_vector[i];
 			}
 		}
@@ -703,7 +654,7 @@ namespace oomph{
 		//The velocity of each particle in the swarm
 		std::vector<Vector<double>> Swarm_Velocity(N_Swarm);
 		for(unsigned p=0; p<N_Swarm; p++){
-			Swarm_Velocity[p].resize(N_Variables,0.0);
+			Swarm_Velocity[p].resize(this->n_variables(),0.0);
 		}
 
 		//The best fitness achieved so far
@@ -730,7 +681,7 @@ namespace oomph{
 
 		//Initialize the velocity of the swarm
 		for(unsigned p=0; p<N_Swarm; p++){
-			for(unsigned v=0; v<N_Variables; v++){
+			for(unsigned v=0; v<this->n_variables(); v++){
 				//get two random numbers
 				double r1 = unif(rng);
 				double r2 = unif(rng);
@@ -743,23 +694,22 @@ namespace oomph{
 		//Perform the loop
 		unsigned ITER = 0;
 		while(ITER<Max_Iters){
-			// //Change the parameter values every iteraiton to aid in convergence
-			// C1 = (0.5-2.0)*double(ITER)/double(Max_Iters) + 2.0;
-			// // C1 = (2.0-0.5)*double(ITER)/double(Max_Iters) + 0.5;
-			// C2 = (2.0-0.5)*double(ITER)/double(Max_Iters) + 0.5;
-			// W = 0.4 + double(ITER)/double(Max_Iters)*(0.5);
+			//Change the parameter values every iteration to aid in convergence
+			C1 = (0.5-2.025)*double(ITER)/double(Max_Iters) + 2.025;
+			C2 = (0.5-2.025)*double(ITER)/double(Max_Iters) + 2.025;
+			W = 1.0 + double(ITER)/double(Max_Iters)*(0.5);
 
 			for(unsigned p=0; p<N_Swarm; p++){
 				//Record the position
 				Previous_Swarm[p][ITER] = Current_Swarm[p];
 
 				//The new coordinate of the particle	
-				Vector<double> New_Position(N_Variables, 0.0);
+				Vector<double> New_Position(this->n_variables(), 0.0);
 
 				//get two random numbers
 				double r1 = unif(rng);
 				double r2 = unif(rng);
-				for(unsigned v=0; v<N_Variables; v++){
+				for(unsigned v=0; v<this->n_variables(); v++){
 					//Update the particles velocity
 					Swarm_Velocity[p][v] = W*Swarm_Velocity[p][v]
 									 + C1*r1*(Best_Position[p][v] - Current_Swarm[p][v])
@@ -772,90 +722,125 @@ namespace oomph{
 				//Update the position of the particle
 				//Check to ensure we haven't intersected the N_Ball, doing here for readability
 				double R = 0.0;
-				for(unsigned v=0; v<N_Variables; v++){
+				for(unsigned v=0; v<this->n_variables(); v++){
 					R += pow(New_Position[v] - N_Ball_Centre[v] ,2.0);
 				}
 
 				//If the point is outside of the hypersphere
 				if(R>N_Ball_Radius*N_Ball_Radius){
-					//The current position
+
+					//Move the particle to the intersection point and do nothing more
+					//Stuff we need to calculate alpha
 					Vector<double> P_k = Current_Swarm[p];
 					//The current velocity
 					Vector<double> V_k = Swarm_Velocity[p];
+					Vector<double> pmxc(this->n_variables(), 0.0); //P-x_c
+					double vdotv = 0.0; //V.V
+					double pmxcdotpmxc = 0.0; //(P-x_c).(P-x_c)
+					double pmxcdotv = 0.0;
+					for(unsigned v=0; v<this->n_variables(); v++){
+						pmxc[v] = P_k[v] - N_Ball_Centre[v];
+						vdotv += V_k[v]*V_k[v];
+						pmxcdotpmxc += pmxc[v]*pmxc[v];
+						pmxcdotv += pmxc[v]*V_k[v];
+					}
 					//Fraction of the velocity which takes the particle from the current point to the intersection point
 					double alpha = 1.0;
+					//Calculate alpha
+					alpha = ( -(pmxcdotv) + std::sqrt( pmxcdotv*pmxcdotv - vdotv*(pmxcdotpmxc-pow(N_Ball_Radius,2.0))) )/vdotv;
+					if(alpha > 1.0){
+						alpha = ( -(pmxcdotv) - std::sqrt( pmxcdotv*pmxcdotv - vdotv*(pmxcdotpmxc-pow(N_Ball_Radius,2.0))) )/vdotv;
+					}
+					if(alpha < 0.0){
+						throw OomphLibError("An error occurred when calculating a particles reflected position",
+	                       	OOMPH_CURRENT_FUNCTION,
+	                       	OOMPH_EXCEPTION_LOCATION);
+					}
 
-					//How many times we've gone through this, for debugging
-					unsigned num_bounces = 0.0;
-					do{
-						std::cout << "Performing bounce number " << num_bounces << std::endl;
-						num_bounces++;
-						//Stuff we need to calculate alpha
-						Vector<double> pmxc(N_Variables, 0.0); //P-x_c
-						double vdotv = 0.0; //V.V
-						double pmxcdotpmxc = 0.0; //(P-x_c).(P-x_c)
-						double pmxcdotv = 0.0;
-						for(unsigned v=0; v<N_Variables; v++){
-							pmxc[v] = P_k[v] - N_Ball_Centre[v];
-							vdotv += V_k[v]*V_k[v];
-							pmxcdotpmxc += pmxc[v]*pmxc[v];
-							pmxcdotv += pmxc[v]*V_k[v];
-						}
-						//Calculate alpha
-						alpha = ( -(pmxcdotv) + std::sqrt( pmxcdotv*pmxcdotv - vdotv*(pmxcdotpmxc-pow(N_Ball_Radius,2.0))) )/vdotv;
-						if(alpha > 1.0){
-							alpha = ( -(pmxcdotv) - std::sqrt( pmxcdotv*pmxcdotv - vdotv*(pmxcdotpmxc-pow(N_Ball_Radius,2.0))) )/vdotv;
-						}
-						if(alpha < 0.0){
-							throw OomphLibError("An error occurred when calculating a particles reflected position",
-		                       	OOMPH_CURRENT_FUNCTION,
-		                       	OOMPH_EXCEPTION_LOCATION);
-						}
-
-						//Calculate the new P_k+1 = P_k + alpha*V_k
-						for(unsigned v=0; v<N_Variables; v++){
-							P_k[v] += alpha*V_k[v];
-						}
-						//Stuff we need for calculating the new velocity vector
-						double vdotxcmpk = 0.0;
-						double normxcmpk = 0.0;
-						for(unsigned v=0; v<N_Variables; v++){
-							vdotxcmpk += V_k[v]*(N_Ball_Centre[v] - P_k[v]);
-							normxcmpk += (N_Ball_Centre[v] - P_k[v])*(N_Ball_Centre[v] - P_k[v]);
-						}
-						double C = 2*vdotxcmpk/normxcmpk;
-						//Calculate the new velocity vector r = (1-alpha)V_k - 2*(1-alpha)*( V_k . (x_c-P_k) ) / |(x_c-P_k)|
-						for(unsigned v=0; v<N_Variables; v++){
-							V_k[v] = (1-alpha)*(V_k[v] - C*(N_Ball_Centre[v] - P_k[v]));
-						}
-
-						//Calculate the new position
-						R = 0.0;
-						for(unsigned v=0; v<N_Variables; v++){
-							New_Position[v] = P_k[v]+V_k[v];
-							R += pow(New_Position[v] - N_Ball_Centre[v] ,2.0);
-						}
+					for(unsigned v=0; v<this->n_variables(); v++){
+						New_Position[v] = P_k[v]+alpha*V_k[v];
+						Swarm_Velocity[p][v] = 0.0;
+					}
 
 
 
-					}while(R>N_Ball_Radius*N_Ball_Radius);
+
+					//Perform bounces until the particle is placed within the hemisphere
+					//The current position
+					// Vector<double> P_k = Current_Swarm[p];
+					// //The current velocity
+					// Vector<double> V_k = Swarm_Velocity[p];
+					// //Fraction of the velocity which takes the particle from the current point to the intersection point
+					// double alpha = 1.0;
+					// //How many times we've gone through this, for debugging
+					// unsigned num_bounces = 0.0;
+					// do{
+					// 	std::cout << "Performing bounce number " << num_bounces << std::endl;
+					// 	num_bounces++;
+					// 	//Stuff we need to calculate alpha
+					// 	Vector<double> pmxc(this->n_variables(), 0.0); //P-x_c
+					// 	double vdotv = 0.0; //V.V
+					// 	double pmxcdotpmxc = 0.0; //(P-x_c).(P-x_c)
+					// 	double pmxcdotv = 0.0;
+					// 	for(unsigned v=0; v<this->n_variables(); v++){
+					// 		pmxc[v] = P_k[v] - N_Ball_Centre[v];
+					// 		vdotv += V_k[v]*V_k[v];
+					// 		pmxcdotpmxc += pmxc[v]*pmxc[v];
+					// 		pmxcdotv += pmxc[v]*V_k[v];
+					// 	}
+					// 	//Calculate alpha
+					// 	alpha = ( -(pmxcdotv) + std::sqrt( pmxcdotv*pmxcdotv - vdotv*(pmxcdotpmxc-pow(N_Ball_Radius,2.0))) )/vdotv;
+					// 	if(alpha > 1.0){
+					// 		alpha = ( -(pmxcdotv) - std::sqrt( pmxcdotv*pmxcdotv - vdotv*(pmxcdotpmxc-pow(N_Ball_Radius,2.0))) )/vdotv;
+					// 	}
+					// 	if(alpha < 0.0){
+					// 		throw OomphLibError("An error occurred when calculating a particles reflected position",
+		   //                     	OOMPH_CURRENT_FUNCTION,
+		   //                     	OOMPH_EXCEPTION_LOCATION);
+					// 	}
+					// 	//Calculate the new P_k+1 = P_k + alpha*V_k
+					// 	for(unsigned v=0; v<this->n_variables(); v++){
+					// 		P_k[v] += alpha*V_k[v];
+					// 	}
+					// 	//Stuff we need for calculating the new velocity vector
+					// 	double vdotxcmpk = 0.0;
+					// 	double normxcmpk = 0.0;
+					// 	for(unsigned v=0; v<this->n_variables(); v++){
+					// 		vdotxcmpk += V_k[v]*(N_Ball_Centre[v] - P_k[v]);
+					// 		normxcmpk += (N_Ball_Centre[v] - P_k[v])*(N_Ball_Centre[v] - P_k[v]);
+					// 	}
+					// 	double C = 2*vdotxcmpk/normxcmpk;
+					// 	//Calculate the new velocity vector r = (1-alpha)V_k - 2*(1-alpha)*( V_k . (x_c-P_k) ) / |(x_c-P_k)|
+					// 	for(unsigned v=0; v<this->n_variables(); v++){
+					// 		V_k[v] = (1-alpha)*(V_k[v] - C*(N_Ball_Centre[v] - P_k[v]));
+					// 	}
+					// 	//Calculate the new position
+					// 	R = 0.0;
+					// 	for(unsigned v=0; v<this->n_variables(); v++){
+					// 		New_Position[v] = P_k[v]+V_k[v];
+					// 		R += pow(New_Position[v] - N_Ball_Centre[v] ,2.0);
+					// 		Swarm_Velocity[v] = V_k[v];
+					// 	}
+					// }while(R>N_Ball_Radius*N_Ball_Radius);
+				
+
 				}
 
 
 				//Recalculate the radius of the new position from the centre of the ball					
 				R = 0.0;
-				for(unsigned v=0; v<N_Variables; v++){
+				for(unsigned v=0; v<this->n_variables(); v++){
 					R += pow(New_Position[v] - N_Ball_Centre[v] 
 							,2.0);
 				}
-				if(R>N_Ball_Radius*N_Ball_Radius){
+				if(R>N_Ball_Radius*N_Ball_Radius+1e-6){
 					std::cout << "About to die, Nball centre:";
-					for(unsigned v=0; v<N_Variables; v++){
+					for(unsigned v=0; v<this->n_variables(); v++){
 						std::cout << " " << N_Ball_Centre[v];
 					}
 					std::cout << std::endl << "N_Ball_Radius: " << N_Ball_Radius << std::endl;
 					std::cout << "attempted particle position ";
-					for(unsigned v=0; v<N_Variables; v++){
+					for(unsigned v=0; v<this->n_variables(); v++){
 						std::cout << " " <<New_Position[v];
 					}
 					std::cout << std::endl << "Radius of attempted position " << std::sqrt(R) << std::endl;
@@ -867,7 +852,7 @@ namespace oomph{
 
 
 				//Set the position to be the new calculated position
-				for(unsigned v=0; v<N_Variables; v++){
+				for(unsigned v=0; v<this->n_variables(); v++){
 					Current_Swarm[p][v] = New_Position[v];
 				}
 
@@ -892,9 +877,22 @@ namespace oomph{
 				}
 			}
 
+			//Record the best known position
+			outfile << ITER << ": ";
+			for(unsigned v=0; v<this->n_variables(); v++){
+				outfile << Best_Known_Position[v] << " ";
+			}
+			outfile << ":     " << Best_Fitness << std::endl;
+
+			//Increment the iteration counter
+			ITER++;
+
 		}
 
 	}
+
+
+
 
 
 }	//end namespace

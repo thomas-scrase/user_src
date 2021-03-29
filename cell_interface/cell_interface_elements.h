@@ -18,9 +18,11 @@
 	#include <oomph-lib-config.h>
 #endif
 
-
 //For the custom integration schemes
 #include "../toms_utilities/toms_integral.h"
+
+//For the custom point elements used in single cell elements
+#include "../toms_utilities/toms_point_element.h"
 
 //OOMPH-LIB headers
 #include "../generic/nodes.h"
@@ -504,6 +506,40 @@ namespace oomph
 			}
 		}
 
+		//Get the first derivative of the membrane potential at the l-th node
+		inline double get_dnodal_membrane_potential_dt(const unsigned &l) const {
+			//get the local and global coordinates of the node
+			unsigned ipt_node = ipt_at_node(l);
+			Vector<double> s_node(DIM);
+			Vector<double> x_node(DIM);
+			local_coordinate_of_node(l,s_node);
+			for(unsigned j=0;j<DIM;j++){x_node[j] = raw_nodal_position(l,j);}
+			double dVmdt;
+			//call the external communicator function
+			get_d_membrane_potential_dt_CellInterface(ipt_node, s_node, x_node, dVmdt);
+			return dVmdt;
+		}
+
+		inline virtual void get_d_membrane_potential_dt_CellInterface(const unsigned& ipt,
+																const Vector<double>& s,
+																const Vector<double>& x,
+																double& dVdt) const
+		{
+			if(Membrane_potential_fct_pt_CellInterface!=0){
+				//Let's do some crude finite differencing by default
+				double time=node_pt(0)->time_stepper_pt()->time_pt()->time();
+				double v0 = 0.0;
+				(*Membrane_potential_fct_pt_CellInterface)(time, ipt, s, x, v0);
+				double v1 = 0.0;
+				(*Membrane_potential_fct_pt_CellInterface)((time+1e-9), ipt, s, x, v1);
+				dVdt = (v1-v0)/(1e-9);
+			}
+			else{
+				dVdt=0.0;		//A default value
+			}
+		}
+
+
 		//get the mechanical strain at the coordinate of the l-th node
 		inline double get_nodal_mechanical_strain(const unsigned &l) const {
 			//get the local and global coordinates of the node
@@ -713,6 +749,119 @@ namespace oomph
 			// fill_in_generic_residual_contribution_cell_interface(residuals,jacobian,mass_matrix,2);
 			FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals,jacobian,mass_matrix);
 		}
+
+
+		unsigned nscalar_paraview() const
+		{	
+			//There's no faster way to do this at the moment
+			Vector<double> custom_output;
+			get_nodal_cell_custom_output(0, custom_output);
+
+			return (3 + custom_output.size() + NUM_VARS);
+		}
+
+		void scalar_value_paraview(std::ofstream& file_out,
+									const unsigned& i,
+									const unsigned& nplot) const
+		{
+			if(nplot!=2)
+			{
+				throw OomphLibError(
+					"cell interface can only ouput at the nodes (it makes no sense to do it otherwise), set nplot = 2",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+			}
+
+			//Vector of local coordinates
+	 		Vector<double> s(DIM);
+
+	 		//Get the number of nodes
+	 		const unsigned n_node = this->nnode();
+
+	 		//Preallocate the shape function
+	 		Shape psi(n_node);
+
+	 		for(unsigned l=0; l<n_node; l++){
+	 			//Get local coordinates of plot point
+	 			local_coordinate_of_node(l,s);
+
+	 			//Get Eulerian coordinate of plot point
+				Vector<double> x(DIM);
+				interpolated_x(s,x);
+
+				if(i==0){
+					file_out << get_nodal_membrane_potential(l) << std::endl;
+					continue;
+				}
+
+				if(i==1){
+					file_out << get_nodal_membrane_current(l) << std::endl;
+					continue;
+				}
+
+				//output active strain
+				if(i==2){
+					file_out << get_nodal_active_stress(l) << std::endl;
+					continue;
+				}
+
+				Vector<double> custom_output;
+				get_nodal_cell_custom_output(l, custom_output);
+
+
+				if(i < (3 + custom_output.size())){
+					file_out << custom_output[i-3] << std::endl;
+					continue;
+				}
+
+				if(i<(3 + custom_output.size() + NUM_VARS)){
+					file_out << nodal_value(l, i-(3+custom_output.size())) << std::endl;
+					continue;
+				}
+				
+	 		}
+
+		}
+
+		void scalar_value_fct_paraview(std::ofstream& file_out,
+										const unsigned& i,
+										const unsigned& nplot,
+										FiniteElement::SteadyExactSolutionFctPt
+										exact_soln_pt) const
+		{
+			scalar_value_paraview(file_out,i,nplot);
+		}
+
+		std::string scalar_name_paraview(const unsigned& i) const
+		{
+			switch(i){
+				case 0:
+					return "TransMembrane potential";
+				case 1:
+					return "TransMembrane current";
+				case 2:
+					return "Cell active stress";
+			}
+
+
+			Vector<double> custom_output;
+			get_nodal_cell_custom_output(0, custom_output);
+
+			if(i<custom_output.size()){
+				return ("Custom output "+std::to_string(i-3));
+			}
+
+			if(i<(3 + custom_output.size() + NUM_VARS)){
+				return ("Cell variable " + std::to_string(i-(3 + custom_output.size())));
+			}
+
+			throw OomphLibError(
+					"A variable index which was too large was requested when getting names in paraview output",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+		}
+
+
 
 	protected:
 		//====================================================================
@@ -925,7 +1074,7 @@ namespace oomph
 
 	template<unsigned DIM, unsigned NUM_VARS>
 	class PointCellInterfaceElement	:
-		public virtual PointElement,
+		public virtual TomsPointElement,
 		public virtual CellInterfaceEquations<DIM, NUM_VARS>
 	{
 	private:
@@ -934,7 +1083,7 @@ namespace oomph
 		//====================================================================
 		//Constructors
 		//====================================================================
-		PointCellInterfaceElement()	:	PointElement(),
+		PointCellInterfaceElement()	:	TomsPointElement(),
 										CellInterfaceEquations<DIM, NUM_VARS>()
 		{
 			this->set_dimension(DIM);
@@ -970,6 +1119,7 @@ namespace oomph
 		 void output(FILE* file_pt, const unsigned &n_plot){
 		 	CellInterfaceEquations<DIM, NUM_VARS>::output(file_pt, n_plot);
 		}
+
 	};
 
 
@@ -980,6 +1130,11 @@ namespace oomph
 	// private:
 	// 	FaceGeometry(){}
 	// };
+
+
+
+
+
 
 
 
@@ -1024,12 +1179,29 @@ namespace oomph
 	  	unsigned vm_index_BaseCellMembranePotential() const {return PointCellInterfaceElement<1, NUM_VARS>::max_index_CellInterfaceEquations();}
 
 	  	void get_membrane_potential_CellInterface(const unsigned& ipt,
-													const Vector<double>& s,
-													const Vector<double>& x,
-													double& V) const override
+												const Vector<double>& s,
+												const Vector<double>& x,
+												double& V) const override
 	  	{
 	  		V = this->raw_nodal_value(0,vm_index_BaseCellMembranePotential());
 	  	}
+
+	  	inline void get_d_membrane_potential_dt_CellInterface(const unsigned& ipt,
+															const Vector<double>& s,
+															const Vector<double>& x,
+															double& dVdt) const
+		{
+			TimeStepper* time_stepper_pt = this->node_pt(0)->time_stepper_pt();
+			dVdt = 0.0;
+			if(!time_stepper_pt->is_steady()){
+				// Number of timsteps (past & present)
+				const unsigned n_time = time_stepper_pt->ntstorage();
+				//Loop over timesteps
+				for(unsigned t=0;t<n_time;t++){
+					dVdt += time_stepper_pt->weight(1,t)*this->nodal_value(t,0,vm_index_BaseCellMembranePotential());
+				}
+			}
+		}
 
 
 	  	//====================================================================
@@ -1209,6 +1381,93 @@ namespace oomph
 		 void output(FILE* file_pt, const unsigned &n_plot){
 		}
 
+		unsigned nscalar_paraview() const
+		{	
+			
+			//There's no faster way to do this at the moment
+			Vector<double> custom_output;
+			this->get_nodal_cell_custom_output(0, custom_output);
+
+			return (required_nvalue(0) + custom_output.size());
+		}
+
+		void scalar_value_paraview(std::ofstream& file_out,
+									const unsigned& i,
+									const unsigned& nplot) const
+		{
+			if(nplot!=2)
+			{
+				throw OomphLibError(
+					"Monodomain single cell can only ouput at the nodes (it makes no sense to do it otherwise), set nplot = 2",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+			}
+
+			//Membrane potential
+			if(i==0){
+				file_out << this->raw_nodal_value(0,vm_index_BaseCellMembranePotential()) << std::endl;
+				return;
+			}
+
+			//Cell variable
+			if(i < required_nvalue(0)){
+				file_out << this->raw_nodal_value(0,this->min_index_CellInterfaceEquations()+i-1) << std::endl;
+				return;
+			}
+
+			Vector<double> custom_output;
+			this->get_nodal_cell_custom_output(0, custom_output);
+
+			//Custom cell model output
+			if(i < (required_nvalue(0) + custom_output.size())){
+				file_out << custom_output[i-required_nvalue(0)] << std::endl;
+				return;
+			}
+
+			throw OomphLibError(
+				"A variable index which was too large was requested when getting values in paraview output",
+				OOMPH_CURRENT_FUNCTION,
+				OOMPH_EXCEPTION_LOCATION);	
+	 		
+
+		}
+
+		void scalar_value_fct_paraview(std::ofstream& file_out,
+										const unsigned& i,
+										const unsigned& nplot,
+										FiniteElement::SteadyExactSolutionFctPt
+										exact_soln_pt) const
+		{
+			scalar_value_paraview(file_out,i,nplot);
+		}
+
+		std::string scalar_name_paraview(const unsigned& i) const
+		{
+			if(i==0){
+				return "TransMembrane potential";
+			}
+
+			Vector<double> custom_output;
+			this->get_nodal_cell_custom_output(0, custom_output);
+
+			//Cell variable
+			if(i < required_nvalue(0)){
+				return ("Cell variable " + std::to_string(i-1));
+			}
+
+			//Custom cell model output
+			if(i < (required_nvalue(0) + custom_output.size())){
+				return ("Cell custom output " + std::to_string(i-required_nvalue(0)));
+			}
+
+			throw OomphLibError(
+					"A variable index which was too large was requested when getting names in paraview output",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+		}
+
+
+
 
 	};//end class
 
@@ -1284,6 +1543,9 @@ namespace oomph
 			// Black_box_external_fct_pts.resize(cell_model->required_external_data(), 0);
 
 			Variable_vals.resize(NUM_VARS+1);
+
+			//time derivative of the membrane potential
+			dVdt = 0.0;
 		}
 
 		void pin_membrane_potential(){MembranePotentialIsPinned = true;}
@@ -1314,9 +1576,9 @@ namespace oomph
 				}
 				//if a suitable value cannot be returned by the cell model then the value is pinned
 				else{
-					// throw OomphLibError("Extra variable in fast cell detected.",
-					// 					OOMPH_CURRENT_FUNCTION,
-					// 					OOMPH_EXCEPTION_LOCATION);
+					throw OomphLibError("Extra variable in fast cell detected.",
+										OOMPH_CURRENT_FUNCTION,
+										OOMPH_EXCEPTION_LOCATION);
 				}
 			}
 		}
@@ -1326,11 +1588,20 @@ namespace oomph
 			vm = Variable_vals[0];
 		}
 
+		void get_dvmdt(double & dvdt) const {
+			dvdt = dVdt;
+		}
+
 		inline void set_initial_vm(const double &vm){
 			Variable_vals[0] = vm;
 		}
 
 		inline void assign_black_box_nodal_parameters(const Vector<double> &params){
+			if(params.size()!=cell_model_pt()->required_black_box_parameters()){
+				throw OomphLibError("Wrong number of black box parameters for cell model.",
+										OOMPH_CURRENT_FUNCTION,
+										OOMPH_EXCEPTION_LOCATION);
+			}
 			Black_Box_Nodal_Parameters = params;
 		}
 
@@ -1362,6 +1633,10 @@ namespace oomph
 			//Assume membrane current has been calculated within explicit timestep
 			if(!MembranePotentialIsPinned){
 				double new_mem_pot = Variable_vals[0] - dt*(persistent_state.get_membrane_current() + stim);
+
+				//Calculate dVdt
+				dVdt = (new_mem_pot - Variable_vals[0])/dt;
+
 				Variable_vals[0] = new_mem_pot;
 			}
 			for(unsigned i=0; i<NUM_VARS; i++){
@@ -1371,10 +1646,19 @@ namespace oomph
 
 		void output_variables(std::ofstream &data_out){
 			for(unsigned i=0; i<NUM_VARS+1; i++){
-				if(i!=0){data_out << ", ";}
+				if(i!=0){data_out << " ";}
 				data_out << Variable_vals[i];
 			}
 		}
+
+		
+		void output_custom_variables(std::ofstream &data_out){
+			for(unsigned i=0; i<Custom_Output_Vect.size(); i++){
+				data_out << " ";
+				data_out << Custom_Output_Vect[i];
+			}
+		}
+
 
 		Vector<double>* custom_output_vect(){
 			return &Custom_Output_Vect;
@@ -1405,6 +1689,8 @@ namespace oomph
 		//The vector containing the cell variable values and the membrane potential
 		Vector<double> Variable_vals;
 
+		double dVdt;
+
 		//Store the most recent additional variables returned by the cell model
 		Vector<double> Custom_Output_Vect;
 	};
@@ -1413,6 +1699,13 @@ namespace oomph
 	//Fast Bidomain Single cell
 	//In the limit of a point the Bidomain equations simplify down to the Monodomain equations
 	// so we don't need to make a bidomain version
+
+
+
+
+
+
+
 
 //Namespace, helper functions for dealing with cell interface elements
 namespace Oomph_Cell_Interface_Helpers

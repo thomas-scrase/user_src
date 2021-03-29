@@ -73,15 +73,28 @@ namespace oomph{
 		}
 
 		void get_membrane_potential_CellInterface(const unsigned& ipt,
-													const Vector<double>& s,
-													const Vector<double>& x,
-													double& V) const override
+												const Vector<double>& s,
+												const Vector<double>& x,
+												double& V) const override
 		{
 			const unsigned mono_interaction = 0;
 
 			if(external_element_pt(mono_interaction,ipt) != nullptr){
 				V = dynamic_cast<EXT_MEMBRANE_POTENTIAL_ELEMENT*>(external_element_pt(mono_interaction, ipt))->
 							interpolated_vm_BaseCellMembranePotential(external_element_local_coord(mono_interaction, ipt));
+			}
+		}
+
+		inline virtual void get_d_membrane_potential_dt_CellInterface(const unsigned& ipt,
+																const Vector<double>& s,
+																const Vector<double>& x,
+																double& dVdt) const
+		{
+			const unsigned mono_interaction = 0;
+			
+			if(external_element_pt(mono_interaction,ipt) != nullptr){
+				dVdt = dynamic_cast<EXT_MEMBRANE_POTENTIAL_ELEMENT*>(external_element_pt(mono_interaction, ipt))->
+							interpolated_dvm_dt_BaseCellMembranePotential(external_element_local_coord(mono_interaction, ipt));
 			}
 		}
 		
