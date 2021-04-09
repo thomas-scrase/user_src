@@ -1,32 +1,29 @@
-
 # A few file definitions
 #-----------------------
 
 # Define the sources
 sources =  \
-toms_integral.cc
+TNNP_06_Updated.cc
+
+
 # Define the headers
 headers =  \
-toms_integral.h \
-diff_augmented_cell_wrapper.h \
-enforce_positive_normal_flow_elements.h \
-toms_point_element.h \
-cell_probe_utilities.h \
-toms_explicit_timestepping_methods.h
+cell_model_base_updated.h \
+TNNP_06_Updated.h
 
 # Define name of library
-libname = toms_utilities
+libname = cell_model_updated
 
 # Combine headers and sources
 headers_and_sources = $(headers) $(sources)
 
 # Define the library that gets placed in lib directory
 #-----------------------------------------------------
-lib_LTLIBRARIES = libtoms_utilities.la
+lib_LTLIBRARIES = libcell_model_updated.la
 
 # Sources that the library depends on: 
 #-------------------------------------
-libtoms_utilities_la_SOURCES = $(headers_and_sources)
+libcell_model_updated_la_SOURCES = $(headers_and_sources)
 
 # The library's include headers:
 #-------------------------------
@@ -36,10 +33,10 @@ libtoms_utilities_la_SOURCES = $(headers_and_sources)
 include_HEADERS = $(libname).h 
 
 #Here's the subdirectory where the actual header files are placed
-library_includedir=$(includedir)/toms_utilities
+library_includedir=$(includedir)/cell_model_updated
 
 #These are the header files that are to be placed in subdirectory
-library_include_HEADERS=$(headers)# $(incl_cc_files) $(templates)
+library_include_HEADERS=$(headers) 
 
 
 # Required libraries -- [assuming that we want to link against stuff in generic
@@ -49,6 +46,7 @@ library_include_HEADERS=$(headers)# $(incl_cc_files) $(templates)
 # installed yet! 
 AM_CPPFLAGS += -I$(top_builddir)/src/generic -I$(top_builddir)/user_src/
 
+
 # Combined header file
 #---------------------
 # Rule for building combined header (dummy target never gets made so
@@ -57,7 +55,7 @@ $(libname).h: dummy_$(libname).h
 
 dummy_$(libname).h:  $(headers)
 	echo  $(libname) $(headers) > all_$(libname).aux
-	$(AWK) -f $(top_srcdir)/bin/headers.awk < \
+	$(AWK) -f $(top_builddir)/bin/headers.awk < \
 	       all_$(libname).aux > $(libname).h
 	rm all_$(libname).aux
 
@@ -66,9 +64,9 @@ dummy_$(libname).h:  $(headers)
 #---------------------------------------------------------------------
 if SYMBOLIC_LINKS_FOR_HEADERS
 install-data-hook: 
-	(cd $(library_includedir) && rm -f $(headers) ) #$(incl_cc_files) $(templates) )
-	(echo "$(headers)" > include_files.list ) #$(incl_cc_files) $(templates)" > include_files.list )
-	($(top_srcdir)/bin/change_headers_to_links.sh `pwd`)
+	(cd $(library_includedir) && rm -f $(headers) )
+	(echo "$(headers)" > include_files.list )
+	($(top_builddir)/bin/change_headers_to_links.sh `pwd`)
 	($(LN_S) `cat include_files.list.aux` $(library_includedir) )
 	(rm -r include_files.list.aux include_files.list ) 
 else
@@ -76,9 +74,9 @@ install-data-hook:
 endif
 
 
-# Cleanup: Kill automatically generated combined header file
-clean-local: 
-	rm -f $(libname).h *~
-# distclean-local:
-# 	rm -f $(libname).h *~
+# Tidy up
+#--------
+clean-local:
+	rm -f $(libname).h
+
 

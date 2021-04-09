@@ -70,9 +70,9 @@ namespace oomph{
 		virtual inline double membrane_current(CellState &state)
 		{
 			Vector<double> DummyVector;
-			DummyVector.resize(required_nodal_variables());
+			DummyVector.resize(Num_Variables());
 			//set DummyVector = cell variables at previous timestep
-			for(unsigned i=0; i<required_nodal_variables(); i++){
+			for(unsigned i=0; i<Num_Variables(); i++){
 				// DummyVector[i] = state.get_previous_variables(i);
 				DummyVector[i] = state.get_var(0,i);
 			}
@@ -93,9 +93,9 @@ namespace oomph{
 		virtual inline double active_strain(CellState &state)
 		{
 			Vector<double> DummyVector;
-			DummyVector.resize(required_nodal_variables());
+			DummyVector.resize(Num_Variables());
 			//set DummyVector = cell variables at previous timestep
-			for(unsigned i=0; i<required_nodal_variables(); i++){
+			for(unsigned i=0; i<Num_Variables(); i++){
 				// DummyVector[i] = state.get_previous_variables(i);
 				DummyVector[i] = state.get_var(0,i);
 			}
@@ -109,11 +109,11 @@ namespace oomph{
 		}
 
 		//return the membrane capacitane of the model for the provided state
-		virtual inline double cm(CellState &state) {
-			throw OomphLibError("Membrane capacitance has not been implemented for this cell model yet.",
-		                       OOMPH_CURRENT_FUNCTION,
-		                       OOMPH_EXCEPTION_LOCATION);
-		}
+		// virtual inline double cm(CellState &state) {
+		// 	throw OomphLibError("Membrane capacitance has not been implemented for this cell model yet.",
+		//                        OOMPH_CURRENT_FUNCTION,
+		//                        OOMPH_EXCEPTION_LOCATION);
+		// }
 		
 		//Get the custom output for the cell model, this could be specific ion currents, 
 		//	conductances, whatever the user wants. By default it is broken, in an explicit
@@ -135,9 +135,9 @@ namespace oomph{
 		{
 			//create vector for the previous state of the cell variables
 			Vector<double> new_state;
-			new_state.resize(required_nodal_variables());
+			new_state.resize(Num_Variables());
 			//set new_state = cell variables at previous timestep
-			for(unsigned i=0; i<required_nodal_variables(); i++){
+			for(unsigned i=0; i<Num_Variables(); i++){
 				new_state[i] = state.get_previous_variables(i);
 			}
 
@@ -163,7 +163,7 @@ namespace oomph{
 			}
 
 			//contribute to the residuals: explicit calculated current value - what the node thinks the current value is
-			for(unsigned i=0; i<required_nodal_variables(); i++){
+			for(unsigned i=0; i<Num_Variables(); i++){
 				// std::cout << "residual and jacobian " << i << std::endl;
 				residuals[i] = -( new_state[i] - state.get_var(0,i) );
 				// if(residuals[i]>1e-9){std::cout << residuals[i] << std::endl;}
@@ -224,15 +224,19 @@ namespace oomph{
 
 		//We assume that the model calculates jacobian entries
 		virtual inline bool model_calculates_jacobian_entries() {return true;}
+
+		virtual inline unsigned Num_Variables(){
+			throw OomphLibError("The amount of storage required for this model to function has not been defined for this cell model yet",
+		                       OOMPH_CURRENT_FUNCTION,
+		                       OOMPH_EXCEPTION_LOCATION);
+		}
 		
 		//How many nodal variables does the cell model need?
 		//Cell type is provided as an argument so that interface element can
 		//	provide the correct amount of storage for each node and so that combined
 		//	cell model class can pick the correct cell model required nodal variables
-		virtual inline unsigned required_nodal_variables(const unsigned &cell_type=0) {
-			throw OomphLibError("The amount of storage required for this model to function has not been defined for this cell model yet",
-		                       OOMPH_CURRENT_FUNCTION,
-		                       OOMPH_EXCEPTION_LOCATION);
+		virtual inline unsigned required_nodal_variables() {
+			return Num_Variables();
 		}
 		virtual inline unsigned required_derivatives() {
 			throw OomphLibError("The number of derivatives required for this model to function has not been defined for this cell model yet",
@@ -342,14 +346,14 @@ namespace oomph{
 		}
 
 		//return the correct model's membrane capacitance
-		double cm(CellState &state) {
-			if(Identify_Correct_Cell_Model(state.get_cell_type())){
-				return CELL_MODEL_1::cm(state);
-			}
-			else{
-				return CELL_MODEL_2::cm(state);
-			}
-		}
+		// double cm(CellState &state) {
+		// 	if(Identify_Correct_Cell_Model(state.get_cell_type())){
+		// 		return CELL_MODEL_1::cm(state);
+		// 	}
+		// 	else{
+		// 		return CELL_MODEL_2::cm(state);
+		// 	}
+		// }
 
 		inline void custom_output(CellState &state, Vector<double> &output)
 		{
@@ -406,14 +410,8 @@ namespace oomph{
 		 	}
 		}
 		//Return the maximum required storage
-		inline unsigned required_nodal_variables(const unsigned &cell_type=0){
-			return std::max(CELL_MODEL_1::required_nodal_variables(),CELL_MODEL_2::required_nodal_variables());
-			// if(Identify_Correct_Cell_Model(cell_type)){
-			// 	CELL_MODEL_1::required_nodal_variables();
-			// }
-			// else{
-			// 	CELL_MODEL_2::required_nodal_variables();
-			// }
+		inline unsigned required_nodal_variables(){
+			return std::max(CELL_MODEL_1::Num_Variables(),CELL_MODEL_2::Num_Variables());
 		}
 		//return the maximum number of required derivatives
 		inline unsigned required_derivatives(const unsigned &cell_type=0){

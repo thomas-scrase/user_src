@@ -12,54 +12,256 @@
 
 namespace oomph{
 
+namespace CELLPROBE_PARAMS{
+	//dvdt at which we assume we are in an upstroke
+	double Upstroke_dvdt = 200.0;
+
+	//Magic number indicating that a duration was not measured
+	double Duration_Not_Measured = -1.0;
+}
+
 class APDMeasurer
 {
 protected:
 
 	//Open the file we write apd information to
-	//Use this as an excuse to set up some variables too since we'll only be opening a file to record to once
 	void OpenOutFile(std::string OutFileName)
 	{
 		OutFile.open(OutFileName);
+	}
 
+
+	void InitializeMeasurements(const double& Vmin){
 		Num_Upstrokes = 0;
+
+		Post_Upstroke = false;
+
+		dvdt_upstroke = 0.0;
+		t_upstroke = CELLPROBE_PARAMS::Duration_Not_Measured;
+
+		Candidate_dvdt_max.clear();
+		Candidate_t_dvdt_max.clear();
+		
+		APD20 = CELLPROBE_PARAMS::Duration_Not_Measured;
+		APD50 = CELLPROBE_PARAMS::Duration_Not_Measured;
+		APD75 = CELLPROBE_PARAMS::Duration_Not_Measured;
+		APD90 = CELLPROBE_PARAMS::Duration_Not_Measured;
+		v20 = 0.0;
+		v50 = 0.0;
+		v75 = 0.0;
+		v90 = 0.0;
+
+		DI20 = CELLPROBE_PARAMS::Duration_Not_Measured;
+		DI50 = CELLPROBE_PARAMS::Duration_Not_Measured;
+		DI75 = CELLPROBE_PARAMS::Duration_Not_Measured;
+		DI90 = CELLPROBE_PARAMS::Duration_Not_Measured;
+
+		vmin = Vmin;
 	}
 
 	void MeasureAPD(const double& t, const double& v, const double& dvdt)
 	{
-		//Determine if we are in an upstroke, probably just use a threshold check
-		// if( WE HAVE REPOLARIZED && THIS IS AN UPSTROKE )
-		// {
+		if(dvdt>CELLPROBE_PARAMS::Upstroke_dvdt){
+			// if(Post_Upstroke==false){
+				
+			// }
+			//Post upstroke
+			Post_Upstroke = true;
 
-		// }
-
-		//Determine upstroke velocity(hint, it's just dvdt)
-
-
-		//Are we in a plateau phase? Haibo has a check for this
-
-		//Measure APD30, 50, 90
-
-		//Have returned to the polarized state
-
-
-
-
-		//Do we output? For example. Output APD30, 50, 90 once we reach the fully repolarized phase, or hit the next upstroke.
-		//We don't want to output every time we record because that would slow down the simulation
+			//Record the time and dvdt so we can calculate the correct time of dvdt_max
+			Candidate_dvdt_max.push_back(dvdt);
+			Candidate_t_dvdt_max.push_back(t);
+		}
+		else{
+			if(Post_Upstroke == true){
+				//Calculate the true time of upstroke and max dvdt
+				unsigned index_of_max = 0;
+				for(unsigned ind = 0; ind < Candidate_dvdt_max.size(); ind++){
+					if(Candidate_dvdt_max[ind]>Candidate_dvdt_max[index_of_max]){index_of_max = ind;}
+				}
+				dvdt_upstroke = Candidate_dvdt_max[index_of_max];
+				t_upstroke = Candidate_t_dvdt_max[index_of_max];
 
 
-		//Output the calculations
-		OutFile << t << " " << v << " " << dvdt << std::endl;
+				//Calculate durations
+				DI20 = t_upstroke - t_APD20;
+				DI50 = t_upstroke - t_APD50;
+				DI75 = t_upstroke - t_APD75;
+				DI90 = t_upstroke - t_APD90;
+
+				//Output the data
+				//////////////////////////
+				//////////////////////////
+				//////////////////////////
+				OutFile
+				<< Num_Upstrokes << " "
+				<< t_upstroke << " "
+				<< dvdt_upstroke << " "
+				<< vmax_current << " "
+				<< v_plateau/(50.0-10.0) << " "
+
+				<< APD20 << " "
+				<< APD50 << " "
+				<< APD75 << " "
+				<< APD90 << " "
+
+				<< v20 << " "
+				<< v50 << " "
+				<< v75 << " "
+				<< v90 << " "
+
+				<< DI20 << " "
+				<< DI50 << " "
+				<< DI75 << " "
+				<< DI90 << " "
+
+				<< vmin << std::endl;
+
+
+
+
+				//Reset the value of tmax_current, represents the maximum membrane potential achieved in this action potential
+				vmax_current = 0;
+
+				//Reset plateau potential counter and value
+				v_plateau = 0.0;
+
+				//Reset the action potential durations to a negative number,
+				//	this way we know if they are not measured, for example in EAD
+				APD20 = CELLPROBE_PARAMS::Duration_Not_Measured;
+				APD50 = CELLPROBE_PARAMS::Duration_Not_Measured;
+				APD75 = CELLPROBE_PARAMS::Duration_Not_Measured;
+				APD90 = CELLPROBE_PARAMS::Duration_Not_Measured;
+
+				//Do the same for the diastolic interval measurements
+				DI20 = CELLPROBE_PARAMS::Duration_Not_Measured;
+				DI50 = CELLPROBE_PARAMS::Duration_Not_Measured;
+				DI75 = CELLPROBE_PARAMS::Duration_Not_Measured;
+				DI90 = CELLPROBE_PARAMS::Duration_Not_Measured;
+
+				//Calculate the APD membrane potentials
+				v20 = vmax_current - 0.20 * (vmax_current - vmin);
+				v50 = vmax_current - 0.50 * (vmax_current - vmin);
+				v75 = vmax_current - 0.75 * (vmax_current - vmin);
+				v90 = vmax_current - 0.90 * (vmax_current - vmin);
+
+				//Record t_upstroke as the time the APD begins
+				// timeAPDstart = t_upstroke;
+
+				//Clear the candidate data
+				Candidate_dvdt_max.clear();
+				Candidate_t_dvdt_max.clear();
+
+				//We have encountered a new upstroke
+				Num_Upstrokes++;
+
+				//We have passed the upstroke so we reset the flag
+				Post_Upstroke = false;
+			}
+			else{
+				//Calculate plateau potential
+				if(t>t_upstroke+10.0 && t<t_upstroke+50){
+					v_plateau += (t-tprev)*v;
+				}
+
+				if ((vprev >= v20) && (v <= v20) ) {
+	           		APD20 = t - t_upstroke ;
+	           		t_APD20 = t;
+		        }
+		        else if ((vprev >= v50) && (v <= v50 )) {
+		            APD50 = t - t_upstroke ;
+		            t_APD50 = t;
+		        }
+		        else if (vprev >= v75 && v <= v75 ) {
+		            APD75 = t - t_upstroke ;
+		            t_APD75 = t;
+		        }
+		        else if (vprev >= v90 && v <= v90 ) {
+		            APD90 = t - t_upstroke ;
+		            t_APD90 = t;
+		        }
+			}
+		}
+
+		//Check for maximum v, change if necessary
+		if(v>vmax_current){
+			vmax_current = v;
+
+			// //Calculate the APD membrane potentials
+			// v20 = vmax_current - 0.20 * (vmax_current - vmin);
+			// v50 = vmax_current - 0.50 * (vmax_current - vmin);
+			// v75 = vmax_current - 0.75 * (vmax_current - vmin);
+			// v90 = vmax_current - 0.90 * (vmax_current - vmin);
+		}
+
+		//Check for Vmin, change if necessary
+		if(v<vmin){
+			vmin = v;
+
+			// //Calculate the APD membrane potentials
+			// v20 = vmax_current - 0.20 * (vmax_current - vmin);
+			// v50 = vmax_current - 0.50 * (vmax_current - vmin);
+			// v75 = vmax_current - 0.75 * (vmax_current - vmin);
+			// v90 = vmax_current - 0.90 * (vmax_current - vmin);
+		}
+
+
+		vprev = v;
+		tprev = t;
 	}
 
+
+private:
 	//The file we output data to
 	std::ofstream OutFile;
 
 	//The number of times the cell has experienced an upstroke
 	unsigned Num_Upstrokes;
+
+	bool Post_Upstroke;
+	double t_upstroke;
+	double dvdt_upstroke;
+	// double timeAPDstart;
+
+	Vector<double> Candidate_dvdt_max;
+	Vector<double> Candidate_t_dvdt_max;
+	double vmax_current;
+	double vmin;
+
+	double v_plateau;
+
+	double APD20;
+	double APD50;
+	double APD75;
+	double APD90;
+
+	double t_APD20;
+	double t_APD50;
+	double t_APD75;
+	double t_APD90;
+
+	double v20;
+	double v50;
+	double v75;
+	double v90;
+
+	double DI20;
+	double DI50;
+	double DI75;
+	double DI90;
+	
+	double tprev;
+	double vprev;
 };
 
+
+
+//Specific implementations of the cell probe:
+//It's too difficult to implement one single class which works for both,
+//I also think it's useful for a user to be sure which probe type they are using
+//	because of the argument differences in the Record(...) function
+
+//For Cell Interface calculated cells
 
 template<class CELL_ELEMENT>
 class CellProbe : public virtual APDMeasurer
@@ -72,6 +274,9 @@ public:
 		node = l;
 
 		this->OpenOutFile(OutFileName);
+
+		//Grab the current value of membrane potential as vmin
+		InitializeMeasurements(El_pt->get_nodal_membrane_potential(node));
 	}
 
 	//Perform recordings if we are an oomph lib element, grab the data straight from the element
@@ -95,18 +300,23 @@ private:
 
 
 
+//For FastSingleCell calculated cells
 
-
-template<unsigned NUM_VARS>
+template<class CELL_ELEMENT>
 class FastCellProbe : public virtual APDMeasurer
 {
 public:
 
-	FastCellProbe(FastSingleCell<NUM_VARS>* el_pt, std::string OutFileName)
+	FastCellProbe(FastSingleCell<CELL_ELEMENT>* el_pt, std::string OutFileName)
 	{
 		El_pt = el_pt;
 
 		this->OpenOutFile(OutFileName);
+
+		//Grab the current value of membrane potential as vmin
+		double val = 0.0;
+		El_pt->get_vm(val);
+		InitializeMeasurements(val);
 	}
 
 	//Perform recordings if we don't have access to an oomph lib problem class
@@ -125,14 +335,8 @@ public:
 
 private:
 
-	//Open the file we write apd information to
-	void OpenOutFile(std::string OutFileName)
-	{
-		OutFile.open(OutFileName);
-	}
-
 	//The cell element
-	FastSingleCell<NUM_VARS>* El_pt;
+	FastSingleCell<CELL_ELEMENT>* El_pt;
 
 };
 

@@ -29,7 +29,7 @@ namespace oomph{
 
 		inline bool model_calculates_jacobian_entries() {return true;}
 
-		inline unsigned required_nodal_variables(const unsigned &cell_type=0){return 59;}
+		inline unsigned Num_Variables(){return 59;}
 
 		//the model does not require derivatives to be provided, it's
 		//	explicit and calculates them itself

@@ -1,3 +1,7 @@
+// TorORd model
+// https://github.com/jtmff/torord/blob/master/matlab/modelRunner.m
+
+
 #ifndef OOMPH_IMPLICIT_TOMEKORUDY_VENT_NEW_HEADER
 #define OOMPH_IMPLICIT_TOMEKORUDY_VENT_NEW_HEADER
 	
@@ -29,7 +33,7 @@ namespace oomph{
 
 		inline bool model_calculates_jacobian_entries() {return true;}
 
-		inline unsigned required_nodal_variables(const unsigned &cell_type=0){return 42;}
+		inline unsigned Num_Variables(){return 42;}
 
 		//the model does not require derivatives to be provided, it's
 		//	explicit and calculates them itself

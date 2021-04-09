@@ -23,11 +23,11 @@ namespace oomph
 //	once. To ensure this make sure that your problem has suitable Communicator_pt->my_rank()
 //	checks which ensures only a thread with a particular number can call a particular element.
 //	This is (and must be) left up to the individual writing the driver code
-template<unsigned DIM, unsigned NUM_VARS>
-class SegregatedCellInterfaceEquations : public virtual CellInterfaceEquations<DIM, NUM_VARS>
+template<unsigned DIM, class CELL_MODEL>
+class SegregatedCellInterfaceEquations : public virtual CellInterfaceEquations<DIM, CELL_MODEL>
 {
 public:
-	SegregatedCellInterfaceEquations() : CellInterfaceEquations<DIM, NUM_VARS>()
+	SegregatedCellInterfaceEquations() : CellInterfaceEquations<DIM, CELL_MODEL>()
 	{
 		//Resize the persistent cell states. We assume that we need them all
 		// even though it is unlikely that this element will perform computation
@@ -35,8 +35,8 @@ public:
 		Persistent_Cell_States.resize(this->nnode());
 
 		// std::cout << "Reporting on indexes: " << std::endl;
-		// for(unsigned i=CellInterfaceEquations<DIM, NUM_VARS>::min_index_CellInterfaceEquations();
-		// 			i<CellInterfaceEquations<DIM, NUM_VARS>::max_index_CellInterfaceEquations();
+		// for(unsigned i=CellInterfaceEquations<DIM, CELL_MODEL>::min_index_CellInterfaceEquations();
+		// 			i<CellInterfaceEquations<DIM, CELL_MODEL>::max_index_CellInterfaceEquations();
 		// 			i++)
 		// {
 		// 	std::cout << i << " ";
@@ -57,7 +57,7 @@ public:
 	//	to allow elements which do not compute/store the cell at that node
 	//	to access this data for suitable interpolating
 	virtual inline unsigned membrane_current_index_SegregatedCellInterfaceEquations() const
-		{return CellInterfaceEquations<DIM, NUM_VARS>::max_index_CellInterfaceEquations();}
+		{return CellInterfaceEquations<DIM, CELL_MODEL>::max_index_CellInterfaceEquations();}
 	virtual inline unsigned active_strain_SegregatedCellInterfaceEquations() const
 		{return (membrane_current_index_SegregatedCellInterfaceEquations() + 1);}
 
@@ -65,7 +65,7 @@ public:
 	//	in a combined cell model class. - We need two extra data for the
 	//	membrane current and active strain
 	inline unsigned required_nvalue(const unsigned &n) const override {
-		return NUM_VARS+2;
+		return CELL_MODEL::required_nodal_variables()+2;
 	}
 
 	//Pin all of the segregated variables. There is no need for them to be unpinned
@@ -73,7 +73,7 @@ public:
 	void pin_all_segregated_vars(){
 		//Pin all the nodal variables
 		for(unsigned l=0; l<this->nnode(); l++){
-			for(unsigned i=0; i<NUM_VARS+2; i++){
+			for(unsigned i=0; i<CELL_MODEL::required_nodal_variables()+2; i++){
 				this->node_pt(l)->pin(this->min_index_CellInterfaceEquations()+i);
 			}
 		}
@@ -83,7 +83,7 @@ public:
 	void unpin_all_segregated_vars(){
 		//Pin all the nodal variables
 		for(unsigned l=0; l<this->nnode(); l++){
-			for(unsigned i=0; i<NUM_VARS+2; i++){
+			for(unsigned i=0; i<CELL_MODEL::required_nodal_variables()+2; i++){
 				this->node_pt(l)->unpin(this->min_index_CellInterfaceEquations()+i);
 			}
 		}
@@ -134,14 +134,14 @@ public:
 	//	shifting is performed.
 	void perform_segregated_solve(const bool& pre_shift = true, const double& override_dt = -1.0){
 		//Preallocate some memory for the new variable values
-		Vector<double> new_state(NUM_VARS);
+		Vector<double> new_state(CELL_MODEL::required_nodal_variables());
 		//loop over the cells
 		for(unsigned l=0; l<this->nnode(); l++){
 			//if the cell is not to be computed then don't compute it
 			if(this->is_node_computed(l)){
 				// oomph_info << this->node_pt(l) << std::endl;
 				int nprev_steps=this->node_pt(l)->time_stepper_pt()->nprev_values();
-				for(unsigned i=0; i<NUM_VARS; i++){
+				for(unsigned i=0; i<CELL_MODEL::required_nodal_variables(); i++){
 					new_state[i] = this->node_pt(l)->value(this->min_index_CellInterfaceEquations() + i);
 				}
 				//Sort out shifting of data
@@ -149,7 +149,7 @@ public:
 					//Shift the Data associated with the nodes with the Node's own timestepper
 					for (int t=nprev_steps;t>0;t--){ 
 						//Loop over the segregated variables
-						for(unsigned i=0; i<NUM_VARS; i++){
+						for(unsigned i=0; i<CELL_MODEL::required_nodal_variables(); i++){
 							//Shift them
 							this->node_pt(l)->
 								set_value(t,
@@ -177,7 +177,7 @@ public:
 				//Perform the explicit solve
 				this->cell_model_pt()->explicit_timestep(Persistent_Cell_States[l],new_state);
 				//Allocate the new values of the variables
-				for(unsigned i=0; i<NUM_VARS; i++){
+				for(unsigned i=0; i<CELL_MODEL::required_nodal_variables(); i++){
 					//Set the previous value to be the current one
 					this->node_pt(l)->set_value(this->min_index_CellInterfaceEquations() + i, new_state[i]);
 				}
@@ -214,10 +214,10 @@ private:
 //====================================================================
 //====================================================================
 
-template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
+template<unsigned DIM, class CELL_MODEL>
 	class QSegregatedCellInterfaceElement	:
-		public virtual QElement<DIM, NNODE_1D>,
-		public virtual SegregatedCellInterfaceEquations<DIM, NUM_VARS>
+		public virtual QElement<DIM, 2>,
+		public virtual SegregatedCellInterfaceEquations<DIM, CELL_MODEL>
 	{
 	private:
 
@@ -225,8 +225,8 @@ template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 		//====================================================================
 		//Constructors
 		//====================================================================
-		QSegregatedCellInterfaceElement()	:	QElement<DIM, NNODE_1D>(),
-												SegregatedCellInterfaceEquations<DIM, NUM_VARS>()
+		QSegregatedCellInterfaceElement()	:	QElement<DIM, 2>(),
+												SegregatedCellInterfaceEquations<DIM, CELL_MODEL>()
 		{
 			//set the integration scheme to one with integral points aligned with the nodes
 			// this->set_integration_scheme(new QNodesOnlyHijackedIntegralScheme<DIM, 2>);
@@ -235,16 +235,16 @@ template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 			this->ipt_not_at_nodes = this->integral_pt()->nweight() - this->nnode();
 			//Pin all the nodal variables
 			// for(unsigned l=0; l<this->nnode(); l++){
-			// 	for(unsigned i=0; i<NUM_VARS+2; i++){
+			// 	for(unsigned i=0; i<CELL_MODEL::required_nodal_variables()+2; i++){
 			// 		this->node_pt(l)->pin(this->min_index_CellInterfaceEquations()+i);
 			// 	}
 			// }
 		}
 
-		QSegregatedCellInterfaceElement(const QSegregatedCellInterfaceElement<DIM, NUM_VARS, NNODE_1D>& dummy)
+		QSegregatedCellInterfaceElement(const QSegregatedCellInterfaceElement<DIM, CELL_MODEL>& dummy)
 			{BrokenCopy::broken_copy("QSegregatedCellInterfaceElement");}
 
-		void operator=(const QSegregatedCellInterfaceElement<DIM, NUM_VARS, NNODE_1D>&)
+		void operator=(const QSegregatedCellInterfaceElement<DIM, CELL_MODEL>&)
 			{BrokenCopy::broken_assign("QSegregatedCellInterfaceElement");}
 
 		//====================================================================
@@ -252,34 +252,34 @@ template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 		//====================================================================
 		/// Output with default number of plot points
 		void output(std::ostream &outfile){
-			SegregatedCellInterfaceEquations<DIM, NUM_VARS>::output(outfile);
+			SegregatedCellInterfaceEquations<DIM, CELL_MODEL>::output(outfile);
 		}
 		/// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		/// nplot^DIM plot points
 		void output(std::ostream &outfile, const unsigned &nplot){
-			SegregatedCellInterfaceEquations<DIM, NUM_VARS>::output(outfile, nplot);
+			SegregatedCellInterfaceEquations<DIM, CELL_MODEL>::output(outfile, nplot);
 		}
 		/// C_style output with default number of plot points
 		void output(FILE* file_pt){
-			SegregatedCellInterfaceEquations<DIM, NUM_VARS>::output(file_pt);
+			SegregatedCellInterfaceEquations<DIM, CELL_MODEL>::output(file_pt);
 		}
 		 /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		 /// n_plot^DIM plot points
 		 void output(FILE* file_pt, const unsigned &n_plot){
-		 	SegregatedCellInterfaceEquations<DIM, NUM_VARS>::output(file_pt, n_plot);
+		 	SegregatedCellInterfaceEquations<DIM, CELL_MODEL>::output(file_pt, n_plot);
 		}
 	};
 
-	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
-	class FaceGeometry<QSegregatedCellInterfaceElement<DIM, NUM_VARS, NNODE_1D> >:
-		public virtual QElement<DIM-1, NNODE_1D>
+	template<unsigned DIM, class CELL_MODEL>
+	class FaceGeometry<QSegregatedCellInterfaceElement<DIM, CELL_MODEL> >:
+		public virtual QElement<DIM-1, 2>
 	{
 	public:
-		FaceGeometry()	:	QElement<DIM-1, NNODE_1D>()	{}
+		FaceGeometry()	:	QElement<DIM-1, 2>()	{}
 	};	
 
-	template<unsigned NUM_VARS, unsigned NNODE_1D>
-	class FaceGeometry<QSegregatedCellInterfaceElement<1, NUM_VARS, NNODE_1D> >:
+	template<class CELL_MODEL>
+	class FaceGeometry<QSegregatedCellInterfaceElement<1, CELL_MODEL> >:
 		public virtual PointElement
 	{
 	public:
@@ -293,10 +293,10 @@ template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 	//====================================================================
 	//====================================================================
 
-	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
+	template<unsigned DIM, class CELL_MODEL>
 	class TSegregatedCellInterfaceElement	:
-		public virtual TElement<DIM, NNODE_1D>,
-		public virtual SegregatedCellInterfaceEquations<DIM, NUM_VARS>
+		public virtual TElement<DIM, 2>,
+		public virtual SegregatedCellInterfaceEquations<DIM, CELL_MODEL>
 	{
 	private:
 
@@ -304,8 +304,8 @@ template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 		//====================================================================
 		//Constructors
 		//====================================================================
-		TSegregatedCellInterfaceElement()	:	TElement<DIM, NNODE_1D>(),
-									SegregatedCellInterfaceEquations<DIM, NUM_VARS>()
+		TSegregatedCellInterfaceElement()	:	TElement<DIM, 2>(),
+									SegregatedCellInterfaceEquations<DIM, CELL_MODEL>()
 		{
 			//set the integration scheme to one with integral points aligned with the nodes
 			// this->set_integration_scheme(new QNodesOnlyHijackedIntegralScheme<DIM, 2>);
@@ -314,10 +314,10 @@ template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 			this->ipt_not_at_nodes = this->integral_pt()->nweight() - this->nnode();
 		}
 
-		TSegregatedCellInterfaceElement(const TSegregatedCellInterfaceElement<DIM, NUM_VARS, NNODE_1D>& dummy)
+		TSegregatedCellInterfaceElement(const TSegregatedCellInterfaceElement<DIM, CELL_MODEL>& dummy)
 			{BrokenCopy::broken_copy("TSegregatedCellInterfaceElement");}
 
-		void operator=(const TSegregatedCellInterfaceElement<DIM, NUM_VARS, NNODE_1D>&)
+		void operator=(const TSegregatedCellInterfaceElement<DIM, CELL_MODEL>&)
 			{BrokenCopy::broken_assign("TSegregatedCellInterfaceElement");}
 
 		//====================================================================
@@ -325,34 +325,34 @@ template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
 		//====================================================================
 		/// Output with default number of plot points
 		void output(std::ostream &outfile){
-			SegregatedCellInterfaceEquations<DIM, NUM_VARS>::output(outfile);
+			SegregatedCellInterfaceEquations<DIM, CELL_MODEL>::output(outfile);
 		}
 		/// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		/// nplot^DIM plot points
 		void output(std::ostream &outfile, const unsigned &nplot){
-			SegregatedCellInterfaceEquations<DIM, NUM_VARS>::output(outfile, nplot);
+			SegregatedCellInterfaceEquations<DIM, CELL_MODEL>::output(outfile, nplot);
 		}
 		/// C_style output with default number of plot points
 		void output(FILE* file_pt){
-			SegregatedCellInterfaceEquations<DIM, NUM_VARS>::output(file_pt);
+			SegregatedCellInterfaceEquations<DIM, CELL_MODEL>::output(file_pt);
 		}
 		 /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 		 /// n_plot^DIM plot points
 		 void output(FILE* file_pt, const unsigned &n_plot){
-		 	SegregatedCellInterfaceEquations<DIM, NUM_VARS>::output(file_pt, n_plot);
+		 	SegregatedCellInterfaceEquations<DIM, CELL_MODEL>::output(file_pt, n_plot);
 		}
 	};
 
-	template<unsigned DIM, unsigned NUM_VARS, unsigned NNODE_1D>
-	class FaceGeometry<TSegregatedCellInterfaceElement<DIM, NUM_VARS, NNODE_1D> >:
-		public virtual TElement<DIM-1, NNODE_1D>
+	template<unsigned DIM, class CELL_MODEL>
+	class FaceGeometry<TSegregatedCellInterfaceElement<DIM, CELL_MODEL> >:
+		public virtual TElement<DIM-1, 2>
 	{
 	public:
-		FaceGeometry()	:	TElement<DIM-1, NNODE_1D>()	{}
+		FaceGeometry()	:	TElement<DIM-1, 2>()	{}
 	};	
 
-	template<unsigned NUM_VARS, unsigned NNODE_1D>
-	class FaceGeometry<TSegregatedCellInterfaceElement<1, NUM_VARS, NNODE_1D> >:
+	template<class CELL_MODEL>
+	class FaceGeometry<TSegregatedCellInterfaceElement<1, CELL_MODEL> >:
 		public virtual PointElement
 	{
 	public:

@@ -23,13 +23,13 @@ namespace oomph{
 		inline bool return_initial_state_variable(const unsigned &n, double &v, const unsigned &cell_type);
 
 		//this can be overloaded in case the membrane capacitance is dependent on cell type or state parameters
-		inline double cm(CellState &state) {return Tent_CAPACITANCE;}
+		inline double cm(CellState &state) {return 1.0;}//}Tent_CAPACITANCE;}
 
 		inline void custom_output(CellState &state, Vector<double> &output) override {}
 
 		inline bool model_calculates_jacobian_entries() {return true;}
 
-		inline unsigned required_nodal_variables(const unsigned &cell_type=0){return 20;}
+		inline unsigned Num_Variables(){return 20;}
 		//the model does not require derivatives to be provided, it's
 		//	explicit and calculates them itself
 		inline unsigned required_derivatives(){return 0;}

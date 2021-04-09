@@ -70,9 +70,21 @@ public:
    BrokenCopy::broken_assign("BaseCellMembranePotentialEquations");
   }
 
+  virtual inline std::vector<std::string> get_variable_names() const {}
+
  /// \short All cell_membrane_potential elements will have a storage value
  ///        dedicated to membrane potential
  virtual inline unsigned vm_index_BaseCellMembranePotential() const {return 0;}
+
+ //The next free index after this elements data
+ virtual inline unsigned max_index_BaseCellMembranePotential() const {return 1;}
+
+
+ //Get the membrane potential at the nth node
+ double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &n) const
+ {
+  return this->node_pt(n)->value(0, vm_index_BaseCellMembranePotential());
+ }
 
 /// \short du/dt at local node n. 
  /// Uses suitably interpolated value for hanging nodes.
