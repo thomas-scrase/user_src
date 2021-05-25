@@ -4,8 +4,8 @@
 namespace oomph
 {
 	//Only ever output 2 nplot points
-	template <unsigned DIM, unsigned NUM_VARS>
-	void CellInterfaceEquations<DIM, NUM_VARS>::output(std::ostream &outfile, const unsigned &nplot){
+	template <unsigned DIM, class CELL_MODEL>
+	void CellInterfaceEquations<DIM, CELL_MODEL>::output(std::ostream &outfile, const unsigned &nplot){
 		// std::cout << "BOOM" << std::endl;
 		//Vector of local coordinates
  		Vector<double> s(DIM);
@@ -64,8 +64,8 @@ namespace oomph
  		write_tecplot_zone_footer(outfile,nplot);
 	}
 
-	template <unsigned DIM, unsigned NUM_VARS>
-	void CellInterfaceEquations<DIM, NUM_VARS>::output(FILE* file_pt, const unsigned &n_plot){	}
+	template <unsigned DIM, class CELL_MODEL>
+	void CellInterfaceEquations<DIM, CELL_MODEL>::output(FILE* file_pt, const unsigned &n_plot){	}
 
 
 	//====================================================================
@@ -73,8 +73,8 @@ namespace oomph
 	//Generic fill in of residual contribution
 	//====================================================================
 	//====================================================================
-	template <unsigned DIM, unsigned NUM_VARS>
-	void CellInterfaceEquations<DIM, NUM_VARS>::fill_in_generic_residual_contribution_cell_interface(Vector<double> &residuals, 
+	template <unsigned DIM, class CELL_MODEL>
+	void CellInterfaceEquations<DIM, CELL_MODEL>::fill_in_generic_residual_contribution_cell_interface(Vector<double> &residuals, 
 											                                               DenseMatrix<double> &jacobian, 
 											                                               DenseMatrix<double> &mass_matrix,
 											                                               unsigned flag)
@@ -157,280 +157,280 @@ namespace oomph
 	//====================================================================
 	//Force build of templates
 	//====================================================================
-	template class CellInterfaceEquations<1,45>;
-	template class CellInterfaceEquations<2,45>;
-	template class CellInterfaceEquations<3,45>;
+	// template class CellInterfaceEquations<1,45>;
+	// template class CellInterfaceEquations<2,45>;
+	// template class CellInterfaceEquations<3,45>;
 
-	template class CellInterfaceEquations<1,49>;
-	template class CellInterfaceEquations<2,49>;
-	template class CellInterfaceEquations<3,49>;
+	// template class CellInterfaceEquations<1,49>;
+	// template class CellInterfaceEquations<2,49>;
+	// template class CellInterfaceEquations<3,49>;
 
-	template class CellInterfaceEquations<1,25>;
-	template class CellInterfaceEquations<2,25>;
-	template class CellInterfaceEquations<3,25>;
+	// template class CellInterfaceEquations<1,25>;
+	// template class CellInterfaceEquations<2,25>;
+	// template class CellInterfaceEquations<3,25>;
 
-	template class CellInterfaceEquations<1,34>;
-	template class CellInterfaceEquations<2,34>;
-	template class CellInterfaceEquations<3,34>;
+	// template class CellInterfaceEquations<1,34>;
+	// template class CellInterfaceEquations<2,34>;
+	// template class CellInterfaceEquations<3,34>;
 
-	template class CellInterfaceEquations<1,1>;
-	template class CellInterfaceEquations<2,1>;
-	template class CellInterfaceEquations<3,1>;
+	// template class CellInterfaceEquations<1,1>;
+	// template class CellInterfaceEquations<2,1>;
+	// template class CellInterfaceEquations<3,1>;
 
-	//====================================================================
-	//Force build of Q - templates
-	//====================================================================
+	// //====================================================================
+	// //Force build of Q - templates
+	// //====================================================================
 
-	//!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+
-	//IF YOU ADD A NEW CELL MODEL:
-	//		Copy and paste the commented-out commands below, edit the last number (0)
-	//		in the <x,y,z> to reflect the required_nodal_variables of the new cell model
-	//!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+
+	// //!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+
+	// //IF YOU ADD A NEW CELL MODEL:
+	// //		Copy and paste the commented-out commands below, edit the last number (0)
+	// //		in the <x,y,z> to reflect the required_nodal_variables of the new cell model
+	// //!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+!+
 
-	// template class QCellInterfaceElement<1,2>;
-	// template class QCellInterfaceElement<1,0,3>;
-	// template class QCellInterfaceElement<1,0,4>;
+	// // template class QCellInterfaceElement<1,2>;
+	// // template class QCellInterfaceElement<1,0,3>;
+	// // template class QCellInterfaceElement<1,0,4>;
 
-	// template class QCellInterfaceElement<2,0,2>;
-	// template class QCellInterfaceElement<2,0,3>;
-	// template class QCellInterfaceElement<2,0,4>;
+	// // template class QCellInterfaceElement<2,0,2>;
+	// // template class QCellInterfaceElement<2,0,3>;
+	// // template class QCellInterfaceElement<2,0,4>;
 
-	// template class QCellInterfaceElement<3,0,2>;
-	// template class QCellInterfaceElement<3,0,3>;
-	// template class QCellInterfaceElement<3,0,4>;
+	// // template class QCellInterfaceElement<3,0,2>;
+	// // template class QCellInterfaceElement<3,0,3>;
+	// // template class QCellInterfaceElement<3,0,4>;
 
 
 
 	
-	//Force build for the CNZ cell model
-	template class QCellInterfaceElement<1,45,2>;
-	template class QCellInterfaceElement<1,45,3>;
-	// template class QCellInterfaceElement<1,45,4>;
+	// //Force build for the CNZ cell model
+	// template class QCellInterfaceElement<1,45,2>;
+	// template class QCellInterfaceElement<1,45,3>;
+	// // template class QCellInterfaceElement<1,45,4>;
 
-	template class QCellInterfaceElement<2,45,2>;
-	template class QCellInterfaceElement<2,45,3>;
-	// template class QCellInterfaceElement<2,45,4>;
+	// template class QCellInterfaceElement<2,45,2>;
+	// template class QCellInterfaceElement<2,45,3>;
+	// // template class QCellInterfaceElement<2,45,4>;
 
-	template class QCellInterfaceElement<3,45,2>;
-	template class QCellInterfaceElement<3,45,3>;
-	// template class QCellInterfaceElement<3,45,4>;
+	// template class QCellInterfaceElement<3,45,2>;
+	// template class QCellInterfaceElement<3,45,3>;
+	// // template class QCellInterfaceElement<3,45,4>;
 
 
-	template class TCellInterfaceElement<1,45,2>;
-	template class TCellInterfaceElement<1,45,3>;
-	// template class TCellInterfaceElement<1,45,4>;
+	// template class TCellInterfaceElement<1,45,2>;
+	// template class TCellInterfaceElement<1,45,3>;
+	// // template class TCellInterfaceElement<1,45,4>;
 
-	template class TCellInterfaceElement<2,45,2>;
-	template class TCellInterfaceElement<2,45,3>;
-	// template class TCellInterfaceElement<2,45,4>;
+	// template class TCellInterfaceElement<2,45,2>;
+	// template class TCellInterfaceElement<2,45,3>;
+	// // template class TCellInterfaceElement<2,45,4>;
 
-	template class TCellInterfaceElement<3,45,2>;
-	template class TCellInterfaceElement<3,45,3>;
-	// template class TCellInterfaceElement<3,45,4>;
+	// template class TCellInterfaceElement<3,45,2>;
+	// template class TCellInterfaceElement<3,45,3>;
+	// // template class TCellInterfaceElement<3,45,4>;
 
-	template class PointCellInterfaceElement<1,45>;
-	template class PointCellInterfaceElement<2,45>;
-	template class PointCellInterfaceElement<3,45>;
+	// template class PointCellInterfaceElement<1,45>;
+	// template class PointCellInterfaceElement<2,45>;
+	// template class PointCellInterfaceElement<3,45>;
 
 
 
 
-	//Force build for the Explicit CNZ cell model
-	template class QCellInterfaceElement<1,49,2>;
-	template class QCellInterfaceElement<1,49,3>;
-	// template class QCellInterfaceElement<1,49,4>;
+	// //Force build for the Explicit CNZ cell model
+	// template class QCellInterfaceElement<1,49,2>;
+	// template class QCellInterfaceElement<1,49,3>;
+	// // template class QCellInterfaceElement<1,49,4>;
 
-	template class QCellInterfaceElement<2,49,2>;
-	template class QCellInterfaceElement<2,49,3>;
-	// template class QCellInterfaceElement<2,49,4>;
+	// template class QCellInterfaceElement<2,49,2>;
+	// template class QCellInterfaceElement<2,49,3>;
+	// // template class QCellInterfaceElement<2,49,4>;
 
-	template class QCellInterfaceElement<3,49,2>;
-	template class QCellInterfaceElement<3,49,3>;
-	// template class QCellInterfaceElement<3,49,4>;
+	// template class QCellInterfaceElement<3,49,2>;
+	// template class QCellInterfaceElement<3,49,3>;
+	// // template class QCellInterfaceElement<3,49,4>;
 
 
-	template class TCellInterfaceElement<1,49,2>;
-	template class TCellInterfaceElement<1,49,3>;
-	// template class TCellInterfaceElement<1,49,4>;
+	// template class TCellInterfaceElement<1,49,2>;
+	// template class TCellInterfaceElement<1,49,3>;
+	// // template class TCellInterfaceElement<1,49,4>;
 
-	template class TCellInterfaceElement<2,49,2>;
-	template class TCellInterfaceElement<2,49,3>;
-	// template class TCellInterfaceElement<2,49,4>;
+	// template class TCellInterfaceElement<2,49,2>;
+	// template class TCellInterfaceElement<2,49,3>;
+	// // template class TCellInterfaceElement<2,49,4>;
 
-	template class TCellInterfaceElement<3,49,2>;
-	template class TCellInterfaceElement<3,49,3>;
-	// template class TCellInterfaceElement<3,49,4>;
+	// template class TCellInterfaceElement<3,49,2>;
+	// template class TCellInterfaceElement<3,49,3>;
+	// // template class TCellInterfaceElement<3,49,4>;
 
-	template class PointCellInterfaceElement<1,49>;
-	template class PointCellInterfaceElement<2,49>;
-	template class PointCellInterfaceElement<3,49>;
+	// template class PointCellInterfaceElement<1,49>;
+	// template class PointCellInterfaceElement<2,49>;
+	// template class PointCellInterfaceElement<3,49>;
 
 
 
 
-	//Force build for the TNNP cell model
-	template class QCellInterfaceElement<1,25,2>;
-	template class QCellInterfaceElement<1,25,3>;
-	// template class QCellInterfaceElement<1,25,4>;
+	// //Force build for the TNNP cell model
+	// template class QCellInterfaceElement<1,25,2>;
+	// template class QCellInterfaceElement<1,25,3>;
+	// // template class QCellInterfaceElement<1,25,4>;
 
-	template class QCellInterfaceElement<2,25,2>;
-	template class QCellInterfaceElement<2,25,3>;
-	// template class QCellInterfaceElement<2,25,4>;
+	// template class QCellInterfaceElement<2,25,2>;
+	// template class QCellInterfaceElement<2,25,3>;
+	// // template class QCellInterfaceElement<2,25,4>;
 
-	template class QCellInterfaceElement<3,25,2>;
-	template class QCellInterfaceElement<3,25,3>;
-	// template class QCellInterfaceElement<3,25,4>;
+	// template class QCellInterfaceElement<3,25,2>;
+	// template class QCellInterfaceElement<3,25,3>;
+	// // template class QCellInterfaceElement<3,25,4>;
 
 
-	template class TCellInterfaceElement<1,25,2>;
-	template class TCellInterfaceElement<1,25,3>;
-	// template class TCellInterfaceElement<1,25,4>;
+	// template class TCellInterfaceElement<1,25,2>;
+	// template class TCellInterfaceElement<1,25,3>;
+	// // template class TCellInterfaceElement<1,25,4>;
 
-	template class TCellInterfaceElement<2,25,2>;
-	template class TCellInterfaceElement<2,25,3>;
-	// template class TCellInterfaceElement<2,25,4>;
+	// template class TCellInterfaceElement<2,25,2>;
+	// template class TCellInterfaceElement<2,25,3>;
+	// // template class TCellInterfaceElement<2,25,4>;
 
-	template class TCellInterfaceElement<3,25,2>;
-	template class TCellInterfaceElement<3,25,3>;
-	// template class TCellInterfaceElement<3,25,4>;
+	// template class TCellInterfaceElement<3,25,2>;
+	// template class TCellInterfaceElement<3,25,3>;
+	// // template class TCellInterfaceElement<3,25,4>;
 
-	template class PointCellInterfaceElement<1,25>;
-	template class PointCellInterfaceElement<2,25>;
-	template class PointCellInterfaceElement<3,25>;
+	// template class PointCellInterfaceElement<1,25>;
+	// template class PointCellInterfaceElement<2,25>;
+	// template class PointCellInterfaceElement<3,25>;
 
 
-	//Force build for the TNNP with Rice myofilament cell model
-	template class QCellInterfaceElement<1,34,2>;
-	template class QCellInterfaceElement<1,34,3>;
-	// template class QCellInterfaceElement<1,34,4>;
+	// //Force build for the TNNP with Rice myofilament cell model
+	// template class QCellInterfaceElement<1,34,2>;
+	// template class QCellInterfaceElement<1,34,3>;
+	// // template class QCellInterfaceElement<1,34,4>;
 
-	template class QCellInterfaceElement<2,34,2>;
-	template class QCellInterfaceElement<2,34,3>;
-	// template class QCellInterfaceElement<2,34,4>;
+	// template class QCellInterfaceElement<2,34,2>;
+	// template class QCellInterfaceElement<2,34,3>;
+	// // template class QCellInterfaceElement<2,34,4>;
 
-	template class QCellInterfaceElement<3,34,2>;
-	template class QCellInterfaceElement<3,34,3>;
-	// template class QCellInterfaceElement<3,34,4>;
+	// template class QCellInterfaceElement<3,34,2>;
+	// template class QCellInterfaceElement<3,34,3>;
+	// // template class QCellInterfaceElement<3,34,4>;
 
 
-	template class TCellInterfaceElement<1,34,2>;
-	template class TCellInterfaceElement<1,34,3>;
-	// template class TCellInterfaceElement<1,34,4>;
+	// template class TCellInterfaceElement<1,34,2>;
+	// template class TCellInterfaceElement<1,34,3>;
+	// // template class TCellInterfaceElement<1,34,4>;
 
-	template class TCellInterfaceElement<2,34,2>;
-	template class TCellInterfaceElement<2,34,3>;
-	// template class TCellInterfaceElement<2,34,4>;
+	// template class TCellInterfaceElement<2,34,2>;
+	// template class TCellInterfaceElement<2,34,3>;
+	// // template class TCellInterfaceElement<2,34,4>;
 
-	template class TCellInterfaceElement<3,34,2>;
-	template class TCellInterfaceElement<3,34,3>;
-	// template class TCellInterfaceElement<3,34,4>;
+	// template class TCellInterfaceElement<3,34,2>;
+	// template class TCellInterfaceElement<3,34,3>;
+	// // template class TCellInterfaceElement<3,34,4>;
 
-	template class PointCellInterfaceElement<1,34>;
-	template class PointCellInterfaceElement<2,34>;
-	template class PointCellInterfaceElement<3,34>;
+	// template class PointCellInterfaceElement<1,34>;
+	// template class PointCellInterfaceElement<2,34>;
+	// template class PointCellInterfaceElement<3,34>;
 
 
-	//Force build for the TNNP with Rice myofilament and markov iks cell model
-	template class QCellInterfaceElement<1,50,2>;
-	template class QCellInterfaceElement<1,50,3>;
-	// template class QCellInterfaceElement<1,50,4>;
+	// //Force build for the TNNP with Rice myofilament and markov iks cell model
+	// template class QCellInterfaceElement<1,50,2>;
+	// template class QCellInterfaceElement<1,50,3>;
+	// // template class QCellInterfaceElement<1,50,4>;
 
-	template class QCellInterfaceElement<2,50,2>;
-	template class QCellInterfaceElement<2,50,3>;
-	// template class QCellInterfaceElement<2,50,4>;
+	// template class QCellInterfaceElement<2,50,2>;
+	// template class QCellInterfaceElement<2,50,3>;
+	// // template class QCellInterfaceElement<2,50,4>;
 
-	template class QCellInterfaceElement<3,50,2>;
-	template class QCellInterfaceElement<3,50,3>;
-	// template class QCellInterfaceElement<3,50,4>;
+	// template class QCellInterfaceElement<3,50,2>;
+	// template class QCellInterfaceElement<3,50,3>;
+	// // template class QCellInterfaceElement<3,50,4>;
 
 
-	template class TCellInterfaceElement<1,50,2>;
-	template class TCellInterfaceElement<1,50,3>;
-	// template class TCellInterfaceElement<1,50,4>;
+	// template class TCellInterfaceElement<1,50,2>;
+	// template class TCellInterfaceElement<1,50,3>;
+	// // template class TCellInterfaceElement<1,50,4>;
 
-	template class TCellInterfaceElement<2,50,2>;
-	template class TCellInterfaceElement<2,50,3>;
-	// template class TCellInterfaceElement<2,50,4>;
+	// template class TCellInterfaceElement<2,50,2>;
+	// template class TCellInterfaceElement<2,50,3>;
+	// // template class TCellInterfaceElement<2,50,4>;
 
-	template class TCellInterfaceElement<3,50,2>;
-	template class TCellInterfaceElement<3,50,3>;
-	// template class TCellInterfaceElement<3,50,4>;
+	// template class TCellInterfaceElement<3,50,2>;
+	// template class TCellInterfaceElement<3,50,3>;
+	// // template class TCellInterfaceElement<3,50,4>;
 
-	template class PointCellInterfaceElement<1,50>;
-	template class PointCellInterfaceElement<2,50>;
-	template class PointCellInterfaceElement<3,50>;
+	// template class PointCellInterfaceElement<1,50>;
+	// template class PointCellInterfaceElement<2,50>;
+	// template class PointCellInterfaceElement<3,50>;
 
-	//Force build for the TomekORudy cell model
-	template class QCellInterfaceElement<1,42,2>;
-	template class QCellInterfaceElement<1,42,3>;
-	// template class QCellInterfaceElement<1,42,4>;
+	// //Force build for the TomekORudy cell model
+	// template class QCellInterfaceElement<1,42,2>;
+	// template class QCellInterfaceElement<1,42,3>;
+	// // template class QCellInterfaceElement<1,42,4>;
 
-	template class QCellInterfaceElement<2,42,2>;
-	template class QCellInterfaceElement<2,42,3>;
-	// template class QCellInterfaceElement<2,42,4>;
+	// template class QCellInterfaceElement<2,42,2>;
+	// template class QCellInterfaceElement<2,42,3>;
+	// // template class QCellInterfaceElement<2,42,4>;
 
-	template class QCellInterfaceElement<3,42,2>;
-	template class QCellInterfaceElement<3,42,3>;
-	// template class QCellInterfaceElement<3,42,4>;
+	// template class QCellInterfaceElement<3,42,2>;
+	// template class QCellInterfaceElement<3,42,3>;
+	// // template class QCellInterfaceElement<3,42,4>;
 
 
-	template class TCellInterfaceElement<1,42,2>;
-	template class TCellInterfaceElement<1,42,3>;
-	// template class TCellInterfaceElement<1,42,4>;
+	// template class TCellInterfaceElement<1,42,2>;
+	// template class TCellInterfaceElement<1,42,3>;
+	// // template class TCellInterfaceElement<1,42,4>;
 
-	template class TCellInterfaceElement<2,42,2>;
-	template class TCellInterfaceElement<2,42,3>;
-	// template class TCellInterfaceElement<2,42,4>;
+	// template class TCellInterfaceElement<2,42,2>;
+	// template class TCellInterfaceElement<2,42,3>;
+	// // template class TCellInterfaceElement<2,42,4>;
 
-	template class TCellInterfaceElement<3,42,2>;
-	template class TCellInterfaceElement<3,42,3>;
-	// template class TCellInterfaceElement<3,42,4>;
+	// template class TCellInterfaceElement<3,42,2>;
+	// template class TCellInterfaceElement<3,42,3>;
+	// // template class TCellInterfaceElement<3,42,4>;
 
-	template class PointCellInterfaceElement<1,42>;
-	template class PointCellInterfaceElement<2,42>;
-	template class PointCellInterfaceElement<3,42>;
+	// template class PointCellInterfaceElement<1,42>;
+	// template class PointCellInterfaceElement<2,42>;
+	// template class PointCellInterfaceElement<3,42>;
 
 
-	//Force build for the 1D variable cell models
-	template class QCellInterfaceElement<1,1,2>;
-	template class QCellInterfaceElement<1,1,3>;
-	// template class QCellInterfaceElement<1,1,4>;
+	// //Force build for the 1D variable cell models
+	// template class QCellInterfaceElement<1,1,2>;
+	// template class QCellInterfaceElement<1,1,3>;
+	// // template class QCellInterfaceElement<1,1,4>;
 
-	template class QCellInterfaceElement<2,1,2>;
-	template class QCellInterfaceElement<2,1,3>;
-	// template class QCellInterfaceElement<2,1,4>;
+	// template class QCellInterfaceElement<2,1,2>;
+	// template class QCellInterfaceElement<2,1,3>;
+	// // template class QCellInterfaceElement<2,1,4>;
 
-	template class QCellInterfaceElement<3,1,2>;
-	template class QCellInterfaceElement<3,1,3>;
-	// template class QCellInterfaceElement<3,1,4>;
+	// template class QCellInterfaceElement<3,1,2>;
+	// template class QCellInterfaceElement<3,1,3>;
+	// // template class QCellInterfaceElement<3,1,4>;
 
 
-	template class TCellInterfaceElement<1,1,2>;
-	template class TCellInterfaceElement<1,1,3>;
-	// template class TCellInterfaceElement<1,1,4>;
+	// template class TCellInterfaceElement<1,1,2>;
+	// template class TCellInterfaceElement<1,1,3>;
+	// // template class TCellInterfaceElement<1,1,4>;
 
-	template class TCellInterfaceElement<2,1,2>;
-	template class TCellInterfaceElement<2,1,3>;
-	// template class TCellInterfaceElement<2,1,4>;
+	// template class TCellInterfaceElement<2,1,2>;
+	// template class TCellInterfaceElement<2,1,3>;
+	// // template class TCellInterfaceElement<2,1,4>;
 
-	template class TCellInterfaceElement<3,1,2>;
-	template class TCellInterfaceElement<3,1,3>;
-	// template class TCellInterfaceElement<3,1,4>;
+	// template class TCellInterfaceElement<3,1,2>;
+	// template class TCellInterfaceElement<3,1,3>;
+	// // template class TCellInterfaceElement<3,1,4>;
 
-	template class PointCellInterfaceElement<1,1>;
-	template class PointCellInterfaceElement<2,1>;
-	template class PointCellInterfaceElement<3,1>;
+	// template class PointCellInterfaceElement<1,1>;
+	// template class PointCellInterfaceElement<2,1>;
+	// template class PointCellInterfaceElement<3,1>;
 
 
-	template class MonodomainSingleCellElement<1>;
-	template class MonodomainSingleCellElement<25>;
-	template class MonodomainSingleCellElement<34>;
-	template class MonodomainSingleCellElement<40>;
-	template class MonodomainSingleCellElement<42>;
-	template class MonodomainSingleCellElement<44>;
-	template class MonodomainSingleCellElement<45>;
-	template class MonodomainSingleCellElement<49>;
-	template class MonodomainSingleCellElement<50>;
-	template class MonodomainSingleCellElement<55>;
-	template class MonodomainSingleCellElement<65>;
+	// template class MonodomainSingleCellElement<1>;
+	// template class MonodomainSingleCellElement<25>;
+	// template class MonodomainSingleCellElement<34>;
+	// template class MonodomainSingleCellElement<40>;
+	// template class MonodomainSingleCellElement<42>;
+	// template class MonodomainSingleCellElement<44>;
+	// template class MonodomainSingleCellElement<45>;
+	// template class MonodomainSingleCellElement<49>;
+	// template class MonodomainSingleCellElement<50>;
+	// template class MonodomainSingleCellElement<55>;
+	// template class MonodomainSingleCellElement<65>;
 }

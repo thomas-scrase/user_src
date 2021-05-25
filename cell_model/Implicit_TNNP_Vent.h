@@ -88,7 +88,7 @@ namespace oomph{
 		//The cell model does not compute its own jacobian entries, it is done by finite differencing
 		bool model_calculates_jacobian_entries() {return false;}
 		//The number of variables used by the cell model
-		unsigned required_nodal_variables(const unsigned &cell_type=0) {return 25;}
+		unsigned Num_Variables() {return 25;}
 		//The number of derivatives required by the cell model when calculating residuals
 		unsigned required_derivatives() {return 1;}
 		//The number of black box parameters required by the cell model: ab_index, is_index, rv_index

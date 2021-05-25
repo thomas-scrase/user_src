@@ -29,7 +29,7 @@ public:
 
 	inline bool model_calculates_jacobian_entries() {return true;}
 
-	inline unsigned required_nodal_variables(const unsigned &cell_type=0){return 50;}
+	inline unsigned Num_Variables(){return 50;}
 	//the model does not require derivatives to be provided, it's
 	//	explicit and calculates them itself
 	inline unsigned required_derivatives(){return 0;}

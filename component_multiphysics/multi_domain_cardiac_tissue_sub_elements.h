@@ -410,7 +410,8 @@ namespace oomph{
 												DenseMatrix<double> &jacobian)
 		{
 			// ElementWithExternalElement::fill_in_contribution_to_jacobian(residuals,jacobian);
-			MEMBRANE_POTENTIAL_ELEMENT::fill_in_contribution_to_jacobian(residuals,jacobian);
+			// MEMBRANE_POTENTIAL_ELEMENT::fill_in_contribution_to_jacobian(residuals,jacobian);
+			FiniteElement::fill_in_jacobian_from_nodal_by_fd (jacobian);
 			// this->fill_in_jacobian_from_external_interaction_by_fd(residuals,jacobian);
 		}
 

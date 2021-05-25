@@ -1,11 +1,9 @@
-#include "TomekORudy.h"
+#include "TomekORudy_Updated.h"
 
 namespace oomph{
 
-TomekORudyVent::TomekORudyVent() : CellModelBase()
+TomekORudyVentUpdated::TomekORudyVentUpdated()
 {
-	Intrinsic_dt = 0.002;
-
 	nao =140.0;
 	ko = 5.0;
 	cao = 1.8;
@@ -24,36 +22,73 @@ TomekORudyVent::TomekORudyVent() : CellModelBase()
 	vnsr=0.0552*vcell;
 	vjsr=0.0048*vcell;
 	vss=0.02*vcell;
+
+	Names_Of_Cell_Variables=
+	{
+		"nai",
+		"nass",
+		"ki",
+		"kss",
+		"cai",
+		"cass",
+		"cansr",
+		"cajsr",
+		"m",
+		"hp",
+		"h",
+		"j",
+		"jp",
+		"mL",
+		"hL",
+		"hLp",
+		"a",
+		"iF",
+		"iS",
+		"ap",
+		"iFp",
+		"iSp",
+		"d",
+		"ff",
+		"fs",
+		"fcaf",
+		"fcas",
+		"jca",
+		"nca",
+		"nca_i",
+		"ffp",
+		"fcafp",
+		"xs1",
+		"xs2",
+		"Jrel_np",
+		"CaMKt",
+		"ikr_c0",
+		"ikr_c1",
+		"ikr_c2",
+		"ikr_o",
+		"ikr_i",
+		"Jrel_p",
+		"cli",
+		"clss"
+	};
+	Names_Of_Other_Parameters =
+	{
+
+	};
+	Names_Of_Other_Variables =
+	{
+
+	};
+	Names_Of_Output_Data =
+	{
+
+	};
+
+	FinalizeConstruction();
 }
 
-bool TomekORudyVent::compatible_cell_types(const unsigned& cell_type)
+
+double TomekORudyVentUpdated::return_initial_state_variable(const unsigned &v, const unsigned &cell_type)
 {
-	switch(cell_type){
-		case 100 : return true;
-		case 101 : return true;
-		case 102 : return true;
-	}
-	return false;
-}
-
-inline void TomekORudyVent::return_initial_membrane_potential(double &v, const unsigned &cell_type)
-{
-	// v = -88.7638;
-	switch(cell_type){
-		case 100:
-			v = -90.7456332496277;
-			break;
-		case 101:
-			v = -91.3391803967798;
-			break;
-		case 102:
-			v = -89.7480828168753;
-			break;
-	}
-}
-
-inline bool TomekORudyVent::return_initial_state_variable(const unsigned&n, double& v, const unsigned& cell_type)
-{	
 	double STATES[3][44] = 
 	{
 		{13.4006197127101,	13.4009366375605,	152.363889991411,	152.363844281265,	6.62181569329109e-05,	5.74992101186664e-05,	1.80679354108253,	1.80504703846161,	0.000525323142244124,	0.731365613931879,	0.864514804478946,	0.864457115015362,	0.864352715733040,	0.000111796946200753,	0.591653600903076,	0.347681236790268,	0.000832040787904695,	0.999724237643709,	0.999723490323258,	0.000423912054921203,	0.999724237767365,	0.999724054768924,	-2.48652723154831e-36,	0.999999995656968,	0.951060213798798,	0.999999995656976,	0.999937692440505,	0.999988620215189,	0.000304952292598877,	0.000527266836293694,	0.999999995656685,	0.999999995656399,	0.223358448594285,	0.000141824743798310,	6.77882673136480e-25,	0.0127354136594547,	0.998473340797544,	0.000739304520671507,	0.000602907876760312,	0.000178778329437106,	5.67825481839631e-06,	-1.58194108230975e-23,	34.3172099045416,	34.3171879616709},
@@ -63,79 +98,85 @@ inline bool TomekORudyVent::return_initial_state_variable(const unsigned&n, doub
 		{12.3973564703237,	12.3976953330256,	147.711474407329,	147.711433360862,	7.45348093580908e-05,	6.49734059262396e-05,	1.52800059077496,	1.52569253436820,	0.000651715361520436,	0.701845427662345,	0.847326693399099,	0.847165668535608,	0.846901438940383,	0.000135120261194560,	0.556601650459093,	0.311549070692613,	0.000889925901945137,	0.999671576537361,	0.598890849399207,	0.000453416519958675,	0.999671583620741,	0.662069197871101,	1.58884121071311e-31,	0.999999994310640,	0.940179072110115,	0.999999994310551,	0.999901376748386,	0.999984619576572,	0.000489937844976504,	0.000832600925714172,	0.999999994343118,	0.999999994312043,	0.243959016060676,	0.000158616694622612,	1.80824774078763e-22,	0.0109502564192484,	0.998251134783098,	0.000793602046257213,	0.000653214338491609,	0.000292244895058368,	9.80408293117642e-06,	4.35860784390795e-21,	29.2069793887423,	29.2069557375901}
 	};
 
-	if(compatible_cell_types(cell_type)){
-		if(n<44){
-			v = STATES[cell_type-100][n];
-			return true;
-		}
-		else{std::cout << "Failed at variable index check " << n << " is not within the expected range" << std::endl;}
+	if(v<44){
+		return STATES[cell_type-100][v];
 	}
-	else{std::cout << "Failed at cell type check " << cell_type << " is not supported" << std::endl;}
-	return true;
+	else{
+		std::cout << "Failed at variable index check " << v << " is not within the expected range" << std::endl;
+	}
 }
 
-inline void TomekORudyVent::extract_black_box_parameters_TomekORudyVent(CellState &Cellstate){
-
-}
-
-void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new_state)
+double TomekORudyVentUpdated::return_initial_membrane_potential(const unsigned &cell_type)
 {
+	switch(cell_type){
+		case 100:
+			return -90.7456332496277;
+		case 101:
+			return -91.3391803967798;
+		case 102:
+			return -89.7480828168753;
+	}
+}
 
+void TomekORudyVentUpdated::Calculate_Derivatives(const double &Vm,
+											const Vector<double> &CellVariables,
+											const double &t,
+											const unsigned &cell_type,
+											const double &Istim,
+											const Vector<double> &Other_Parameters,
+											const Vector<double> &Other_Variables,
+											
+											Vector<double> &Variable_Derivatives,
+											double &Iion)
+{
 	//Unpack the membrane potential, cell type, and time step
-	const double v = Cellstate.get_vm();
-	const double dt = Cellstate.get_dt();
-	const unsigned celltype = Cellstate.get_cell_type();
 
 	//give names to the state vector values
 	// v=X(1);
-	const double nai=new_state[0];
-	const double nass=new_state[1];
-	const double ki=new_state[2];
-	const double kss=new_state[3];
-	const double cai=new_state[4];
-	const double cass=new_state[5];
-	const double cansr=new_state[6];
-	const double cajsr=new_state[7];
-	const double m=new_state[8];
-	const double hp=new_state[9];
-	const double h=new_state[10];
-	const double j=new_state[11];
-
-	const double jp=new_state[12];
-	const double mL=new_state[13];
-	const double hL=new_state[14];
-	const double hLp=new_state[15];
-	const double a=new_state[16];
-	const double iF=new_state[17];
-	const double iS=new_state[18];
-	const double ap=new_state[19];
-	const double iFp=new_state[20];
-	const double iSp=new_state[21];
-	// ical
-	const double d=new_state[22];
-	const double ff=new_state[23];
-	const double fs=new_state[24];
-	const double fcaf=new_state[25];
-	const double fcas=new_state[26];
-	const double jca=new_state[27];
-	const double nca=new_state[28];
-	const double nca_i=new_state[29];
-	const double ffp=new_state[30];
-	const double fcafp=new_state[31];
-	
-	const double xs1=new_state[32];
-	const double xs2=new_state[33];
-	const double Jrel_np=new_state[34];
-	const double CaMKt=new_state[35];
-	// MM ICaL states
-	const double ikr_c0 = new_state[36];
-	const double ikr_c1 = new_state[37];
-	const double ikr_c2 = new_state[38];
-	const double ikr_o = new_state[39];
-	const double ikr_i = new_state[40];
-	const double Jrel_p=new_state[41];
-	const double cli = new_state[42];
-	const double clss = new_state[43];
+	const double nai = CellVariables[nai_Tomek];
+	const double nass = CellVariables[nass_Tomek];
+	const double ki = CellVariables[ki_Tomek];
+	const double kss = CellVariables[kss_Tomek];
+	const double cai = CellVariables[cai_Tomek];
+	const double cass = CellVariables[cass_Tomek];
+	const double cansr = CellVariables[cansr_Tomek];
+	const double cajsr = CellVariables[cajsr_Tomek];
+	const double m = CellVariables[m_Tomek];
+	const double hp = CellVariables[hp_Tomek];
+	const double h = CellVariables[h_Tomek];
+	const double j = CellVariables[j_Tomek];
+	const double jp = CellVariables[jp_Tomek];
+	const double mL = CellVariables[mL_Tomek];
+	const double hL = CellVariables[hL_Tomek];
+	const double hLp = CellVariables[hLp_Tomek];
+	const double a = CellVariables[a_Tomek];
+	const double iF = CellVariables[iF_Tomek];
+	const double iS = CellVariables[iS_Tomek];
+	const double ap = CellVariables[ap_Tomek];
+	const double iFp = CellVariables[iFp_Tomek];
+	const double iSp = CellVariables[iSp_Tomek];
+	const double d = CellVariables[d_Tomek];
+	const double ff = CellVariables[ff_Tomek];
+	const double fs = CellVariables[fs_Tomek];
+	const double fcaf = CellVariables[fcaf_Tomek];
+	const double fcas = CellVariables[fcas_Tomek];
+	const double jca = CellVariables[jca_Tomek];
+	const double nca = CellVariables[nca_Tomek];
+	const double nca_i = CellVariables[nca_i_Tomek];
+	const double ffp = CellVariables[ffp_Tomek];
+	const double fcafp = CellVariables[fcafp_Tomek];
+	const double xs1 = CellVariables[xs1_Tomek];
+	const double xs2 = CellVariables[xs2_Tomek];
+	const double Jrel_np = CellVariables[Jrel_np_Tomek];
+	const double CaMKt = CellVariables[CaMKt_Tomek];
+	const double ikr_c0 = CellVariables[ikr_c0_Tomek];
+	const double ikr_c1 = CellVariables[ikr_c1_Tomek];
+	const double ikr_c2 = CellVariables[ikr_c2_Tomek];
+	const double ikr_o = CellVariables[ikr_o_Tomek];
+	const double ikr_i = CellVariables[ikr_i_Tomek];
+	const double Jrel_p = CellVariables[Jrel_p_Tomek];
+	const double cli = CellVariables[cli_Tomek];
+	const double clss = CellVariables[clss_Tomek];
 	// const double cli = 24; // Intracellular Cl  [mM]
 	const double clo = 150;  // Extracellular Cl  [mM]
 
@@ -147,7 +188,7 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double Ito_Multiplier = 1.0;
 	const double ICaL_PCaMultiplier = 1.0;
 	const double ICaL_fractionSS = 0.8;
-	const double IKs_Multiplier = Cellstate.get_black_box_nodal_parameters(0);
+	const double IKs_Multiplier = 1.0;
 	const double IKr_Multiplier = 1.0;
 	const double IK1_Multiplier = 1.0;
 	const double INaCa_Multiplier = 1.0;
@@ -183,8 +224,8 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double EKs=(R*T/F)*log((ko+PKNa*nao)/(ki+PKNa*nai));
 
 	// convenient shorthand calculations
-	const double vffrt=v*F*F/(R*T);
-	const double vfrt=v*F/(R*T);
+	const double vffrt=Vm*F*F/(R*T);
+	const double vfrt=Vm*F/(R*T);
 	const double frt = F/(R*T);
 
 	
@@ -194,142 +235,142 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double fICaLp=(1.0/(1.0+KmCaMK/CaMKa));
 
 	// INa
-	// [INa, dm, dh, dhp, dj, djp] = getINa_Grandi(v, m, h, hp, j, jp, fINap, ENa, INa_Multiplier);
+	// [INa, dm, dh, dhp, dj, djp] = getINa_Grandi(Vm, m, h, hp, j, jp, fINap, ENa, INa_Multiplier);
 
 	// The Grandi implementation updated with INa phosphorylation.
 	// m gate
-	const double mss = 1 / pow((1 + exp( -(56.86 + v) / 9.03 )), 2.0);
-	const double taum = 0.1292 * exp(-pow((v+45.79)/15.54,2.0)) + 0.06487 * exp(-pow((v-4.823)/51.12,2.0));
+	const double mss = 1 / pow((1 + exp( -(56.86 + Vm) / 9.03 )), 2.0);
+	const double taum = 0.1292 * exp(-pow((Vm+45.79)/15.54,2.0)) + 0.06487 * exp(-pow((Vm-4.823)/51.12,2.0));
 	const double dm = (mss - m) / taum;
 
 	// h gate
-	const double ah = (v >= -40) * (0) + (v < -40) * (0.057 * exp( -(v + 80) / 6.8 ));
-	const double bh = (v >= -40) * (0.77 / (0.13*(1 + exp( -(v + 10.66) / 11.1 )))) + (v < -40) * ((2.7 * exp( 0.079 * v) + 3.1*1e5 * exp(0.3485 * v)));
+	const double ah = (Vm >= -40) * (0) + (Vm < -40) * (0.057 * exp( -(Vm + 80) / 6.8 ));
+	const double bh = (Vm >= -40) * (0.77 / (0.13*(1 + exp( -(Vm + 10.66) / 11.1 )))) + (Vm < -40) * ((2.7 * exp( 0.079 * Vm) + 3.1*1e5 * exp(0.3485 * Vm)));
 	const double tauh = 1 / (ah + bh);
-	const double hss = 1 / (pow(1 + exp( (v + 71.55)/7.43 ),2.0));
+	const double hss = 1 / (pow(1 + exp( (Vm + 71.55)/7.43 ),2.0));
 	const double dh = (hss - h) / tauh;
 	// j gate
-	const double aj = (v >= -40) * (0) +(v < -40) * (((-2.5428 * 1e4*exp(0.2444*v) - 6.948*1e-6 * exp(-0.04391*v)) * (v + 37.78)) / (1 + exp( 0.311 * (v + 79.23) )));
-	const double bj = (v >= -40) * ((0.6 * exp( 0.057 * v)) / (1 + exp( -0.1 * (v + 32) ))) + (v < -40) * ((0.02424 * exp( -0.01052 * v )) / (1 + exp( -0.1378 * (v + 40.14) )));
+	const double aj = (Vm >= -40) * (0) +(Vm < -40) * (((-2.5428 * 1e4*exp(0.2444*Vm) - 6.948*1e-6 * exp(-0.04391*Vm)) * (Vm + 37.78)) / (1 + exp( 0.311 * (Vm + 79.23) )));
+	const double bj = (Vm >= -40) * ((0.6 * exp( 0.057 * Vm)) / (1 + exp( -0.1 * (Vm + 32) ))) + (Vm < -40) * ((0.02424 * exp( -0.01052 * Vm )) / (1 + exp( -0.1378 * (Vm + 40.14) )));
 	const double tauj = 1 / (aj + bj);
-	const double jss = 1 / (pow(1 + exp( (v + 71.55)/7.43 ),2.0));
+	const double jss = 1 / (pow(1 + exp( (Vm + 71.55)/7.43 ),2.0));
 	const double dj = (jss - j) / tauj;
 
 	// h phosphorylated
-	const double hssp = 1 / (pow(1 + exp( (v + 71.55 + 6)/7.43 ),2.0));
+	const double hssp = 1 / (pow(1 + exp( (Vm + 71.55 + 6)/7.43 ),2.0));
 	const double dhp = (hssp - hp) / tauh;
 	// j phosphorylated
 	const double taujp = 1.46 * tauj;
 	const double djp = (jss - jp) / taujp;
 
 	const double GNa = 11.7802;
-	const double INa=INa_Multiplier * GNa*(v-ENa)*pow(m,3.0)*((1.0-fINap)*h*j+fINap*hp*jp);
+	const double INa=INa_Multiplier * GNa*(Vm-ENa)*pow(m,3.0)*((1.0-fINap)*h*j+fINap*hp*jp);
 
 
 
 
 	// INaL
-	// [INaL,dmL,dhL,dhLp] = getINaL_ORd2011(v, mL, hL, hLp, fINaLp, ENa, celltype, INaL_Multiplier);
+	// [INaL,dmL,dhL,dhLp] = getINaL_ORd2011(Vm, mL, hL, hLp, fINaLp, ENa, cell_type, INaL_Multiplier);
 
 	//calculate INaL
-	const double mLss=1.0/(1.0+exp((-(v+42.85))/5.264));
-	const double tm = 0.1292 * exp(-pow((v+45.79)/15.54,2.0)) + 0.06487 * exp(-pow((v-4.823)/51.12,2.0)); 
+	const double mLss=1.0/(1.0+exp((-(Vm+42.85))/5.264));
+	const double tm = 0.1292 * exp(-pow((Vm+45.79)/15.54,2.0)) + 0.06487 * exp(-pow((Vm-4.823)/51.12,2.0)); 
 	const double tmL=tm;
 	const double dmL=(mLss-mL)/tmL;
-	const double hLss=1.0/(1.0+exp((v+87.61)/7.488));
+	const double hLss=1.0/(1.0+exp((Vm+87.61)/7.488));
 	const double thL=200.0;
 	const double dhL=(hLss-hL)/thL;
-	const double hLssp=1.0/(1.0+exp((v+93.81)/7.488));
+	const double hLssp=1.0/(1.0+exp((Vm+93.81)/7.488));
 	const double thLp=3.0*thL;
 	const double dhLp=(hLssp-hLp)/thLp;
 	double GNaL=0.0279 * INaL_Multiplier;
-	if(celltype==100){
+	if(cell_type==100){
 	    GNaL=GNaL*0.6;
 	}
 
-	const double INaL=GNaL*(v-ENa)*mL*((1.0-fINaLp)*hL+fINaLp*hLp);
+	const double INaL=GNaL*(Vm-ENa)*mL*((1.0-fINaLp)*hL+fINaLp*hLp);
 
 
 
 	// ITo
-	// [Ito,da,diF,diS,dap,diFp, diSp] = getITo_ORd2011(v, a, iF, iS, ap, iFp, iSp, fItop, EK, celltype, Ito_Multiplier);
+	// [Ito,da,diF,diS,dap,diFp, diSp] = getITo_ORd2011(Vm, a, iF, iS, ap, iFp, iSp, fItop, EK, cell_type, Ito_Multiplier);
 
 	//calculate Ito
-	const double ass=1.0/(1.0+exp((-(v-14.34))/14.82));
-	const double ta=1.0515/(1.0/(1.2089*(1.0+exp(-(v-18.4099)/29.3814)))+3.5/(1.0+exp((v+100.0)/29.3814)));
+	const double ass=1.0/(1.0+exp((-(Vm-14.34))/14.82));
+	const double ta=1.0515/(1.0/(1.2089*(1.0+exp(-(Vm-18.4099)/29.3814)))+3.5/(1.0+exp((Vm+100.0)/29.3814)));
 	const double da=(ass-a)/ta;
-	const double iss=1.0/(1.0+exp((v+43.94)/5.711));
+	const double iss=1.0/(1.0+exp((Vm+43.94)/5.711));
 	double delta_epi;
-	if(celltype==100){
-	    delta_epi=1.0-(0.95/(1.0+exp((v+70.0)/5.0)));
+	if(cell_type==100){
+	    delta_epi=1.0-(0.95/(1.0+exp((Vm+70.0)/5.0)));
 	}
 	else{
 	    delta_epi=1.0;
 	}
-	double tiF=4.562+1/(0.3933*exp((-(v+100.0))/100.0)+0.08004*exp((v+50.0)/16.59));
-	double tiS=23.62+1/(0.001416*exp((-(v+96.52))/59.05)+1.780e-8*exp((v+114.1)/8.079));
+	double tiF=4.562+1/(0.3933*exp((-(Vm+100.0))/100.0)+0.08004*exp((Vm+50.0)/16.59));
+	double tiS=23.62+1/(0.001416*exp((-(Vm+96.52))/59.05)+1.780e-8*exp((Vm+114.1)/8.079));
 	tiF=tiF*delta_epi;
 	tiS=tiS*delta_epi;
-	const double AiF=1.0/(1.0+exp((v-213.6)/151.2));
+	const double AiF=1.0/(1.0+exp((Vm-213.6)/151.2));
 	const double AiS=1.0-AiF;
 	const double diF=(iss-iF)/tiF;
 	const double diS=(iss-iS)/tiS;
 	const double i=AiF*iF+AiS*iS;
-	const double assp=1.0/(1.0+exp((-(v-24.34))/14.82));
+	const double assp=1.0/(1.0+exp((-(Vm-24.34))/14.82));
 	const double dap=(assp-ap)/ta;
-	const double dti_develop=1.354+1.0e-4/(exp((v-167.4)/15.89)+exp(-(v-12.23)/0.2154));
-	const double dti_recover=1.0-0.5/(1.0+exp((v+70.0)/20.0));
+	const double dti_develop=1.354+1.0e-4/(exp((Vm-167.4)/15.89)+exp(-(Vm-12.23)/0.2154));
+	const double dti_recover=1.0-0.5/(1.0+exp((Vm+70.0)/20.0));
 	const double tiFp=dti_develop*dti_recover*tiF;
 	const double tiSp=dti_develop*dti_recover*tiS;
 	const double diFp=(iss-iFp)/tiFp;
 	const double diSp=(iss-iSp)/tiSp;
 	const double ip=AiF*iFp+AiS*iSp;
 	double Gto=0.16 * Ito_Multiplier;
-	if(celltype==100){
+	if(cell_type==100){
 	    Gto=Gto*2.0;
 	}
-	else if(celltype==101){
+	else if(cell_type==101){
 	    Gto=Gto*2.0;
 	}
 
-	const double Ito=Gto*(v-EK)*((1.0-fItop)*a*i+fItop*ap*ip);
+	const double Ito=Gto*(Vm-EK)*((1.0-fItop)*a*i+fItop*ap*ip);
 
 
 
 
 	// ICaL
 	// [ICaL_ss,ICaNa_ss,ICaK_ss,ICaL_i,ICaNa_i,ICaK_i,dd,dff,dfs,dfcaf,dfcas,djca,dnca,dnca_i,...
-	//     dffp,dfcafp, PhiCaL_ss, PhiCaL_i, gammaCaoMyo, gammaCaiMyo] = getICaL_ORd2011_jt(v, d,ff,fs,fcaf,fcas,jca,nca,nca_i,ffp,fcafp,...
-	//     fICaLp, cai, cass, cao, nai, nass, nao, ki, kss, ko, cli, clo, clss, celltype, ICaL_fractionSS, ICaL_Multiplier );
+	//     dffp,dfcafp, PhiCaL_ss, PhiCaL_i, gammaCaoMyo, gammaCaiMyo] = getICaL_ORd2011_jt(Vm, d,ff,fs,fcaf,fcas,jca,nca,nca_i,ffp,fcafp,...
+	//     fICaLp, cai, cass, cao, nai, nass, nao, ki, kss, ko, cli, clo, clss, cell_type, ICaL_fractionSS, ICaL_Multiplier );
 
 	//physical constants
-	// const double vffrt=v*F*F/(R*T);
-	// const double vfrt=v*F/(R*T);
+	// const double vffrt=Vm*F*F/(R*T);
+	// const double vfrt=Vm*F/(R*T);
 
 	//calculate ICaL, ICaNa, ICaK
 
-	double dss=1.0763*exp(-1.0070*exp(-0.0829*(v)));  // magyar
-	if(v >31.4978){// activation cannot be greater than 1
+	double dss=1.0763*exp(-1.0070*exp(-0.0829*(Vm)));  // magyar
+	if(Vm >31.4978){// activation cannot be greater than 1
 	    dss = 1;
 	}
 
 
-	const double td= 0.6+1.0/(exp(-0.05*(v+6.0))+exp(0.09*(v+14.0)));
+	const double td= 0.6+1.0/(exp(-0.05*(Vm+6.0))+exp(0.09*(Vm+14.0)));
 
 	const double dd=(dss-d)/td;
-	const double fss=1.0/(1.0+exp((v+19.58)/3.696));
-	const double tff=7.0+1.0/(0.0045*exp(-(v+20.0)/10.0)+0.0045*exp((v+20.0)/10.0));
-	const double tfs=1000.0+1.0/(0.000035*exp(-(v+5.0)/4.0)+0.000035*exp((v+5.0)/6.0));
+	const double fss=1.0/(1.0+exp((Vm+19.58)/3.696));
+	const double tff=7.0+1.0/(0.0045*exp(-(Vm+20.0)/10.0)+0.0045*exp((Vm+20.0)/10.0));
+	const double tfs=1000.0+1.0/(0.000035*exp(-(Vm+5.0)/4.0)+0.000035*exp((Vm+5.0)/6.0));
 	const double Aff=0.6;
 	const double Afs=1.0-Aff;
 	const double dff=(fss-ff)/tff;
 	const double dfs=(fss-fs)/tfs;
 	const double f=Aff*ff+Afs*fs;
 	const double fcass=fss;
-	const double tfcaf=7.0+1.0/(0.04*exp(-(v-4.0)/7.0)+0.04*exp((v-4.0)/7.0));
-	const double tfcas=100.0+1.0/(0.00012*exp(-v/3.0)+0.00012*exp(v/7.0));
+	const double tfcaf=7.0+1.0/(0.04*exp(-(Vm-4.0)/7.0)+0.04*exp((Vm-4.0)/7.0));
+	const double tfcas=100.0+1.0/(0.00012*exp(-Vm/3.0)+0.00012*exp(Vm/7.0));
 
-	const double Afcaf=0.3+0.6/(1.0+exp((v-10.0)/10.0));
+	const double Afcaf=0.3+0.6/(1.0+exp((Vm-10.0)/10.0));
 
 	const double Afcas=1.0-Afcaf;
 	const double dfcaf=(fcass-fcaf)/tfcaf;
@@ -337,7 +378,7 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double fca=Afcaf*fcaf+Afcas*fcas;
 
 	const double tjca = 72.5;
-	const double jcass = 1.0/(1.0+exp((v+18.08)/(2.7916)));   
+	const double jcass = 1.0/(1.0+exp((Vm+18.08)/(2.7916)));   
 	const double djca=(jcass-jca)/tjca;
 	const double tffp=2.5*tff;
 	const double dffp=(fss-ffp)/tffp;
@@ -400,10 +441,10 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	// The rest
 	double PCa=8.3757e-05 * ICaL_PCaMultiplier;
 
-	if(celltype==100){
+	if(cell_type==100){
 	    PCa=PCa*1.2;
 	}
-	else if(celltype==101){
+	else if(cell_type==101){
 	    PCa=PCa*2;
 	}
 
@@ -436,8 +477,8 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	double ICaL_tot = ICaL + ICaNa + ICaK;
 	
 	// IKr
-	// [IKr, dt_ikr_c0, dt_ikr_c1, dt_ikr_c2, dt_ikr_o, dt_ikr_i ] = getIKr_ORd2011_MM(v,ikr_c0,ikr_c1, ikr_c2, ikr_o, ikr_i,...
-	//     ko, EK, celltype, IKr_Multiplier);
+	// [IKr, dt_ikr_c0, dt_ikr_c1, dt_ikr_c2, dt_ikr_o, dt_ikr_i ] = getIKr_ORd2011_MM(Vm,ikr_c0,ikr_c1, ikr_c2, ikr_o, ikr_i,...
+	//     ko, EK, cell_type, IKr_Multiplier);
 
 
 	// Extracting state vector
@@ -447,17 +488,17 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	// o = y(4);
 	// i = y(5);
 	const double b = 0; // no channels blocked in via the mechanism of specific MM states
-	// const double vfrt = v*F/(R*T);
+	// const double vfrt = Vm*F/(R*T);
 
 	// transition rates
-	// from c0 to c1 in l-v model,
+	// from c0 to c1 in l-Vm model,
 	const double alpha = 0.1161 * exp(0.2990 * vfrt);
-	// from c1 to c0 in l-v/
+	// from c1 to c0 in l-Vm/
 	const double beta =  0.2442 * exp(-1.604 * vfrt);
 
-	// from c1 to c2 in l-v/
+	// from c1 to c2 in l-Vm/
 	const double alpha1 = 1.25 * 0.1235 ;
-	// from c2 to c1 in l-v/
+	// from c2 to c1 in l-Vm/
 	const double beta1 =  0.1911;
 
 	// from c2 to o/           c1 to o
@@ -486,62 +527,62 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double d_ikr_i = ikr_c2*alphac2ToI + ikr_o*alphai - ikr_i*(betaItoC2 + betai);
 
 	double GKr = 0.0321 * sqrt(ko/5) * IKr_Multiplier; // 1st element compensates for change to ko (sqrt(5/5.4)* 0.0362)
-	if(celltype==100){
+	if(cell_type==100){
 	    GKr=GKr*1.3;
 	}
-	else if(celltype==101){
+	else if(cell_type==101){
 	    GKr=GKr*0.8;
 	}
 
 	// GKr /= 90.0;
 
-	const double IKr = GKr * ikr_o  * (v-EK);
+	const double IKr = GKr * ikr_o  * (Vm-EK);
 
 
 
 	// IKs
-	// [IKs,dxs1, dxs2] = getIKs_ORd2011(v,xs1, xs2, cai,  EKs,  celltype, IKs_Multiplier);
+	// [IKs,dxs1, dxs2] = getIKs_ORd2011(Vm,xs1, xs2, cai,  EKs,  cell_type, IKs_Multiplier);
 
 
 	//calculate IKs
-	const double xs1ss=1.0/(1.0+exp((-(v+11.60))/8.932));
-	const double txs1=817.3+1.0/(2.326e-4*exp((v+48.28)/17.80)+0.001292*exp((-(v+210.0))/230.0));
+	const double xs1ss=1.0/(1.0+exp((-(Vm+11.60))/8.932));
+	const double txs1=817.3+1.0/(2.326e-4*exp((Vm+48.28)/17.80)+0.001292*exp((-(Vm+210.0))/230.0));
 	const double dxs1=(xs1ss-xs1)/txs1;
 	const double xs2ss=xs1ss;
-	const double txs2=1.0/(0.01*exp((v-50.0)/20.0)+0.0193*exp((-(v+66.54))/31.0));
+	const double txs2=1.0/(0.01*exp((Vm-50.0)/20.0)+0.0193*exp((-(Vm+66.54))/31.0));
 	const double dxs2=(xs2ss-xs2)/txs2;
 	const double KsCa=1.0+0.6/(1.0+pow(3.8e-5/cai,1.4));
 	double GKs= 0.0011 * IKs_Multiplier;
-	if(celltype==100){
+	if(cell_type==100){
 	    GKs=GKs*1.4;
 	}
 	// GKs *= 90.0;
 
-	const double IKs=GKs*KsCa*xs1*xs2*(v-EKs);
+	const double IKs=GKs*KsCa*xs1*xs2*(Vm-EKs);
 
 
 
 
 	// IK1
-	// IK1 = getIK1_CRLP(v, ko, EK, celltype, IK1_Multiplier);
+	// IK1 = getIK1_CRLP(Vm, ko, EK, cell_type, IK1_Multiplier);
 
 	// IK1
-	const double aK1 = 4.094/(1+exp(0.1217*(v-EK-49.934)));
-	const double bK1 = (15.72*exp(0.0674*(v-EK-3.257))+exp(0.0618*(v-EK-594.31)))/(1+exp(-0.1629*(v-EK+14.207)));
+	const double aK1 = 4.094/(1+exp(0.1217*(Vm-EK-49.934)));
+	const double bK1 = (15.72*exp(0.0674*(Vm-EK-3.257))+exp(0.0618*(Vm-EK-594.31)))/(1+exp(-0.1629*(Vm-EK+14.207)));
 	const double K1ss = aK1/(aK1+bK1);
 
 	double GK1=IK1_Multiplier  * 0.6992; //0.7266; //* sqrt(5/5.4))
-	if(celltype==100){
+	if(cell_type==100){
 	    GK1=GK1*1.2;
 	}
-	else if(celltype==101){
+	else if(cell_type==101){
 	    GK1=GK1*1.3;
 	}
 
-	const double IK1=GK1*sqrt(ko/5)*K1ss*(v-EK);
+	const double IK1=GK1*sqrt(ko/5)*K1ss*(Vm-EK);
 
 	// INaCa
-	// [ INaCa_i, INaCa_ss] = getINaCa_ORd2011(v,F,R,T, nass, nai, nao, cass, cai, cao, celltype, INaCa_Multiplier, INaCa_fractionSS);
+	// [ INaCa_i, INaCa_ss] = getINaCa_ORd2011(Vm,F,R,T, nass, nai, nao, cass, cai, cao, cell_type, INaCa_Multiplier, INaCa_fractionSS);
 
 	double zca = 2.0;
 	double kna1=15.0;
@@ -555,8 +596,8 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	double kcaoff=5.0e3;
 	double qna=0.5224;
 	double qca=0.1670;
-	double hca=exp((qca*v*F)/(R*T));
-	double hna=exp((qna*v*F)/(R*T));
+	double hca=exp((qca*Vm*F)/(R*T));
+	double hna=exp((qna*Vm*F)/(R*T));
 	double h1=1+nai/kna3*(1+hna);
 	double h2=(nai*hna)/(kna3*h1);
 	double h3=1.0/h1;
@@ -595,10 +636,10 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	double JncxNa=3.0*(E4*k7-E1*k8)+E3*k4pp-E2*k3pp;
 	double JncxCa=E2*k2-E1*k1;
 	double Gncx= 0.0034* INaCa_Multiplier;
-	if(celltype==100){
+	if(cell_type==100){
 	    Gncx=Gncx*1.1;
 	}
-	else if(celltype==101){
+	else if(cell_type==101){
 	    Gncx=Gncx*1.4;
 	}
 
@@ -644,7 +685,7 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	double INaCa_ss=INaCa_fractionSS*Gncx*allo*(zna*JncxNa+zca*JncxCa);
 
 	// INaK
-	// INaK = getINaK_ORd2011(v, F, R, T, nai, nao, ki, ko, celltype, INaK_Multiplier);
+	// INaK = getINaK_ORd2011(Vm, F, R, T, nai, nao, ki, ko, cell_type, INaK_Multiplier);
 
 	//calculate INaK
 	zna=1.0;
@@ -659,8 +700,8 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double Knai0=9.073;
 	const double Knao0=27.78;
 	const double delta=-0.1550;
-	const double Knai=Knai0*exp((delta*v*F)/(3.0*R*T));
-	const double Knao=Knao0*exp(((1.0-delta)*v*F)/(3.0*R*T));
+	const double Knai=Knai0*exp((delta*Vm*F)/(3.0*R*T));
+	const double Knao=Knao0*exp(((1.0-delta)*Vm*F)/(3.0*R*T));
 	const double Kki=0.5;
 	const double Kko=0.3582;
 	const double MgADP=0.05;
@@ -692,10 +733,10 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double JnakNa=3.0*(E1*a3-E2*b3);
 	const double JnakK=2.0*(E4*b1-E3*a1);
 	double Pnak= 15.4509 * INaK_Multiplier;
-	if(celltype==100){
+	if(cell_type==100){
 	    Pnak=Pnak*0.9;
 	}
-	else if(celltype==101){
+	else if(cell_type==101){
 	    Pnak=Pnak*0.7;
 	}
 
@@ -704,12 +745,12 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 
 	// Minor/background currents
 	// calculate IKb
-	const double xkb=1.0/(1.0+exp(-(v-10.8968)/(23.9871)));
+	const double xkb=1.0/(1.0+exp(-(Vm-10.8968)/(23.9871)));
 	double GKb=0.0189*IKb_Multiplier;
-	if(celltype==100){
+	if(cell_type==100){
 	    GKb=GKb*0.6;
 	}
-	const double IKb=GKb*xkb*(v-EK);
+	const double IKb=GKb*xkb*(Vm-EK);
 
 	// calculate INab
 	const double PNab=1.9239e-09*INab_Multiplier;
@@ -738,25 +779,25 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double GClB = IClb_Multiplier * 1.98e-3;        // [mS/uF]
 	const double KdClCa = 0.1;    // [mM]
 
-	const double I_ClCa_junc = Fjunc*GClCa/(1+KdClCa/cass)*(v-eclss);
-	const double I_ClCa_sl = Fsl*GClCa/(1+KdClCa/cai)*(v-ecl);
+	const double I_ClCa_junc = Fjunc*GClCa/(1+KdClCa/cass)*(Vm-eclss);
+	const double I_ClCa_sl = Fsl*GClCa/(1+KdClCa/cai)*(Vm-ecl);
 
 	const double I_ClCa = I_ClCa_junc+I_ClCa_sl;
-	const double I_Clbk = GClB*(v-ecl);
+	const double I_Clbk = GClB*(Vm-ecl);
 
 	// Calcium handling
 	// calculate ryanodione receptor calcium induced calcium release from the jsr
 	const double fJrelp=(1.0/(1.0+KmCaMK/CaMKa));
 
 	// Jrel
-	// [Jrel, dJrel_np, dJrel_p] = getJrel_ORd2011(Jrel_np, Jrel_p, ICaL_ss,cass, cajsr, fJrelp, celltype, Jrel_Multiplier);
+	// [Jrel, dJrel_np, dJrel_p] = getJrel_ORd2011(Jrel_np, Jrel_p, ICaL_ss,cass, cajsr, fJrelp, cell_type, Jrel_Multiplier);
 
 	const double jsrMidpoint = 1.7;
 
 	const double bt=4.75;
 	const double a_rel=0.5*bt;
 	double Jrel_inf=a_rel*(-ICaL)/(1.0+pow(jsrMidpoint/cajsr,8.0));
-	if(celltype==101){
+	if(cell_type==101){
 	    Jrel_inf=Jrel_inf*1.7;
 	}
 	double tau_rel=bt/(1.0+0.0123/cajsr);
@@ -769,7 +810,7 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double btp=1.25*bt;
 	const double a_relp=0.5*btp;
 	double Jrel_infp=a_relp*(-ICaL)/(1.0+pow(jsrMidpoint/cajsr,8.0));
-	if(celltype==101){
+	if(cell_type==101){
 	    Jrel_infp=Jrel_infp*1.7;
 	}
 	double tau_relp=btp/(1.0+0.0123/cajsr);
@@ -786,12 +827,12 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 
 
 	const double fJupp=(1.0/(1.0+KmCaMK/CaMKa));
-	// [Jup, Jleak] = getJup_ORd2011(cai, cansr, fJupp, celltype, Jup_Multiplier);
+	// [Jup, Jleak] = getJup_ORd2011(cai, cansr, fJupp, cell_type, Jup_Multiplier);
 
 	//calculate serca pump, ca uptake flux
 	double Jupnp=Jup_Multiplier * 0.005425*cai/(cai+0.00092);
 	double Jupp=Jup_Multiplier * 2.75*0.005425*cai/(cai+0.00092-0.00017);
-	if(celltype==100){
+	if(cell_type==100){
 	    Jupnp=Jupnp*1.3;
 	    Jupp=Jupp*1.3;
 	}
@@ -832,7 +873,7 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 
 	// calcium buffer constants 
 	double cmdnmax= 0.05; 
-	if(celltype==100){
+	if(cell_type==100){
 	    cmdnmax=cmdnmax*1.3;
 	}
 
@@ -850,7 +891,7 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double dnai=-(ICaNa_i+INa+INaL+3.0*INaCa_i+3.0*INaK+INab)*Acap/(F*vmyo)+JdiffNa*vss/vmyo;
 	const double dnass=-(ICaNa_ss+3.0*INaCa_ss)*Acap/(F*vss)-JdiffNa;
 
-	const double dki=-(ICaK_i+Ito+IKr+IKs+IK1+IKb/*+Istim*/-2.0*INaK)*Acap/(F*vmyo)+JdiffK*vss/vmyo;
+	const double dki=-(ICaK_i+Ito+IKr+IKs+IK1+IKb+Istim-2.0*INaK)*Acap/(F*vmyo)+JdiffK*vss/vmyo;
 	const double dkss=-(ICaK_ss)*Acap/(F*vss)-JdiffK;
 
 	const double Bcai=1.0/(1.0+cmdnmax*kmcmdn/pow(kmcmdn+cai,2.0)+trpnmax*kmtrpn/pow(kmtrpn+cai,2.0));
@@ -870,82 +911,68 @@ void TomekORudyVent::explicit_timestep(CellState &Cellstate, Vector<double> &new
 	const double Bcajsr=1.0/(1.0+csqnmax*kmcsqn/pow(kmcsqn+cajsr,2.0));
 	const double dcajsr=Bcajsr*(Jtr-Jrel);
 
+
 	//Update the variables
-	new_state[0] += dt * dnai;
-	new_state[1] += dt * dnass;
-	new_state[2] += dt * dki;
-	new_state[3] += dt * dkss;
-	new_state[4] += dt * dcai;
-	new_state[5] += dt * dcass;
-	new_state[6] += dt * dcansr;
-	new_state[7] += dt * dcajsr;
-	new_state[8] += dt * dm;
-	new_state[9] += dt * dhp;
-	new_state[10] += dt * dh;
-	new_state[11] += dt * dj;
-
-	new_state[12] += dt * djp;
-	new_state[13] += dt * dmL;
-	new_state[14] += dt * dhL;
-	new_state[15] += dt * dhLp;
-	new_state[16] += dt * da;
-	new_state[17] += dt * diF;
-	new_state[18] += dt * diS;
-	new_state[19] += dt * dap;
-	new_state[20] += dt * diFp;
-	new_state[21] += dt * diSp;
-	// ical
-	new_state[22] += dt * dd;
-	new_state[23] += dt * dff;
-	new_state[24] += dt * dfs;
-	new_state[25] += dt * dfcaf;
-	new_state[26] += dt * dfcas;
-	new_state[27] += dt * djca;
-	new_state[28] += dt * dnca;
-	new_state[29] += dt * dnca_i;
-	new_state[30] += dt * dffp;
-	new_state[31] += dt * dfcafp;
-
-	new_state[32] += dt * dxs1;
-	new_state[33] += dt * dxs2;
-	new_state[34] += dt * dJrel_np;
-	new_state[35] += dt * dCaMKt;
-	// MM ICaL states
-	new_state[36] += dt * d_ikr_c0;
-	new_state[37] += dt * d_ikr_c1;
-	new_state[38] += dt * d_ikr_c2;
-	new_state[39] += dt * d_ikr_o;
-	new_state[40] += dt * d_ikr_i;
-	new_state[41] += dt * dJrel_p;
-	new_state[42] += dt * dcli;
-	new_state[43] += dt * dclss;
+	Variable_Derivatives[nai_Tomek] = dnai;
+	Variable_Derivatives[nass_Tomek] = dnass;
+	Variable_Derivatives[ki_Tomek] = dki;
+	Variable_Derivatives[kss_Tomek] = dkss;
+	Variable_Derivatives[cai_Tomek] = dcai;
+	Variable_Derivatives[cass_Tomek] = dcass;
+	Variable_Derivatives[cansr_Tomek] = dcansr;
+	Variable_Derivatives[cajsr_Tomek] = dcajsr;
+	Variable_Derivatives[m_Tomek] = dm;
+	Variable_Derivatives[hp_Tomek] = dhp;
+	Variable_Derivatives[h_Tomek] = dh;
+	Variable_Derivatives[j_Tomek] = dj;
+	Variable_Derivatives[jp_Tomek] = djp;
+	Variable_Derivatives[mL_Tomek] = dmL;
+	Variable_Derivatives[hL_Tomek] = dhL;
+	Variable_Derivatives[hLp_Tomek] = dhLp;
+	Variable_Derivatives[a_Tomek] = da;
+	Variable_Derivatives[iF_Tomek] = diF;
+	Variable_Derivatives[iS_Tomek] = diS;
+	Variable_Derivatives[ap_Tomek] = dap;
+	Variable_Derivatives[iFp_Tomek] = diFp;
+	Variable_Derivatives[iSp_Tomek] = diSp;
+	Variable_Derivatives[d_Tomek] = dd;
+	Variable_Derivatives[ff_Tomek] = dff;
+	Variable_Derivatives[fs_Tomek] = dfs;
+	Variable_Derivatives[fcaf_Tomek] = dfcaf;
+	Variable_Derivatives[fcas_Tomek] = dfcas;
+	Variable_Derivatives[jca_Tomek] = djca;
+	Variable_Derivatives[nca_Tomek] = dnca;
+	Variable_Derivatives[nca_i_Tomek] = dnca_i;
+	Variable_Derivatives[ffp_Tomek] = dffp;
+	Variable_Derivatives[fcafp_Tomek] = dfcafp;
+	Variable_Derivatives[xs1_Tomek] = dxs1;
+	Variable_Derivatives[xs2_Tomek] = dxs2;
+	Variable_Derivatives[Jrel_np_Tomek] = dJrel_np;
+	Variable_Derivatives[CaMKt_Tomek] = dCaMKt;
+	Variable_Derivatives[ikr_c0_Tomek] = d_ikr_c0;
+	Variable_Derivatives[ikr_c1_Tomek] = d_ikr_c1;
+	Variable_Derivatives[ikr_c2_Tomek] = d_ikr_c2;
+	Variable_Derivatives[ikr_o_Tomek] = d_ikr_o;
+	Variable_Derivatives[ikr_i_Tomek] = d_ikr_i;
+	Variable_Derivatives[Jrel_p_Tomek] = dJrel_p;
+	Variable_Derivatives[cli_Tomek] = dcli;
+	Variable_Derivatives[clss_Tomek] = dclss;
 
 	//The active strain and ion membrane current
-	Cellstate.set_active_strain(0.0);
-	Cellstate.set_membrane_current((INa+INaL+Ito+ICaL+ICaNa+ICaK+IKr+IKs+IK1+INaCa_i+INaCa_ss+INaK+INab+IKb+IpCa+ICab+I_ClCa+I_Clbk/*+Istim*/));
+	Iion = -(INa+INaL+Ito+ICaL+ICaNa+ICaK+IKr+IKs+IK1+INaCa_i+INaCa_ss+INaK+INab+IKb+IpCa+ICab+I_ClCa+I_Clbk+Istim);
+}
 
-	// Cellstate.set_new_general_cell_model_data(INa);
-	// Cellstate.set_new_general_cell_model_data(INaL);
-	// Cellstate.set_new_general_cell_model_data(Ito);
-	// Cellstate.set_new_general_cell_model_data(ICaL);
-	// Cellstate.set_new_general_cell_model_data(ICaNa);
-	// Cellstate.set_new_general_cell_model_data(ICaK);
-	// Cellstate.set_new_general_cell_model_data(IKr);
-	// Cellstate.set_new_general_cell_model_data(IKs);
-	// Cellstate.set_new_general_cell_model_data(IK1);
-	// Cellstate.set_new_general_cell_model_data(INaCa_i);
-	// Cellstate.set_new_general_cell_model_data(INaCa_ss);
-	// Cellstate.set_new_general_cell_model_data(INaK);
-	// Cellstate.set_new_general_cell_model_data(INab);
-	// Cellstate.set_new_general_cell_model_data(IKb);
-	// Cellstate.set_new_general_cell_model_data(IpCa);
-	// Cellstate.set_new_general_cell_model_data(ICab);
-	// Cellstate.set_new_general_cell_model_data(I_ClCa);
-	// Cellstate.set_new_general_cell_model_data(I_Clbk);
+void TomekORudyVentUpdated::get_optional_output(const double &Vm,
+							const Vector<double> &CellVariables,
+							const double &t,
+							const unsigned &cell_type,
+							const double &Istim,
+							const Vector<double> &Other_Parameters,
+							const Vector<double> &Other_Variables,
 
-	//Record the IKs
-	// Cellstate.set_new_general_cell_model_data(IKs/(INa+INaL+Ito+ICaL+ICaNa+ICaK+IKr+IKs+IK1+INaCa_i+INaCa_ss+INaK+INab+IKb+IpCa+ICab+I_ClCa+I_Clbk/*+Istim*/));
-	Cellstate.set_new_general_cell_model_data((IKs+IKr+ICaL));
+							Vector<double> &Out) const
+{
+
 }
 
 

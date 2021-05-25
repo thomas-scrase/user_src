@@ -40,7 +40,8 @@ public:
 	                       	OOMPH_EXCEPTION_LOCATION);
 	}
 
-	virtual void run_algorithm(std::ostream &outfile,
+	//Run the optimisation algorithm - returns the best solution
+	virtual Vector<double> run_algorithm(std::ostream &outfile,
 								std::ostream &raw_data_outfile)
 	{
 		throw OomphLibError("run algorithm has not been implemented yet",
@@ -156,7 +157,7 @@ public:
 	void set_simplex_value(const unsigned& node, const unsigned& var, const double& value);
 
 	//run the nelder-mead simplex algorithm until convergence
-	void run_algorithm(std::ostream &outfile,
+	Vector<double> run_algorithm(std::ostream &outfile,
 						std::ostream &raw_data_outfile);
 
 	//report on the nodes
@@ -299,7 +300,7 @@ public:
 	}
 
 	//Run the nelder mead with restarts
-	void run_algorithm(std::ostream &outfile,
+	Vector<double> run_algorithm(std::ostream &outfile,
 					std::ostream &raw_data_outfile)
 	{
 		//A placeholder run
@@ -350,6 +351,10 @@ public:
 
 			NM.output(run, fitnesses, outfile);
 		}
+
+		//Not finished, just so it doesn't complain when copmpiling
+		Vector<double> DummyVector(1,1.0);
+		return DummyVector;
 	}
 
 	void set_outfile_dir(std::string out_dir)
@@ -377,12 +382,12 @@ private:
 
 	bool is_point_a_known_local_minima(Vector<double> point)
 	{
-		
+		return true;
 	}
 
 	bool is_simplex_flat(Vector<Vector<double>> simplex)
 	{
-		
+		return true;
 	}
 
 
@@ -467,7 +472,7 @@ public:
 	void set_initial_position(const Vector<double>& v_0);
 
 	//run the gradient descent algorithm until convergence
-	void run_algorithm(std::ostream &outfile,
+	Vector<double> run_algorithm(std::ostream &outfile,
 						std::ostream &raw_data_outfile);
 
 	void set_convergence_test_constant(const double& val){
@@ -539,7 +544,7 @@ public:
 	void setup_optimisation(const unsigned &n_variables);
 
 	//run the nelder-mead simplex algorithm until convergence
-	void run_algorithm(std::ostream &outfile,
+	Vector<double> run_algorithm(std::ostream &outfile,
 						std::ostream &raw_data_outfile);
 
 	//report on the nodes

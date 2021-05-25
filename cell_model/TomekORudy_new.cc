@@ -4,7 +4,7 @@ namespace oomph{
 
 TomekORudyVent_New::TomekORudyVent_New() : CellModelBase()
 {
-	Intrinsic_dt = 0.02;
+	Intrinsic_dt = 0.002;
 
 	// nao =140.0;
 	// ko = 5.0;

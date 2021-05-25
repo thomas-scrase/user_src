@@ -71,8 +71,8 @@ namespace oomph{
 
 	void NelderMeadOptimisation::check_node_for_forbidden_values(Vector<double> &node){
 		for(unsigned i=0; i<this->n_variables(); i++){
-			if(node[i]<Minimum_Permitted_Values[i]){node[i] = Minimum_Permitted_Values[i];}
-			if(node[i]>Maximum_Permitted_Values[i]){node[i] = Maximum_Permitted_Values[i];}
+			if(node[i]<Minimum_Permitted_Values[i]){node[i] += 2.0*(Minimum_Permitted_Values[i]-node[i]);}
+			if(node[i]>Maximum_Permitted_Values[i]){node[i] -= 2.0*(node[i]-Maximum_Permitted_Values[i]);}
 		}
 	}
 
@@ -190,7 +190,7 @@ namespace oomph{
 	}
 
 	//run one step of the nelder mead algorithm
-	void NelderMeadOptimisation::run_algorithm(std::ostream &outfile,
+	Vector<double> NelderMeadOptimisation::run_algorithm(std::ostream &outfile,
 												std::ostream &raw_data_outfile){
 		outfile << "This is the Nelder-Mead Coordinator." << std::endl;
 		Iterations = 0;
@@ -372,6 +372,11 @@ namespace oomph{
 		output(Iterations, Node_Fitnesses, outfile);
 		outfile << "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << std::endl;
 
+		sort_nodes(Sorted_node_indexes);
+		best_node_index = Sorted_node_indexes[0];
+		//Return the best calculated node
+		return Simplex[best_node_index];
+
 	}
 
 
@@ -405,6 +410,10 @@ namespace oomph{
 	void GradientDescentOptimisation::evaluate_fitness_of_point(Vector<double>& point,
 																double& fitness,
 																std::ostream &raw_data_outfile){
+		// for(unsigned i=0; i<this->n_variables(); i++){
+		// 	std::cout << point[i] << std::endl;	
+		// }
+		
 		//push the node to all dependent elements
 		push_optimisation_parameter_values_to_dependent_elements(point);
 		//condense the residuals from each trainable problem into
@@ -428,7 +437,7 @@ namespace oomph{
 	}
 
 	//run the gradient descent algorithm until convergence
-	void GradientDescentOptimisation::run_algorithm(std::ostream &outfile,
+	Vector<double> GradientDescentOptimisation::run_algorithm(std::ostream &outfile,
 													std::ostream &raw_data_outfile){
 
 		outfile << "This is the gradient descent algorithm coordinator...Hello." << std::endl;
@@ -524,6 +533,10 @@ namespace oomph{
 			//Finish the iteration
 			iterations++;
 		}
+
+		//Not finished, just so it doesn't complain when copmpiling
+		Vector<double> DummyVector(1,1.0);
+		return DummyVector;
 	}
 
 
@@ -604,7 +617,7 @@ namespace oomph{
 	}
 
 	//run the nelder-mead simplex algorithm until convergence
-	void ParticleSwarmOptimisation::run_algorithm(std::ostream &outfile,
+	Vector<double> ParticleSwarmOptimisation::run_algorithm(std::ostream &outfile,
 													std::ostream &raw_data_outfile){
 
 		outfile << "This is the Particle Swarm Coordinator..." << std::endl;
@@ -889,6 +902,10 @@ namespace oomph{
 
 		}
 
+		//Not finished, just so it doesn't complain when copmpiling
+		Vector<double> DummyVector(1,1.0);
+		return DummyVector;
+		
 	}
 
 

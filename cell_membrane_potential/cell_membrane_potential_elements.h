@@ -26,6 +26,7 @@
 namespace oomph
 {
 
+static double Default_membrane_capacitance = 1.0;
 //=============================================================
 /// \short A class for all elements that solve the Monodomain
 /// equations in conservative form using isoparametric elements.
@@ -70,11 +71,47 @@ public:
    BrokenCopy::broken_assign("BaseCellMembranePotentialEquations");
   }
 
+  virtual inline std::vector<std::string> get_variable_names() const = 0;
+
  /// \short All cell_membrane_potential elements will have a storage value
  ///        dedicated to membrane potential
  virtual inline unsigned vm_index_BaseCellMembranePotential() const {return 0;}
 
-/// \short du/dt at local node n. 
+ //The next free index after this elements data
+ virtual inline unsigned max_index_plus_one_BaseCellMembranePotential() const {return vm_index_BaseCellMembranePotential()+1;}
+
+
+ //Pin/unpin all variables, used when performing segregated solving
+  void pin_all_vars(){
+    for(unsigned l=0; l<this->nnode(); l++){
+      for(unsigned i=vm_index_BaseCellMembranePotential(); i<max_index_plus_one_BaseCellMembranePotential();i++){
+        this->node_pt(l)->pin(i);
+      }
+    }
+  }
+  void unpin_all_vars(){
+    for(unsigned l=0; l<this->nnode(); l++){
+      for(unsigned i=vm_index_BaseCellMembranePotential(); i<max_index_plus_one_BaseCellMembranePotential();i++){
+        this->node_pt(l)->unpin(i);
+      }
+    }
+  }
+
+
+
+ //Get the membrane potential at the nth node
+ inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &n) const
+ {
+  return this->get_nodal_membrane_potential_BaseCellMembranePotential(0, n);
+ }
+
+ //Get the t-th history value of membrane potential at the nth node
+ inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &t, const unsigned &n) const
+ {
+  return this->node_pt(n)->value(t, vm_index_BaseCellMembranePotential());
+ }
+
+ /// \short du/dt at local node n. 
  /// Uses suitably interpolated value for hanging nodes.
  double dvm_dt_BaseCellMembranePotential(const unsigned &n) const
   {
@@ -100,6 +137,42 @@ public:
    return dvmdt;
   }
 
+  /// \short d2u/dt2 at local node n. 
+ /// Uses suitably interpolated value for hanging nodes.
+ double d2vm_dt2_BaseCellMembranePotential(const unsigned &n) const
+  {
+   // Get the data's timestepper
+   TimeStepper* time_stepper_pt= this->node_pt(n)->time_stepper_pt();
+
+   //Initialise dudt
+   double d2vmdt2=0.0;
+   //Loop over the timesteps, if there is a non Steady timestepper
+   if (!time_stepper_pt->is_steady())
+    {
+     //Find the index at which the variable is stored
+     const unsigned vm_nodal_index = vm_index_BaseCellMembranePotential();
+
+     // Number of timsteps (past & present)
+     const unsigned n_time = time_stepper_pt->ntstorage();
+     
+     for(unsigned t=0;t<n_time;t++)
+      {
+       d2vmdt2 += time_stepper_pt->weight(2,t)*nodal_value(t,n,vm_nodal_index);
+      }
+    }
+   return d2vmdt2;
+  }
+
+
+
+  virtual void assign_additional_initial_conditions()
+  {
+    throw OomphLibError(
+    "Assign initial conditions has not been implemented yet",
+    OOMPH_CURRENT_FUNCTION,
+    OOMPH_EXCEPTION_LOCATION);
+  }
+  
 
  /// \short Disable ALE, i.e. assert the mesh is not moving -- you do this
  /// at your own risk!
@@ -128,7 +201,57 @@ public:
 
  /// \short Output FE representation of soln: x,y,u or x,y,z,u at 
  /// nplot^DIM plot points
- void output(std::ostream &outfile, const unsigned &nplot);
+ void output(std::ostream &outfile, const unsigned &nplot)
+ {
+  // std::cout << "BOOM" << std::endl;
+  //Vector of local coordinates
+  Vector<double> s(DIM);
+
+  // Tecplot header info
+  outfile << tecplot_zone_string(nplot);
+
+  const unsigned n_node = this->nnode();
+  const unsigned vm_index = vm_index_BaseCellMembranePotential();
+  // std::cout << "n_node " << n_node << std::endl;
+  Shape psi(n_node);
+  DShape dpsidx(n_node,DIM);
+
+  // Loop over plot points
+  unsigned num_plot_points=nplot_points(nplot);
+  // std::cout << "Begin loop over ipt" << std::endl;
+  for (unsigned iplot=0;iplot<num_plot_points;iplot++)
+  {
+    // Get local coordinates of plot point
+    get_s_plot(iplot,nplot,s);
+
+    // Get Eulerian coordinate of plot point
+    Vector<double> x(DIM);
+    interpolated_x(s,x);
+
+    for(unsigned i=0;i<DIM;i++) {outfile << x[i] << " ";}
+    // std::cout << "outputting interpolated_u_monodomain" << std::endl;
+    outfile << interpolated_vm_BaseCellMembranePotential(s) << " ";
+
+    //Get the gradients
+    (void)this->dshape_eulerian(s,psi,dpsidx);
+    Vector<double> interpolated_dvmdx(DIM,0.0);
+    double dvmdt = 0.0;
+    for(unsigned n=0;n<n_node;n++){
+      const double vm_ = this->nodal_value(n,vm_index);
+      dvmdt += dvm_dt_BaseCellMembranePotential(n)*psi(n);
+      for(unsigned i=0;i<DIM;i++){interpolated_dvmdx[i] += vm_*dpsidx(n,i);}
+    }
+
+    outfile << dvmdt << " ";
+
+    for(unsigned i=0;i<DIM;i++){outfile << interpolated_dvmdx[i]  << " ";}
+
+    outfile  << std::endl;
+  }
+  // Write tecplot footer (e.g. FE connectivity lists)
+  write_tecplot_zone_footer(outfile,nplot);
+  // std::cout << "ENDBOOM" << std::endl;
+}
 
 
  /// C_style output with default number of plot points
@@ -140,13 +263,80 @@ public:
 
  /// \short C-style output FE representation of soln: x,y,u or x,y,z,u at 
  /// n_plot^DIM plot points
- void output(FILE* file_pt, const unsigned &n_plot);
+ void output(FILE* file_pt, const unsigned &n_plot)
+ {
+ //Vector of local coordinates
+ Vector<double> s(DIM);
+ 
+ // Tecplot header info
+ fprintf(file_pt,"%s",tecplot_zone_string(n_plot).c_str());
+
+ // Loop over plot points
+ unsigned num_plot_points=nplot_points(n_plot);
+ for (unsigned iplot=0;iplot<num_plot_points;iplot++)
+  {
+   
+   // Get local coordinates of plot point
+   get_s_plot(iplot,n_plot,s);
+   
+   for(unsigned i=0;i<DIM;i++) 
+    {
+     fprintf(file_pt,"%g ",interpolated_x(s,i));
+
+    }
+   fprintf(file_pt,"%g \n",interpolated_vm_BaseCellMembranePotential(s));
+  }
+
+ // Write tecplot footer (e.g. FE connectivity lists)
+ write_tecplot_zone_footer(file_pt,n_plot);
+
+}
 
 
  /// Output exact soln: x,y,u_exact or x,y,z,u_exact at nplot^DIM plot points
  void output_fct(std::ostream &outfile, const unsigned &nplot, 
                  FiniteElement::SteadyExactSolutionFctPt 
-                 exact_soln_pt);
+                 exact_soln_pt)
+ {
+
+   //Vector of local coordinates
+   Vector<double> s(DIM);
+
+   // Vector for coordintes
+   Vector<double> x(DIM);
+
+   // Tecplot header info
+   outfile << tecplot_zone_string(nplot);
+   
+   // Exact solution Vector (here a scalar)
+   Vector<double> exact_soln(1);
+
+   // Loop over plot points
+   unsigned num_plot_points=nplot_points(nplot);
+   for (unsigned iplot=0;iplot<num_plot_points;iplot++)
+    {
+     
+     // Get local coordinates of plot point
+     get_s_plot(iplot,nplot,s);
+
+     // Get x position as Vector
+     interpolated_x(s,x);
+
+     // Get exact solution at this point
+     (*exact_soln_pt)(x,exact_soln);
+
+     //Output x,y,...,u_exact
+     for(unsigned i=0;i<DIM;i++)
+      {
+       outfile << x[i] << " ";
+      }
+     outfile << exact_soln[0] << std::endl;  
+    }
+
+   // Write tecplot footer (e.g. FE connectivity lists)
+   write_tecplot_zone_footer(outfile,nplot);
+   
+  }
 
  /// \short Output exact soln: x,y,u_exact or x,y,z,u_exact at 
  /// nplot^DIM plot points (dummy time-dependent version to 
@@ -165,7 +355,75 @@ public:
  /// Get error against and norm of exact solution
  void compute_error(std::ostream &outfile, 
                     FiniteElement::SteadyExactSolutionFctPt 
-                    exact_soln_pt, double& error, double& norm);
+                    exact_soln_pt, double& error, double& norm)
+ { 
+
+ // Initialise
+ error=0.0;
+ norm=0.0;
+
+ //Vector of local coordinates
+ Vector<double> s(DIM);
+
+ // Vector for coordintes
+ Vector<double> x(DIM);
+
+ //Find out how many nodes there are in the element
+ unsigned n_node = nnode();
+
+ Shape psi(n_node);
+
+ //Set the value of n_intpt
+ unsigned n_intpt = integral_pt()->nweight();
+   
+ // Tecplot header info
+ outfile << "ZONE" << std::endl;
+   
+ // Exact solution Vector (here a scalar)
+ Vector<double> exact_soln(1);
+
+ //Loop over the integration points
+ for(unsigned ipt=0;ipt<n_intpt;ipt++)
+  {
+
+   //Assign values of s
+   for(unsigned i=0;i<DIM;i++)
+    {
+     s[i] = integral_pt()->knot(ipt,i);
+    }
+
+   //Get the integral weight
+   double w = integral_pt()->weight(ipt);
+
+   // Get jacobian of mapping
+   double J=J_eulerian(s);
+
+   //Premultiply the weights and the Jacobian
+   double W = w*J;
+
+   // Get x position as Vector
+   interpolated_x(s,x);
+
+   // Get FE function value
+   double vm_fe=interpolated_vm_BaseCellMembranePotential(s);
+
+   // Get exact solution at this point
+   (*exact_soln_pt)(x,exact_soln);
+
+   //Output x,y,...,error
+   for(unsigned i=0;i<DIM;i++)
+    {
+     outfile << x[i] << " ";
+    }
+   outfile << exact_soln[0] << " " << exact_soln[0]-vm_fe << std::endl;  
+
+   // Add to error and norm
+   norm+=exact_soln[0]*exact_soln[0]*W;
+   error+=(exact_soln[0]-vm_fe)*(exact_soln[0]-vm_fe)*W;
+
+  }
+
+}
 
 
  /// Dummy, time dependent error checker
@@ -181,8 +439,96 @@ public:
   }
 
  /// \short Integrate the concentration over the element
- double integrate_vm();
- double integrate_vm() const;
+ double integrate_vm()
+ { 
+ // Initialise
+ double sum = 0.0;
+
+ //Vector of local coordinates
+ Vector<double> s(DIM);
+
+ //Find out how many nodes there are in the element
+ const unsigned n_node = nnode();
+
+ //Find the index at which the concentration is stored
+ const unsigned vm_nodal_index = this->vm_index_BaseCellMembranePotential();
+
+ //Allocate memory for the shape functions
+ Shape psi(n_node);
+
+ //Set the value of n_intpt
+ const unsigned n_intpt = integral_pt()->nweight();
+
+ //Loop over the integration points
+ for(unsigned ipt=0;ipt<n_intpt;ipt++)
+  {
+   //Get the integral weight
+   const double w = integral_pt()->weight(ipt);
+   
+   //Get the shape functions
+   this->shape_at_knot(ipt,psi);
+
+   //Calculate the concentration
+   double interpolated_vm = 0.0;
+   for(unsigned l=0;l<n_node;l++) 
+    {interpolated_vm += this->nodal_value(l,vm_nodal_index)*psi(l);}
+
+   // Get jacobian of mapping
+   const double J=J_eulerian_at_knot(ipt);
+
+   //Add the values to the sum
+   sum += interpolated_vm*w*J;
+  }
+
+ //return the sum
+ return sum;
+}
+
+ double integrate_vm() const
+ {
+  // Initialise
+  double sum = 0.0;
+
+  //Vector of local coordinates
+  Vector<double> s(DIM);
+
+  //Find out how many nodes there are in the element
+  const unsigned n_node = nnode();
+
+  //Find the index at which the concentration is stored
+  const unsigned vm_nodal_index = this->vm_index_BaseCellMembranePotential();
+
+  //Allocate memory for the shape functions
+  Shape psi(n_node);
+
+  //Set the value of n_intpt
+  const unsigned n_intpt = integral_pt()->nweight();
+
+  //Loop over the integration points
+  for(unsigned ipt=0;ipt<n_intpt;ipt++)
+  {
+    //Get the integral weight
+    const double w = integral_pt()->weight(ipt);
+
+    //Get the shape functions
+    this->shape_at_knot(ipt,psi);
+
+    //Calculate the concentration
+    double interpolated_vm = 0.0;
+    for(unsigned l=0;l<n_node;l++) {
+      interpolated_vm += this->nodal_value(l,vm_nodal_index)*psi(l);
+    }
+
+    // Get jacobian of mapping
+    const double J=J_eulerian_at_knot(ipt);
+
+    //Add the values to the sum
+    sum += interpolated_vm*w*J;
+  }
+
+ //return the sum
+ return sum;
+}
 
 
  /// Access function: Pointer to source function
@@ -205,6 +551,7 @@ public:
  /// the strength of the source function might be determined by
  /// another system of equations 
  inline virtual void get_source_BaseCellMembranePotential(const unsigned& ipt,
+                                                          const Vector<double>& s,
                                                           const Vector<double>& x,
                                                           double& source) const
   {
@@ -317,7 +664,7 @@ public:
    unsigned n_node = nnode();
 
    //Get the nodal index at which the unknown is stored
-   unsigned vm_nodal_index = vm_index_BaseCellMembranePotential();
+   // unsigned vm_nodal_index = vm_index_BaseCellMembranePotential();
 
    //Local shape function
    Shape psi(n_node);
@@ -339,7 +686,28 @@ public:
 
 
  /// \short Self-test: Return 0 for OK
- unsigned self_test();
+ unsigned self_test()
+ {
+
+ bool passed=true;
+
+ // Check lower-level stuff
+ if (FiniteElement::self_test()!=0)
+  {
+   passed=false;
+  }
+
+ // Return verdict
+ if (passed)
+  {
+   return 0;
+  }
+ else
+  {
+   return 1;
+  }
+   
+}
 
 protected:
 
@@ -387,8 +755,8 @@ protected:
 
   private:
 
- /// Static default value for the membrane capacitance
- static double Default_membrane_capacitance;
+ // /// Static default value for the membrane capacitance
+ // static double Default_membrane_capacitance;
  
   
 };

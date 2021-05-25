@@ -1,3 +1,6 @@
+// TorORd dynamic chloride model
+// https://github.com/jtmff/torord/blob/master/matlab/model_Torord_dynCl.m
+
 #ifndef OOMPH_IMPLICIT_TOMEKORUDY_VENT_HEADER
 #define OOMPH_IMPLICIT_TOMEKORUDY_VENT_HEADER
 	
@@ -29,7 +32,7 @@ namespace oomph{
 
 		inline bool model_calculates_jacobian_entries() {return true;}
 
-		inline unsigned required_nodal_variables(const unsigned &cell_type=0){return 44;}
+		inline unsigned Num_Variables(){return 44;}
 
 		//the model does not require derivatives to be provided, it's
 		//	explicit and calculates them itself

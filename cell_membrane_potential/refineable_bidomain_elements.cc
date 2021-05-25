@@ -97,7 +97,7 @@ namespace oomph
 			//Get source function
 			//-------------------
 			double source;
-			this->get_source_BaseCellMembranePotential(ipt,interpolated_x,source);
+			this->get_source_BaseCellMembranePotential(ipt,s,interpolated_x,source);
 
 			//Get conductivity tensors
 			DenseMatrix<double> Gi(DIM,DIM,0.0);
