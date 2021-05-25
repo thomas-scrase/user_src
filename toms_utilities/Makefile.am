@@ -12,7 +12,8 @@ diff_augmented_cell_wrapper.h \
 enforce_positive_normal_flow_elements.h \
 toms_point_element.h \
 cell_probe_utilities.h \
-toms_explicit_timestepping_methods.h
+toms_explicit_timestepping_methods.h \
+segregated_cell_solver.h
 
 # Define name of library
 libname = toms_utilities

@@ -20,20 +20,66 @@ namespace oomph{
 		double return_initial_membrane_potential(const unsigned &cell_type) override;
 
 		void Calculate_Derivatives(const double &Vm,
-													std::unordered_map<std::string, double> CellVariables,
-													const double &t,
-													const double &dt,
-													const unsigned &cell_type,
-													std::unordered_map<std::string, double> Other_Parameters,
-													std::unordered_map<std::string, double> Other_Variables,
-													std::unordered_map<std::string, double> &Variable_Derivatives,
-													double &Iion) override;
+									const Vector<double> &CellVariables,
+									const double &t,
+									const unsigned &cell_type,
+									const double &Istim,
+									const Vector<double> &Other_Parameters,
+									const Vector<double> &Other_Variables,
 
-		std::unordered_map<std::string, double> get_data_output() override;
+									Vector<double> &Variable_Derivatives,
+									double &Iion) override;
 
-		
+		void get_optional_output(const double &Vm,
+							const Vector<double> &CellVariables,
+							const double &t,
+							const unsigned &cell_type,
+							const double &Istim,
+							const Vector<double> &Other_Parameters,
+							const Vector<double> &Other_Variables,
+
+							Vector<double> &Out) const override;
+
+		enum Cell_Variables_Enum : unsigned
+		{
+		    Cai_TT,
+			Nai_TT,
+			Ki_TT,
+			CaSRf_TT,
+			CaSS_TT,
+			sm_TT,
+			sh_TT,
+			sj_TT,
+			sd_TT,
+			sf_TT,
+			sf2_TT,
+			sfcass_TT,
+			sr_TT,
+			ss_TT,
+			sxr1_TT,
+			sxr2_TT,
+			sxs_TT,
+			y_TT,
+			sRR_TT//,
+			// sOO_TT
+		};
+		enum Other_Parameters_Enum : unsigned
+		{
+			ZIndex_TT
+		};
+		enum Other_Variables_Enum : unsigned
+		{
+
+		};
+		enum Output_Data_Enum : unsigned
+		{
+			// EKs_TT,
+			// IKs_TT
+		};
 
 	protected:
+
+		
 		
 		double Tent_R;
 		double Tent_F;

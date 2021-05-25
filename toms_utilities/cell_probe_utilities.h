@@ -6,15 +6,14 @@
 	#include <oomph-lib-config.h>
 #endif
 
-#include "../cell_interface/cell_interface_elements.h"
-#include "../cell_interface/segregated_cell_interface_elements.h"
+#include "../conducting_cell/conducting_cell_elements.h"
 
 
 namespace oomph{
 
 namespace CELLPROBE_PARAMS{
 	//dvdt at which we assume we are in an upstroke
-	double Upstroke_dvdt = 200.0;
+	double Upstroke_dvdt = 50.0;
 
 	//Magic number indicating that a duration was not measured
 	double Duration_Not_Measured = -1.0;
@@ -28,6 +27,8 @@ protected:
 	void OpenOutFile(std::string OutFileName)
 	{
 		OutFile.open(OutFileName);
+
+		OutputFileHeaderInformation();
 	}
 
 
@@ -57,6 +58,38 @@ protected:
 		DI90 = CELLPROBE_PARAMS::Duration_Not_Measured;
 
 		vmin = Vmin;
+
+		resting_potential = vmin;
+	}
+
+	void OutputFileHeaderInformation(){
+		OutFile
+		<< "Num_Upstrokes "
+		<< "t_upstroke "
+		<< "dvdt_upstroke "
+		<< "vmax_current "
+		<< "v_plateau "
+
+		<< "APD20 "
+		<< "APD50 "
+		<< "APD75 "
+		<< "APD90 "
+
+		<< "v20 "
+		<< "v50 "
+		<< "v75 "
+		<< "v90 "
+
+		<< "Repolarization_Rate_Between_Between_APD50_and_APD90 "
+
+		<< "DI20 "
+		<< "DI50 "
+		<< "DI75 "
+		<< "DI90 "
+
+		<< "vmin "
+		<< "resting_potential"
+		<< std::endl;
 	}
 
 	void MeasureAPD(const double& t, const double& v, const double& dvdt)
@@ -110,12 +143,15 @@ protected:
 				<< v75 << " "
 				<< v90 << " "
 
+				<< (v90 - v50)/(APD90-APD50) << " "
+
 				<< DI20 << " "
 				<< DI50 << " "
 				<< DI75 << " "
 				<< DI90 << " "
 
-				<< vmin << std::endl;
+				<< vmin << " "
+				<< resting_potential << std::endl;
 
 
 
@@ -144,6 +180,8 @@ protected:
 				v50 = vmax_current - 0.50 * (vmax_current - vmin);
 				v75 = vmax_current - 0.75 * (vmax_current - vmin);
 				v90 = vmax_current - 0.90 * (vmax_current - vmin);
+
+				resting_potential = 0.0;
 
 				//Record t_upstroke as the time the APD begins
 				// timeAPDstart = t_upstroke;
@@ -180,6 +218,13 @@ protected:
 		            APD90 = t - t_upstroke ;
 		            t_APD90 = t;
 		        }
+			}
+		}
+
+		//If we are post APD90, measure the resting potential as the minimum potential until the next upstroke
+		if(t_APD90>=0.0){
+			if(v<resting_potential){
+				resting_potential = v;
 			}
 		}
 
@@ -227,6 +272,8 @@ private:
 	Vector<double> Candidate_t_dvdt_max;
 	double vmax_current;
 	double vmin;
+
+	double resting_potential;
 
 	double v_plateau;
 
@@ -300,14 +347,14 @@ private:
 
 
 
-//For FastSingleCell calculated cells
+//For FastSingleCellUpdated calculated cells
 
 template<class CELL_ELEMENT>
 class FastCellProbe : public virtual APDMeasurer
 {
 public:
 
-	FastCellProbe(FastSingleCell<CELL_ELEMENT>* el_pt, std::string OutFileName)
+	FastCellProbe(FastSingleCellUpdated<CELL_ELEMENT>* el_pt, std::string OutFileName)
 	{
 		El_pt = el_pt;
 
@@ -336,7 +383,7 @@ public:
 private:
 
 	//The cell element
-	FastSingleCell<CELL_ELEMENT>* El_pt;
+	FastSingleCellUpdated<CELL_ELEMENT>* El_pt;
 
 };
 

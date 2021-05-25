@@ -18,7 +18,11 @@
 
 #include "../cell_model_updated/cell_model_base_updated.h"
 
+#include <boost/numeric/odeint.hpp>
+
 namespace oomph{
+
+	static const double BoostFDConst = 1e-12;
 
 	//This is the base class for the cell classes, it contains functions required by the get derivatives function
 	//we HAVE to do this. I know it's a bit clunky having to call functions through this container but the functions
@@ -31,6 +35,8 @@ namespace oomph{
 
 		ConductingCellFunctionsBase() : StimFctPt(0)
 		{}
+
+		~ConductingCellFunctionsBase(){}
 		
 		//Define the function template used for forcing terms and stuff
 		typedef double (*CellInterfaceScalarFctPt)
@@ -51,7 +57,7 @@ namespace oomph{
 									            const Vector<double>& x,
 												const unsigned &l,
 												const double &t,
-												std::unordered_map<std::string, double> &Variables)
+												Vector<double> &Variables) const
 		{
 
 		}
@@ -63,7 +69,7 @@ namespace oomph{
 		inline double get_stimulus(const unsigned& ipt,
 						            const Vector<double> &s,
 						            const Vector<double>& x,
-									const double &t)
+									const double &t) const
 		{
 			if(StimFctPt!=nullptr){
 				return (*StimFctPt)(ipt,s,x,t);
@@ -83,63 +89,248 @@ namespace oomph{
 	};
 
 
+
+
+
+	typedef boost::numeric::ublas::vector< double > Boost_State_Type;
+	typedef boost::numeric::ublas::matrix< double > boost_matrix_type;
+
+
+	typedef boost::numeric::odeint::runge_kutta_cash_karp54< Boost_State_Type > controlled_error_stepper_type;
+
+	typedef boost::numeric::odeint::rosenbrock4< Boost_State_Type > implicit_controlled_error_stepper_type;
+
+
+	
+
+
+
+
 	class CellSourcesPackagedWithLocationData
 	{
 	public:
 		CellSourcesPackagedWithLocationData(ConductingCellFunctionsBase* ConductingCellFunctionsBase_Pt,
-											CellModelBaseUpdated* CellModelBaseUpdated_Pt,
-											const unsigned& ipt,
-								            const Vector<double> &s,
-								            const Vector<double>& x,
-											const unsigned &l)
+											CellModelBaseUpdated* CellModelBaseUpdated_Pt) : Timestepper_Solves_For_Vm(false)
 		{
+			//Set pointers to both the base cell: for stimulus function
 			Base_Cell_Sources_Pt = ConductingCellFunctionsBase_Pt;
+			//And cell model for derivatives
 			Cell_Model_Base_Pt = CellModelBaseUpdated_Pt;
+			//Check that the pointers to cell model have been set
+			if(Base_Cell_Sources_Pt==nullptr){std::cout << "Base_Cell_Sources_Pt is null" << std::endl; exit(0);}
+			if(Cell_Model_Base_Pt==nullptr){std::cout << "Cell_Model_Base_Pt is null" << std::endl; exit(0);}
 
-			Ipt = ipt;
-			S = s;
-			X = x;
-			L = l;
+			//Get the number of cell and extra variables for preallocating memory
+			Num_Cell_Variables = CellModelBaseUpdated_Pt->get_Num_Cell_Vars();
+			Num_Other_Variables = CellModelBaseUpdated_Pt->get_Num_Other_Vars();
+
+			//storage for the boost solve, removes need for allocating memory every time we take a timestep
+			boost_Cell_Variables.resize(Num_Cell_Variables, 0.0);
+			boost_Variable_Derivatives.resize(Num_Cell_Variables, 0.0);
+			boost_Other_Variables.resize(Num_Other_Variables, 0.0);
 		}
+
+		//An empty destructor
 		~CellSourcesPackagedWithLocationData(){}
 
+		//Get the stimulus at time t
 		double get_stimulus_current(const double& t)
 		{
 			return (Base_Cell_Sources_Pt->get_stimulus)(Ipt, S, X, t);
 		}
 
+		//Get the time dependent extra variables at time t
 		void get_time_dependent_variables(const double &t,
-										std::unordered_map<std::string, double> &Variables)
+											Vector<double> &Variables)
 		{
 			(Base_Cell_Sources_Pt->get_other_variables)(Ipt, S, X, L, t, Variables);
 		}
 
-
+		//Get the derivatives with the current variable values
 		void get_derivatives(const double &Vm,
-							std::unordered_map<std::string, double> CellVariables,
+							const Vector<double> &CellVariables,
 							const double &t,
-							const double &dt,
 							const unsigned &cell_type,
-							std::unordered_map<std::string, double> Other_Parameters,
-							std::unordered_map<std::string, double> Other_Variables,
-							std::unordered_map<std::string, double> &Variable_Derivatives,
+							const double &Istim,
+							const Vector<double> &Other_Parameters,
+							const Vector<double> &Other_Variables,
+
+							Vector<double> &Variable_Derivatives,
 							double &Iion)
 		{
-			(Cell_Model_Base_Pt->Calculate_Derivatives)(Vm, CellVariables, t, dt, cell_type, Other_Parameters, Other_Variables,\
+				(Cell_Model_Base_Pt->Calculate_Derivatives)(Vm, CellVariables, t, cell_type, Istim, Other_Parameters, Other_Variables,
 															Variable_Derivatives, Iion);
 		}
 
+		//This is for interfacing with the boost library of timesteppers
+		//	we pacakge the variables and vm up as x = (CellVariables, Vm), then dxdt = (dCellVariablesdt, dVmdt)
+		void operator() ( const Boost_State_Type &x , Boost_State_Type &dxdt , const double t )
+		{
+			//If the timestepper solves for vm then we need to calculate Iion
+			if(Timestepper_Solves_For_Vm)
+			{
+				// oomph_info << "Solving for vm as well" << std::endl;
+				//Unpack the cell variables and zero the derivatives
+				boost_Vm = x[Num_Cell_Variables];
+				boost_Iion = 0.0;
+				for(unsigned i=0; i<Num_Cell_Variables; i++){
+					boost_Cell_Variables[i] = x[i];
+					boost_Variable_Derivatives[i] = 0.0;
+				}
+
+				//Get the stimulus current
+				stimulus_current = get_stimulus_current(t);
+				//Get the time dependent external variables
+				get_time_dependent_variables(t, boost_Other_Variables);
+
+
+				//Get the derivatives from the cell model
+				get_derivatives(boost_Vm,
+								boost_Cell_Variables,
+								t,
+								Cell_Type,
+								stimulus_current,
+								Other_Parameters,
+								boost_Other_Variables,
+								boost_Variable_Derivatives,
+								boost_Iion);
+
+				//Fill in the derivatives to be sent back to the boost solver
+				dxdt[Num_Cell_Variables] = boost_Iion;
+				for(unsigned i=0; i<Num_Cell_Variables; i++){
+					dxdt[i] = boost_Variable_Derivatives[i];
+				}
+			}
+			//Otherwise we just solve for the variable derivatives, not Iion as well
+			else
+			{
+				//Unpack the cell variables and zero the derivatives
+				boost_Iion = 0.0;
+				for(unsigned i=0; i<Num_Cell_Variables; i++){
+					boost_Cell_Variables[i] = x[i];
+					boost_Variable_Derivatives[i] = 0.0;
+				}
+
+				//Get the stimulus current
+				stimulus_current = get_stimulus_current(t);
+				//Get the time dependent external variables
+				get_time_dependent_variables(t, boost_Other_Variables);
+
+
+				//Get the derivatives from the cell model
+				get_derivatives(boost_Vm,
+								boost_Cell_Variables,
+								t,
+								Cell_Type,
+								stimulus_current,
+								Other_Parameters,
+								boost_Other_Variables,
+								boost_Variable_Derivatives,
+								boost_Iion);
+
+				//Fill in the derivatives to be sent back to the boost solver
+				for(unsigned i=0; i<Num_Cell_Variables; i++){
+					dxdt[i] = boost_Variable_Derivatives[i];
+				}
+			}
+		}
+
+		//These are called by the Conducting cell elements when these values are set
+		void set_other_nodal_parameters(const Vector<double> other_parameters){
+			Other_Parameters = other_parameters;
+		}
+		void set_cell_type(const unsigned cell_type){
+			Cell_Type = cell_type;
+		}
+		const unsigned& get_cell_type() const
+		{
+			return Cell_Type;
+		}
+
+		const Vector<double>& get_other_nodal_parameters()
+		{
+			return Other_Parameters;
+		}
+
+
+		void set_timestepper_solves_for_vm(){Timestepper_Solves_For_Vm = true;}
+		void set_timestepper_does_not_solve_for_vm(){Timestepper_Solves_For_Vm = false;}
+
+		const bool& timestepper_solves_for_vm() const {return Timestepper_Solves_For_Vm;}
+
+		//When the timestepper is not solving for vm we cannot pass vm in the vector of variables because then the 
+		// derivative vector would contain an entry for vm. This is not a problem unless we are performing an implicit
+		// solve, in which case the jacobian row associated with vm would all be zero and it would be singular.
+		//We therefore check whether or not the solver is solving for vm and if it isn't then we do not populate
+		// the vm-th row, instead we pass vm as a 'constant' member.
+		void set_boost_vm(const double& val){boost_Vm = val;}
+
+		const double& get_boost_vm() const {return boost_Vm;}
+
+		//Location of the cell so the source and time dependent variables functions know where we are
+		void set_location_data(const unsigned &ipt,
+								const Vector<double> &s,
+								const Vector<double> &x,
+								const unsigned &l)
+		{
+			Ipt = ipt;
+			S = s;
+			X = x;
+			L = l;
+		}
+
+		const inline unsigned get_Num_Cell_Vars() const {return Num_Cell_Variables;}
+		const inline unsigned get_Num_Other_Vars() const {return Num_Other_Variables;}
+
+
+		inline double & Boost_Iion(){return boost_Iion;}
+
+		inline Vector<double> & Boost_Cell_Variables(){return boost_Cell_Variables;}
+
+		inline Vector<double> & Boost_Variable_Derivatives(){return boost_Variable_Derivatives;}
+
+		inline double & Stimulus_current(){return stimulus_current;}
+
+		inline Vector<double> & Boost_Other_Variables(){return boost_Other_Variables;}
 
 	private:
+		//storage for the boost solver so we don't need to keep reallocating it, we're careful to suitably zero it
+		//	so persisitent storage won't become an issue
+		double boost_Vm;
+		Vector<double> boost_Cell_Variables;
+		double boost_Iion;
+		Vector<double> boost_Variable_Derivatives;
+		Vector<double> boost_Other_Variables;
+
+		//Does the timestepper solve for vm as well?
+		// This might be set to true if you are only using these timesteppers, i.e. in the case of single cells
+		// And might be set to false if you want to solve for vm using another method, i.e. oomph-lib diffusion equations
+		//By default we do not and we allow FastSingleCell to change it
+		bool Timestepper_Solves_For_Vm;
+
+
 		//For the other variables and the stimulus source
 		ConductingCellFunctionsBase* Base_Cell_Sources_Pt;
 		//For the derivative function
 		CellModelBaseUpdated* Cell_Model_Base_Pt;
 
+		//Number of data required, so we know how much data to allocated
+		unsigned Num_Cell_Variables;
+		unsigned Num_Other_Variables;
+
+
+		//Time independent data
+		unsigned Cell_Type;
+		Vector<double> Other_Parameters;
+
+		//Location data for filling arguments of source functions
 		unsigned Ipt;
 		Vector<double> S;
 		Vector<double> X;
 		unsigned L;
+
+		//Allocate memory for the stimulus current
+		double stimulus_current;
 	};
 
 
@@ -148,274 +339,406 @@ namespace oomph{
 
 
 
-	//These are some helpful operators and functions. The first two are operators which multiply a vector
-	//	by a scalar. The second two are methods for adding together the entries in two unordered maps which
-	//	share the same keys. The second of these also multiplies the entries of the second map before the addition
 
 
-	//Define distribution of a scalar over and oomph lib vector
-	//Verctor * scalar
-	template<class _T>
-	Vector<_T> operator * (Vector<_T> V, double scalar)
-	{
-		std::transform (V.begin (), V.end (), V.begin (),
-                 std::bind1st (std::multiplies <_T> () , scalar)) ;
-		return V;
-	}
+	//This is a wrapper. It allows for implicit computation by providing a second () operator.
+	//	Utilises the underlying CellSourcesPackagedWithLocationData functionality to perform
+	// finite differencing on the cell variables and vm to calculate the jacobian
 
-	template<class _T>
-	Vector<_T> operator * (double scalar, Vector<_T> V)
-	{
-		std::transform (V.begin (), V.end (), V.begin (),
-                 std::bind1st (std::multiplies <_T> () , scalar)) ;
-		return V;
-	}
-
-
-
-	//Add the entries of an unordered map to another at the provided key names, return the resulting map
-	std::unordered_map<std::string, double> add_unordered_maps(std::unordered_map<std::string, double> M1,
-													std::unordered_map<std::string, double> M2,
-													const std::vector<std::string> Keys)
-	{
-		// std::unordered_map<std::string, double> m;
-		
-		for(unsigned it = 0; it < Keys.size(); it++) {
-		    M1[Keys[it]] = (M1.at(Keys[it]) + M2.at(Keys[it]));
+	class TimestepperImplicitWrapper{
+	public:
+		TimestepperImplicitWrapper(CellSourcesPackagedWithLocationData& base){
+			Base_pt = &base;
 		}
 
-		return M1;
-	}
+	private:
+		CellSourcesPackagedWithLocationData* Base_pt;
 
-	//The same but the values from the second unordered map are multiplied by a scalar before being added
-	std::unordered_map<std::string, double> add_unordered_maps(std::unordered_map<std::string, double> M1,
-													std::unordered_map<std::string, double> M2,
-													const double &c,
-													const std::vector<std::string> Keys)
-	{
-		for(unsigned it = 0; it <Keys.size(); it++) {
-		    M1[Keys[it]] = (M1.at(Keys[it]) + c*M2.at(Keys[it]));
+	public:
+		void operator()( const Boost_State_Type &x , boost_matrix_type &J , const double t)// , Boost_State_Type &dfdt )
+		{
+			//If the timestepper solves for vm then we need to calculate Iion
+			if(Base_pt->timestepper_solves_for_vm())
+			{
+
+				//Unpack data
+				Base_pt->set_boost_vm(x[Base_pt->get_Num_Cell_Vars()]);
+				Base_pt->Boost_Iion() = 0.0;
+				for(unsigned i=0; i<Base_pt->get_Num_Cell_Vars(); i++){
+					Base_pt->Boost_Cell_Variables()[i] = x[i];
+					Base_pt->Boost_Variable_Derivatives()[i] = 0.0;
+				}
+
+				//Get the stimulus current
+				Base_pt->Stimulus_current() = Base_pt->get_stimulus_current(t);
+				//Get the time dependent external variables
+				Base_pt->get_time_dependent_variables(t, Base_pt->Boost_Other_Variables());
+				
+				//Get the derivative at x
+				Boost_State_Type dxdt_0(Base_pt->get_Num_Cell_Vars(), 0.0);
+
+				Base_pt->get_derivatives(Base_pt->get_boost_vm(),
+										Base_pt->Boost_Cell_Variables(),
+										t,
+										Base_pt->get_cell_type(),
+										Base_pt->Stimulus_current(),
+										Base_pt->get_other_nodal_parameters(),
+										Base_pt->Boost_Other_Variables(),
+										Base_pt->Boost_Variable_Derivatives(),
+										Base_pt->Boost_Iion());
+
+				//Fill in the derivatives at x
+				dxdt_0[Base_pt->get_Num_Cell_Vars()] = Base_pt->Boost_Iion();
+				for(unsigned i=0; i<Base_pt->get_Num_Cell_Vars(); i++){
+					dxdt_0[i] = Base_pt->Boost_Variable_Derivatives()[i];
+				}
+
+				//Storage for perturbed derivatives
+				Boost_State_Type dxdt_1(Base_pt->get_Num_Cell_Vars(), 0.0);
+				
+				//Perform finite differencing on all the cell variables
+				for(unsigned j=0; j<Base_pt->get_Num_Cell_Vars(); j++){
+					Base_pt->Boost_Cell_Variables()[j] += BoostFDConst;
+
+					//Calculate derivative at x+delta*e_i
+					Base_pt->get_derivatives(Base_pt->get_boost_vm(),
+									Base_pt->Boost_Cell_Variables(),
+									t,
+									Base_pt->get_cell_type(),
+									Base_pt->Stimulus_current(),
+									Base_pt->get_other_nodal_parameters(),
+									Base_pt->Boost_Other_Variables(),
+									Base_pt->Boost_Variable_Derivatives(),
+									Base_pt->Boost_Iion());
+
+					//Fill in the derivatives at x
+					dxdt_1[Base_pt->get_Num_Cell_Vars()] = Base_pt->Boost_Iion();
+					for(unsigned i=0; i<Base_pt->get_Num_Cell_Vars(); i++){
+						dxdt_1[i] = Base_pt->Boost_Variable_Derivatives()[i];
+					}
+
+					//Calculate jacobian entries
+					for(unsigned k=0; k<Base_pt->get_Num_Cell_Vars()+1; k++){
+						J(j,k) = (dxdt_1[k] - dxdt_0[k])/BoostFDConst;
+					}
+
+					Base_pt->Boost_Cell_Variables()[j] -= BoostFDConst;
+				}
+
+				//Finite difference the membrane potential
+				Base_pt->set_boost_vm(Base_pt->get_boost_vm() + BoostFDConst);
+
+				//Calculate derivative at x+delta*e_i
+				Base_pt->get_derivatives(Base_pt->get_boost_vm(),
+										Base_pt->Boost_Cell_Variables(),
+										t,
+										Base_pt->get_cell_type(),
+										Base_pt->Stimulus_current(),
+										Base_pt->get_other_nodal_parameters(),
+										Base_pt->Boost_Other_Variables(),
+										Base_pt->Boost_Variable_Derivatives(),
+										Base_pt->Boost_Iion());
+
+				//Fill in the derivatives at x
+				dxdt_1[Base_pt->get_Num_Cell_Vars()] = Base_pt->Boost_Iion();
+				for(unsigned i=0; i<Base_pt->get_Num_Cell_Vars(); i++){
+					dxdt_1[i] = Base_pt->Boost_Variable_Derivatives()[i];
+				}
+
+				//Calculate jacobian entries
+				for(unsigned k=0; k<Base_pt->get_Num_Cell_Vars()+1; k++){
+					J(Base_pt->get_Num_Cell_Vars(),k) = (dxdt_1[k] - dxdt_0[k])/BoostFDConst;
+				}
+				Base_pt->set_boost_vm(Base_pt->get_boost_vm() - BoostFDConst);
+
+			}
+			//Otherwise, we don't bother with Vm entries
+			else
+			{
+
+				//Unpack data
+				Base_pt->Boost_Iion() = 0.0;
+				for(unsigned i=0; i<Base_pt->get_Num_Cell_Vars(); i++){
+					Base_pt->Boost_Cell_Variables()[i] = x[i];
+					Base_pt->Boost_Variable_Derivatives()[i] = 0.0;
+				}
+
+				//Get the stimulus current
+				Base_pt->Stimulus_current() = Base_pt->get_stimulus_current(t);
+				//Get the time dependent external variables
+				Base_pt->get_time_dependent_variables(t, Base_pt->Boost_Other_Variables());
+				
+				//Get the derivative at x
+				Boost_State_Type dxdt_0(Base_pt->get_Num_Cell_Vars(), 0.0);
+
+				Base_pt->get_derivatives(Base_pt->get_boost_vm(),
+								Base_pt->Boost_Cell_Variables(),
+								t,
+								Base_pt->get_cell_type(),
+								Base_pt->Stimulus_current(),
+								Base_pt->get_other_nodal_parameters(),
+								Base_pt->Boost_Other_Variables(),
+								Base_pt->Boost_Variable_Derivatives(),
+								Base_pt->Boost_Iion());
+
+				//Fill in the derivatives at x
+				for(unsigned i=0; i<Base_pt->get_Num_Cell_Vars(); i++){
+					dxdt_0[i] = Base_pt->Boost_Variable_Derivatives()[i];
+				}
+
+				//Storage for perturbed derivatives
+				Boost_State_Type dxdt_1(Base_pt->get_Num_Cell_Vars(), 0.0);
+				
+				//Perform finite differencing on all the cell variables
+				for(unsigned j=0; j<Base_pt->get_Num_Cell_Vars(); j++){
+					Base_pt->Boost_Cell_Variables()[j] += BoostFDConst;
+
+					//Calculate derivative at x+delta*e_i
+					Base_pt->get_derivatives(Base_pt->get_boost_vm(),
+									Base_pt->Boost_Cell_Variables(),
+									t,
+									Base_pt->get_cell_type(),
+									Base_pt->Stimulus_current(),
+									Base_pt->get_other_nodal_parameters(),
+									Base_pt->Boost_Other_Variables(),
+									Base_pt->Boost_Variable_Derivatives(),
+									Base_pt->Boost_Iion());
+
+					//Fill in the derivatives at x
+					for(unsigned i=0; i<Base_pt->get_Num_Cell_Vars(); i++){
+						dxdt_1[i] = Base_pt->Boost_Variable_Derivatives()[i];
+					}
+
+					//Calculate jacobian entries
+					for(unsigned k=0; k<Base_pt->get_Num_Cell_Vars(); k++){
+						J(j,k) = (dxdt_1[k] - dxdt_0[k])/BoostFDConst;
+					}
+
+					Base_pt->Boost_Cell_Variables()[j] -= BoostFDConst;
+				}
+
+			}
+
 		}
 
-		return M1;
+	};
+
+
+
+
+
+
+
+
+
+
+
+
+
+	void BoostExplicitSolve(const double &Vm,
+					const Vector<double> &Variables,
+					const double &t,
+					const double &dt,
+					CellSourcesPackagedWithLocationData &FunctionsContainer,
+					Vector<double> &New_Variables,
+					double &New_Vm)
+	{
+		if(FunctionsContainer.timestepper_solves_for_vm())
+		{
+			//Package up the data for the initial values:
+			//Create a vector long enough to hold membrane potential and cell variables
+			Boost_State_Type x(FunctionsContainer.get_Num_Cell_Vars()+1, 0.0);
+			//Fill in membrane potential
+			x[FunctionsContainer.get_Num_Cell_Vars()] = Vm;
+			//Fill in cell variables
+			for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+				x[i] = Variables[i];
+			}
+
+			//Create an explicit euler solver
+			boost::numeric::odeint::euler<Boost_State_Type> stepper;
+			//Run over the specified range, t to t+dt with a single timestep dt
+			integrate_const( stepper, FunctionsContainer, x, t, t+dt, dt);
+
+			//Unpack the data from the boost solve
+			New_Vm = x[FunctionsContainer.get_Num_Cell_Vars()];
+			for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+				New_Variables[i] = x[i];
+			}
+		}
+		else
+		{
+			//Package up the data for the initial values:
+			//Create a vector long enough to hold membrane potential and cell variables
+			Boost_State_Type x(FunctionsContainer.get_Num_Cell_Vars(), 0.0);
+			//Fill in membrane potential
+			FunctionsContainer.set_boost_vm(Vm);
+			//Fill in cell variables
+			for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+				x[i] = Variables[i];
+			}
+
+			//Create an explicit euler solver
+			boost::numeric::odeint::euler<Boost_State_Type> stepper;
+			//Run over the specified range, t to t+dt with a single timestep dt
+			integrate_const( stepper, FunctionsContainer, x, t, t+dt, dt);
+
+			//Unpack the data from the boost solve
+			New_Vm = Vm;
+			for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+				New_Variables[i] = x[i];
+			}
+		}
 	}
 
 
 
-	//Some gross typedefs
 
-	typedef std::unordered_map<std::string, double> (OtherVariablesFct)(const double &);
+	void BoostSolve(const double &Vm,
+					const Vector<double> &Variables,
+					const double &t,
+					const double &dt,
+					CellSourcesPackagedWithLocationData &FunctionsContainer,
+					Vector<double> &New_Variables,
+					double &New_Vm)
+	{
+		//We need to pass vm within the variables vector
+		if(FunctionsContainer.timestepper_solves_for_vm())
+		{
+			//Package up the data for the initial values:
+			//Create a vector long enough to hold membrane potential and cell variables
+			Boost_State_Type x(FunctionsContainer.get_Num_Cell_Vars()+1, 0.0);
+			//Fill in membrane potential
+			x[FunctionsContainer.get_Num_Cell_Vars()] = Vm;
+			//Fill in cell variables
+			for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+				x[i] = Variables[i];
+			}
 
-	typedef std::unordered_map<std::string, double> (*OtherVariablesFctPt)(const double &);
+			//Call the adaptive boost solver over the specified range, t to t+dt
+			integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-10, 1.0e-6),
+									FunctionsContainer, x, t, t+dt, dt);
+
+			//Unpack the data from the boost solve
+			New_Vm = x[FunctionsContainer.get_Num_Cell_Vars()];
+			for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+				New_Variables[i] = x[i];
+			}
+		}
+		//We pass vm in the form of boost_vm
+		else
+		{
+			//Package up the data for the initial values:
+			//Create a vector long enough to hold membrane potential and cell variables
+			Boost_State_Type x(FunctionsContainer.get_Num_Cell_Vars(), 0.0);
+			//Pass membrane potential
+			FunctionsContainer.set_boost_vm(Vm);
+			//Fill in cell variables
+			for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+				x[i] = Variables[i];
+			}
+
+			//Call the adaptive boost solver over the specified range, t to t+dt
+			integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-10, 1.0e-6),
+									FunctionsContainer, x, t, t+dt, dt);
+
+			//Unpack the data from the boost solve
+			New_Vm = Vm;
+			for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+				New_Variables[i] = x[i];
+			}
+		}
+	}
 
 
-	typedef double (*StimFctPt)(const double& );
 
 
-	//Function typedef of the derivative function
-	typedef void (*DerivativeFctPt)(const double &Vm,
-									std::unordered_map<std::string, double> Variables,
-									const double &t,
-									const double &dt,
-									const unsigned &cell_type,
-									std::unordered_map<std::string, double> Other_Parameters,
-									std::unordered_map<std::string, double> Other_Variables,
-									std::unordered_map<std::string, double> &Variable_Derivatives,
-									double &Iion);
+	// void ImplicitBoostSolve(const double &Vm,
+	// 				const Vector<double> &Variables,
+	// 				const double &t,
+	// 				const double &dt,
+	// 				CellSourcesPackagedWithLocationData &FunctionsContainer,
+	// 				Vector<double> &New_Variables,
+	// 				double &New_Vm)
+	// {
+	// 	//We need to pass vm within the variables vector
+	// 	if(FunctionsContainer.timestepper_solves_for_vm())
+	// 	{
+	// 		//Package up the data for the initial values:
+	// 		//Create a vector long enough to hold membrane potential and cell variables
+	// 		Boost_State_Type x(FunctionsContainer.get_Num_Cell_Vars()+1, 0.0);
+	// 		//Fill in membrane potential
+	// 		x[FunctionsContainer.get_Num_Cell_Vars()] = Vm;
+	// 		//Fill in cell variables
+	// 		for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+	// 			x[i] = Variables[i];
+	// 		}
+
+	// 		TimestepperImplicitWrapper jacobian_func(FunctionsContainer);
+
+	// 		//Call the adaptive boost solver over the specified range, t to t+dt
+	// 		// integrate_adaptive( boost::numeric::odeint::make_controlled<implicit_controlled_error_stepper_type>(1.0e-10, 1.0e-6),
+	// 		// 						make_pair(FunctionsContainer,jacobian_func), 
+	// 		// 						x, t, t+dt, dt);
+
+	// 		integrate_const( <implicit_controlled_error_stepper_type>(1.0e-10, 1.0e-6),
+	// 								make_pair(FunctionsContainer,jacobian_func), 
+	// 								x, t, t+dt, dt);
+
+	// 		//Unpack the data from the boost solve
+	// 		New_Vm = x[FunctionsContainer.get_Num_Cell_Vars()];
+	// 		for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+	// 			New_Variables[i] = x[i];
+	// 		}
+	// 	}
+	// 	//We pass vm in the form of boost_vm
+	// 	else
+	// 	{
+	// 		//Package up the data for the initial values:
+	// 		//Create a vector long enough to hold membrane potential and cell variables
+	// 		Boost_State_Type x(FunctionsContainer.get_Num_Cell_Vars(), 0.0);
+	// 		//Pass membrane potential
+	// 		FunctionsContainer.set_boost_vm(Vm);
+	// 		//Fill in cell variables
+	// 		for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+	// 			x[i] = Variables[i];
+	// 		}
+
+	// 		TimestepperImplicitWrapper jacobian_func(FunctionsContainer);
+
+	// 		//Call the adaptive boost solver over the specified range, t to t+dt
+	// 		integrate_adaptive( boost::numeric::odeint::make_controlled<implicit_controlled_error_stepper_type>(1.0e-10, 1.0e-6),
+	// 								make_pair(FunctionsContainer,jacobian_func), 
+	// 								x, t, t+dt, dt);
+
+	// 		//Unpack the data from the boost solve
+	// 		New_Vm = Vm;
+	// 		for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
+	// 			New_Variables[i] = x[i];
+	// 		}
+	// 	}
+	// }
+
+
+
+
+
+
 
 
 	typedef void (*TomsExplicitTimestepMethodsFctPt)(const double &Vm,
-												std::unordered_map<std::string, double> &Variables,
-												const std::vector<std::string> names_of_cell_variables,
+												const Vector<double> &Variables,
 												const double &t,
 												const double &dt,
-												const unsigned &cell_type,
-												std::unordered_map<std::string, double> &Other_Parameters,
 												CellSourcesPackagedWithLocationData &FunctionsContainer,
-												std::unordered_map<std::string, double> &New_Variables,
+
+												Vector<double> &New_Variables,
 												double &New_Vm);
 
 
 
-	//The actual definitions of the explicit timestepping methods
 
 
-
-
-	void ExplicitEuler(const double &Vm,
-			std::unordered_map<std::string, double> &Variables,
-			const std::vector<std::string> names_of_cell_variables,
-			const double &t,
-			const double &dt,
-			const unsigned &cell_type,
-			std::unordered_map<std::string, double> &Other_Parameters,
-			CellSourcesPackagedWithLocationData &FunctionsContainer,
-			std::unordered_map<std::string, double> &New_Variables,
-			double &New_Vm)
-	{
-		std::unordered_map<std::string, double> Time_Dependent_Variables_Container;
-
-
-		//Calculate K1
-		std::unordered_map<std::string, double> K1;
-
-		double K1_Iion;
-		FunctionsContainer.get_time_dependent_variables(t,Time_Dependent_Variables_Container);
-		FunctionsContainer.get_derivatives(Vm,
-											Variables,
-											t,
-											dt,
-											cell_type,
-											Other_Parameters,
-											Time_Dependent_Variables_Container,
-
-											K1, K1_Iion);
-
-		//Calculate the next timestep values of everything
-		for(auto it = names_of_cell_variables.begin(); it != names_of_cell_variables.end(); ++it){
-			New_Variables[*it] = Variables.at(*it) + dt*K1[*it];
-		}
-		New_Vm = Vm - dt*(K1_Iion + FunctionsContainer.get_stimulus_current(t));
-	}
-
-
-
-
-	void ImplicitEuler(const double &Vm,
-			std::unordered_map<std::string, double> &Variables,
-			const std::vector<std::string> names_of_cell_variables,
-			const double &t,
-			const double &dt,
-			const unsigned &cell_type,
-			std::unordered_map<std::string, double> &Other_Parameters,
-			CellSourcesPackagedWithLocationData &FunctionsContainer,
-			std::unordered_map<std::string, double> &New_Variables,
-			double &New_Vm)
-	{
-		std::unordered_map<std::string, double> Time_Dependent_Variables_Container;
-
-
-		New_Variables = Variables;
-		New_Vm = Vm;
-
-		std::unordered_map<std::string, double> K;
-
-		double K_Iion;
-
-		for(unsigned i=0; i<3; i++){
-			//Get the derivatives for the current guess
-			FunctionsContainer.get_derivatives(New_Vm,
-											New_Variables,
-											t,
-											dt,
-											cell_type,
-											Other_Parameters,
-											Time_Dependent_Variables_Container,
-
-											K, K_Iion);
-			
-			//use those calculated derivatives to get the next guess
-			for(auto it = names_of_cell_variables.begin(); it != names_of_cell_variables.end(); ++it){
-				New_Variables[*it] = Variables.at(*it) + dt*K[*it];
-			}
-			New_Vm = Vm - dt*(K_Iion + FunctionsContainer.get_stimulus_current(t));
-		}
-	}
-
-
-
-
-	// Runge kutta 4
-	void RK4(const double &Vm,
-			std::unordered_map<std::string, double> &Variables,
-			const std::vector<std::string> names_of_cell_variables,
-			const double &t,
-			const double &dt,
-			const unsigned &cell_type,
-			std::unordered_map<std::string, double> &Other_Parameters,
-			CellSourcesPackagedWithLocationData &FunctionsContainer,
-			std::unordered_map<std::string, double> &New_Variables,
-			double &New_Vm)
-	{
-
-		std::unordered_map<std::string, double> Time_Dependent_Variables_Container;
-
-
-		//Calculate K1
-		std::unordered_map<std::string, double> K1;
-
-		double K1_Iion;
-		FunctionsContainer.get_time_dependent_variables(t,Time_Dependent_Variables_Container);
-		FunctionsContainer.get_derivatives(Vm,
-											Variables,
-											t,
-											dt,
-											cell_type,
-											Other_Parameters,
-											Time_Dependent_Variables_Container,
-
-											K1, K1_Iion);
-		
-		//Calculate K2
-		std::unordered_map<std::string, double> K2;
-		double K2_Iion;
-		FunctionsContainer.get_time_dependent_variables(t+(dt/2.0),Time_Dependent_Variables_Container);
-		FunctionsContainer.get_derivatives(Vm - (dt/2.0)*(K1_Iion + FunctionsContainer.get_stimulus_current(t+dt/2.0)),
-											add_unordered_maps(Variables, K1, (dt/2.0), names_of_cell_variables),
-											t+(dt/2.0),
-											dt,
-											cell_type,
-											Other_Parameters,
-											Time_Dependent_Variables_Container,
-											
-											K2, K2_Iion);
-
-		//Calculate K3
-		std::unordered_map<std::string, double> K3;
-		double K3_Iion;
-		FunctionsContainer.get_time_dependent_variables(t+(dt/2.0),Time_Dependent_Variables_Container);
-		FunctionsContainer.get_derivatives(Vm - (dt/2.0)*(K2_Iion + FunctionsContainer.get_stimulus_current(t+dt/2.0)),
-											add_unordered_maps(Variables, K2, (dt/2.0), names_of_cell_variables),
-											t+(dt/2.0),
-											dt,
-											cell_type,
-											Other_Parameters,
-											Time_Dependent_Variables_Container,
-
-											K3, K3_Iion);
-
-		//Calculate K4
-		std::unordered_map<std::string, double> K4;
-		double K4_Iion;
-		FunctionsContainer.get_time_dependent_variables(t+dt,Time_Dependent_Variables_Container);
-		FunctionsContainer.get_derivatives(Vm - dt*(K3_Iion + FunctionsContainer.get_stimulus_current(t+dt)),
-											add_unordered_maps(Variables, K3, dt, names_of_cell_variables),
-											t+dt,
-											dt,
-											cell_type,
-											Other_Parameters,
-											Time_Dependent_Variables_Container,
-
-											K4, K4_Iion);
-
-
-		//Calculate the next timestep values of everything
-		for(auto it = names_of_cell_variables.begin(); it != names_of_cell_variables.end(); ++it){
-			New_Variables[*it] = Variables.at(*it) + (dt/6.0)*(K1.at(*it) + 2.0*K2.at(*it) + 2.0*K3.at(*it) + K4.at(*it));
-
-			// std::cout << "New Var " << New_Variables.at(*it) << std::endl;
-		}
-		New_Vm = Vm - (dt/6.0)*(K1_Iion + FunctionsContainer.get_stimulus_current(t) + 2.0*(K2_Iion + FunctionsContainer.get_stimulus_current(t+dt/2.0)) + 2.0*(K3_Iion+ FunctionsContainer.get_stimulus_current(t+dt/2.0)) + (K4_Iion+ FunctionsContainer.get_stimulus_current(t+dt)));
-
-		// std::cout << "New Vm " << New_Vm << std::endl;
-
-		// exit(0);
-	}
-
-
-
-
-}
-
+} //End namespace
 
 #endif

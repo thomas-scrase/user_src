@@ -3,13 +3,19 @@
 
 # Define the sources
 sources =  \
-TNNP_06_Updated.cc
+TNNP_06_Updated.cc \
+TomekORudy_Updated.cc \
+TNNP_06_MC_IKr.cc
 
 
 # Define the headers
 headers =  \
 cell_model_base_updated.h \
-TNNP_06_Updated.h
+TNNP_06_Updated.h \
+validate_cell.h \
+validate_NSpecies_Lotka_Volterra.h \
+TomekORudy_Updated.h \
+TNNP_06_MC_IKr.h 
 
 # Define name of library
 libname = cell_model_updated

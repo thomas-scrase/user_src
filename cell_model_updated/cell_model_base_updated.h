@@ -15,8 +15,6 @@
   #include <oomph-lib-config.h>
 #endif
 
-#include <unordered_map>
-
 //OOMPH-LIB includes
 #include "../generic/nodes.h"
 #include "../generic/oomph_utilities.h"
@@ -41,7 +39,7 @@ namespace oomph{
 
 			// std::cout << "Names of variables size at base construction " << Names_Of_Cell_Variables.size() << std::endl;
 		}
-		~CellModelBaseUpdated(){}
+		virtual ~CellModelBaseUpdated(){}
 		
 
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -79,14 +77,15 @@ namespace oomph{
 		//	The user also provides the Iion which is the total transmembrane ionic current, which must be in pA/pF, i.e. current per capacitance
 		//	 this way the membrane capacitance doesn't need to be passed to any other methods and the computations are neater.
 		virtual void Calculate_Derivatives(const double &Vm,
-													std::unordered_map<std::string, double> CellVariables,
-													const double &t,
-													const double &dt,
-													const unsigned &cell_type,
-													std::unordered_map<std::string, double> Other_Parameters,
-													std::unordered_map<std::string, double> Other_Variables,
-													std::unordered_map<std::string, double> &Variable_Derivatives,
-													double &Iion)
+											const Vector<double> &CellVariables,
+											const double &t,
+											const unsigned &cell_type,
+											const double &Istim,
+											const Vector<double> &Other_Parameters,
+											const Vector<double> &Other_Variables,
+
+											Vector<double> &Variable_Derivatives,
+											double &Iion)
 		{
 			//Broken by default
 			throw OomphLibError("Calculate_Derivatives: This function has not been implemented yet",
@@ -97,10 +96,17 @@ namespace oomph{
 
 		//Generate an unordered map of data required by things outside of the cell model, this could be
 		//	active strain, or perhaps ion channel currents, or ionic species concentrations, we want to keep track of
-		virtual std::unordered_map<std::string, double> get_data_output()
+		virtual void get_optional_output(const double &Vm,
+									const Vector<double> &CellVariables,
+									const double &t,
+									const unsigned &cell_type,
+									const double &Istim,
+									const Vector<double> &Other_Parameters,
+									const Vector<double> &Other_Variables,
+									Vector<double> &Out) const
 		{
 			//Broken by default
-			throw OomphLibError("get_data_output: This function has not been implemented yet",
+			throw OomphLibError("get_optional_output: This function has not been implemented yet",
 				OOMPH_CURRENT_FUNCTION,
 				OOMPH_EXCEPTION_LOCATION);
 		}
@@ -113,40 +119,85 @@ namespace oomph{
 		//The names given to the cell variables, we use this because it's more user friendly,
 		// it means a user does not need to also provide the number of cell variables, and they
 		// can just call the variables by name rather than worrying about index
-		std::vector<std::string> names_of_cell_variables() const
+		const std::vector<std::string>& names_of_cell_variables() const
 		{
-			// std::cout << "Names of variables size " << Names_Of_Cell_Variables.size() << std::endl;
 			return Names_Of_Cell_Variables;
 		}
 
 		//The names of the other parameters passed to the function, we provide this for error checking,
 		//	if the library is built with DPARANOID then we can automatically check to ensure that the
 		//	user is correctly creating the other parameters data.
-		std::vector<std::string> names_of_other_parameters() const
+		const std::vector<std::string>& names_of_other_parameters() const
 		{
 			return Names_Of_Other_Parameters;
 		}
 
 		//Same as above but for other variables which are in general time dependent.
-		std::vector<std::string> names_of_other_variables() const
+		const std::vector<std::string>& names_of_other_variables() const
 		{
 			return Names_Of_Other_Variables;
 		}
 
 		//Same as above but for the data the cell model returns for other things to use
-		std::vector<std::string> get_data_output_names()
+		const std::vector<std::string>& names_of_output_data() const 
 		{
 			return Names_Of_Output_Data;
 		}
 
 
+		const unsigned get_Num_Cell_Vars() const{
+			return Num_Cell_Vars;
+		}
+		const unsigned get_Num_Other_Params() const{
+			return 	Num_Other_Params;
+		}
+		const unsigned get_Num_Other_Vars() const{
+			return 	Num_Other_Vars;
+		}
+		const unsigned get_Num_Output_Data() const{
+			return 	Num_Output_Data;
+		}
+
 	protected:
 		//The vectors of variable names, these need to be assigned at construction of the cell model.
-
+		//	these are used for the headers of output files
 		std::vector<std::string> Names_Of_Cell_Variables;
 		std::vector<std::string> Names_Of_Other_Parameters;
 		std::vector<std::string> Names_Of_Other_Variables;
 		std::vector<std::string> Names_Of_Output_Data;
+
+		//The number of variables, these avoid unnecessary overhead by constantly calling Names_Of_Cell_Variables.size() etc
+		//	They are set automatically by the following function which must be called by the user at the end of their cell
+		//	class
+		unsigned Num_Cell_Vars;
+		unsigned Num_Other_Params;
+		unsigned Num_Other_Vars;
+		unsigned Num_Output_Data;
+
+		void FinalizeConstruction()
+		{
+			Num_Cell_Vars = 	Names_Of_Cell_Variables.size();
+			Num_Other_Params = 	Names_Of_Other_Parameters.size();
+			Num_Other_Vars = 	Names_Of_Other_Variables.size();
+			Num_Output_Data = 	Names_Of_Output_Data.size();
+
+			// std::cout << Num_Cell_Vars << std::endl;
+			// std::cout << Num_Other_Params << std::endl;
+			// std::cout << Num_Other_Vars << std::endl;
+			// std::cout << Num_Output_Data << std::endl;
+		}
+
+
+
+		//Enums which contain the names of the variables, these are used for several reasons
+		//	1. Make it easier to index vectors containing variables and variable derivatives
+		//	2. Make removing and adding variables from and to a model easier. You don't need
+		//		to shift the indexing of vectors, just use the correct enumerator from the
+		//		enums below
+		// enum Cell_Variables_Enum	: unsigned;
+		// enum Other_Parameters_Enum	: unsigned;
+		// enum Other_Variables_Enum	: unsigned;
+		// enum Output_Data_Enum		: unsigned;
 
 
 	private:

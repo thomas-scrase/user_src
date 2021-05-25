@@ -73,8 +73,8 @@ ExplicitTNNP06VentUpdated::ExplicitTNNP06VentUpdated(){ //: CellModelBaseUpdated
 		"sxr2",
 		"sxs",
 		"y",
-		"sRR",
-		"sOO"
+		"sRR"//,
+		// "sOO"
 	};
 	Names_Of_Other_Parameters =
 	{
@@ -86,11 +86,13 @@ ExplicitTNNP06VentUpdated::ExplicitTNNP06VentUpdated(){ //: CellModelBaseUpdated
 	};
 	Names_Of_Output_Data =
 	{
-
+		// "EKs",
+		// "IKs"
 	};
 
-	// std::cout << "Names of variables size at TNNP06 construction " << Names_Of_Cell_Variables.size() << std::endl;
+	FinalizeConstruction();
 }
+
 
 
 double ExplicitTNNP06VentUpdated::return_initial_state_variable(const unsigned &v, const unsigned &cell_type)
@@ -157,41 +159,64 @@ double ExplicitTNNP06VentUpdated::return_initial_membrane_potential(const unsign
 }
 
 void ExplicitTNNP06VentUpdated::Calculate_Derivatives(const double &Vm,
-											std::unordered_map<std::string, double> CellVariables,
+											const Vector<double> &CellVariables,
 											const double &t,
-											const double &dt,
 											const unsigned &cell_type,
-											std::unordered_map<std::string, double> Other_Parameters,
-											std::unordered_map<std::string, double> Other_Variables,
-											std::unordered_map<std::string, double> &Variable_Derivatives,
+											const double &Istim,
+											const Vector<double> &Other_Parameters,
+											const Vector<double> &Other_Variables,
+											
+											Vector<double> &Variable_Derivatives,
 											double &Iion)
 {
+	// std::cout << "boom" << std::endl;
 	//Get all the cell variables
-	const double Cai	= CellVariables["Cai"];
-	const double Nai	= CellVariables["Nai"];
-	const double Ki		= CellVariables["Ki"];
-	const double CaSRf	= CellVariables["CaSRf"];
-	const double CaSS	= CellVariables["CaSS"];
-	const double sm		= CellVariables["sm"];
-	const double sh		= CellVariables["sh"];
-	const double sj		= CellVariables["sj"];
-	const double sd		= CellVariables["sd"];
-	const double sf		= CellVariables["sf"];
-	const double sf2	= CellVariables["sf2"];
-	const double sfcass	= CellVariables["sfcass"];
-	const double sr		= CellVariables["sr"];
-	const double ss		= CellVariables["ss"];
-	const double sxr1	= CellVariables["sxr1"];
-	const double sxr2	= CellVariables["sxr2"];
-	const double sxs	= CellVariables["sxs"];
-	const double y		= CellVariables["y"];
-	const double sRR	= CellVariables["sRR"];
-	const double sOO	= CellVariables["sOO"];
+	const double Cai	= CellVariables[Cai_TT];
+	const double Nai	= CellVariables[Nai_TT];
+	const double Ki		= CellVariables[Ki_TT];
+	const double CaSRf	= CellVariables[CaSRf_TT];
+	const double CaSS	= CellVariables[CaSS_TT];
+	const double sm		= CellVariables[sm_TT];
+	const double sh		= CellVariables[sh_TT];
+	const double sj		= CellVariables[sj_TT];
+	const double sd		= CellVariables[sd_TT];
+	const double sf		= CellVariables[sf_TT];
+	const double sf2	= CellVariables[sf2_TT];
+	const double sfcass	= CellVariables[sfcass_TT];
+	const double sr		= CellVariables[sr_TT];
+	const double ss		= CellVariables[ss_TT];
+	const double sxr1	= CellVariables[sxr1_TT];
+	const double sxr2	= CellVariables[sxr2_TT];
+	const double sxs	= CellVariables[sxs_TT];
+	const double y		= CellVariables[y_TT];
+	const double sRR	= CellVariables[sRR_TT];
+	// const double sOO	= CellVariables[sOO_TT];
 
-	const double ZIndex = Other_Parameters["ZIndex"];
+	// std::cout << "Cai " << Cai << std::endl;
+	// std::cout << "Nai " << Nai << std::endl;
+	// std::cout << "Ki " << Ki << std::endl;
+	// std::cout << "CaSRf " << CaSRf << std::endl;
+	// std::cout << "CaSS " << CaSS << std::endl;
+	// std::cout << "sm " << sm << std::endl;
+	// std::cout << "sh " << sh << std::endl;
+	// std::cout << "sj " << sj << std::endl;
+	// std::cout << "sd " << sd << std::endl;
+	// std::cout << "sf " << sf << std::endl;
+	// std::cout << "sf2 " << sf2 << std::endl;
+	// std::cout << "sfcass " << sfcass << std::endl;
+	// std::cout << "sr " << sr << std::endl;
+	// std::cout << "ss " << ss << std::endl;
+	// std::cout << "sxr1 " << sxr1 << std::endl;
+	// std::cout << "sxr2 " << sxr2 << std::endl;
+	// std::cout << "sxs " << sxs << std::endl;
+	// std::cout << "y " << y << std::endl;
+	// std::cout << "sRR " << sRR << std::endl;
+	// std::cout << "sOO " << sOO << std::endl;
+
+	const double ZIndex = Other_Parameters[ZIndex_TT];
 
 
-	static double Tent_RTONF = (Tent_R * Tent_T / Tent_F);
+	// static double Tent_RTONF = (Tent_R * Tent_T / Tent_F);
 	static double Tent_inverseVcF2  =  (1. / (2 * Tent_Vc * Tent_F));
 	static double Tent_inverseVcF   =  (1. / (Tent_Vc * Tent_F));
 	static double Tent_inversevssF2 = (1. / (2 * Tent_Vss * Tent_F));
@@ -221,6 +246,7 @@ void ExplicitTNNP06VentUpdated::Calculate_Derivatives(const double &Vm,
 	Ek = Tent_RTONF * (log((Tent_Ko / Ki)));
 	Ena = Tent_RTONF * (log((Tent_Nao / Nai)));
 	Eks = Tent_RTONF * (log((Tent_Ko + Tent_pKNa * Tent_Nao) / (Ki + Tent_pKNa * Nai)));
+	// Eks = Tent_RTONF * (log((Tent_Ko + Tent_pKNa * Tent_Nao) / (Ki + Tent_pKNa * 7.67)));
 	Eca = 0.5 * Tent_RTONF * (log((Tent_Cao / Cai)));
 
 	/*if (cell_type == 13 || cell_type == 14 || cell_type == 15)
@@ -411,6 +437,16 @@ void ExplicitTNNP06VentUpdated::Calculate_Derivatives(const double &Vm,
 		ifk = Gfk * y * (Vm - Ek);
 		If = ifk + ifna;
 	} else {
+		//this was not in the original, but to minimise changes we must set these parameters such that the derivatives
+		//	of these variables are zero rather than nans
+		Gfna = 0.0145654;
+		Gfk = 0.0234346;
+		y_inf = y;
+		Ay = 1.0;
+		By = 1.0;
+		tau_y = 1.0;
+
+
 		ifna = 0.0;
 		ifk = 0.0;
 		If = 0.0;
@@ -436,29 +472,35 @@ void ExplicitTNNP06VentUpdated::Calculate_Derivatives(const double &Vm,
 	dRR = Tent_k4 * (1 - sRR) - k2 * CaSS * sRR;
 	// sRR += dt * dRR;
 	// sOO = k1 * CaSS * CaSS * sRR / (Tent_k3 + k1 * CaSS * CaSS);
+	const double sOO = k1 * CaSS * CaSS * sRR / (Tent_k3 + k1 * CaSS * CaSS);
 
 	Irel = Tent_Vrel * sOO * (CaSRf - CaSS);
 	Ileak = Tent_Vleak * (CaSRf - Cai);
 	Iup = Tent_Vmaxup / (1. + ((Tent_Kup * Tent_Kup) / (Cai * Cai)));
 	Ixfer = Tent_Vxfer * (CaSS - Cai);
 
-	CaCSQN = Tent_Bufsr * CaSRf / (CaSRf + Tent_Kbufsr);
-	dCaSR = dt * (Iup - Irel - Ileak);
-	bjsr = Tent_Bufsr - CaCSQN - dCaSR - CaSRf + Tent_Kbufsr;
-	cjsr = Tent_Kbufsr * (CaCSQN + dCaSR + CaSRf);
-	// CaSRf = (sqrt(bjsr * bjsr + 4 * cjsr) - bjsr) / 2;
+	// CaCSQN = Tent_Bufsr * CaSRf / (CaSRf + Tent_Kbufsr);
+	// dCaSR = dt * (Iup - Irel - Ileak);
+	// bjsr = Tent_Bufsr - CaCSQN - dCaSR - CaSRf + Tent_Kbufsr;
+	// cjsr = Tent_Kbufsr * (CaCSQN + dCaSR + CaSRf);
+	// // CaSRf = (sqrt(bjsr * bjsr + 4 * cjsr) - bjsr) / 2;
+	dCaSR = (Iup - Irel - Ileak)/(1.0  + (Tent_Kbufsr*Tent_Bufsr)/pow(CaSRf + Tent_Kbufsr, 2.0));
 
-	CaSSBuf = Tent_Bufss * CaSS / (CaSS + Tent_Kbufss);
-	dCaSS = dt * (-Ixfer * (Tent_Vc / Tent_Vss) + Irel * (Tent_Vsr / Tent_Vss) + (-ICaL * Tent_inversevssF2 * Tent_CAPACITANCE));
-	bcss = Tent_Bufss - CaSSBuf - dCaSS - CaSS + Tent_Kbufss;
-	ccss = Tent_Kbufss * (CaSSBuf + dCaSS + CaSS);
-	// CaSS = (sqrt(bcss * bcss + 4 * ccss) - bcss) / 2;
+	// CaSSBuf = Tent_Bufss * CaSS / (CaSS + Tent_Kbufss);
+	// dCaSS = dt * (-Ixfer * (Tent_Vc / Tent_Vss) + Irel * (Tent_Vsr / Tent_Vss) + (-ICaL * Tent_inversevssF2 * Tent_CAPACITANCE));
+	// bcss = Tent_Bufss - CaSSBuf - dCaSS - CaSS + Tent_Kbufss;
+	// ccss = Tent_Kbufss * (CaSSBuf + dCaSS + CaSS);
+	// // CaSS = (sqrt(bcss * bcss + 4 * ccss) - bcss) / 2;
+	dCaSS =(-Ixfer * (Tent_Vc / Tent_Vss) + Irel * (Tent_Vsr / Tent_Vss) + (-ICaL * Tent_inversevssF2 * Tent_CAPACITANCE))/(1.0 + (Tent_Bufss*Tent_Kbufss)/pow(CaSS+Tent_Kbufss, 2.0));
 
-	CaBuf = Tent_Bufc * Cai / (Cai + Tent_Kbufc);
-	dCai = dt * ((-(IbCa + IpCa - 2 * INaCa) * Tent_inverseVcF2 * Tent_CAPACITANCE) - (Iup - Ileak) * (Tent_Vsr / Tent_Vc) + Ixfer);
-	bc = Tent_Bufc - CaBuf - dCai - Cai + Tent_Kbufc;
-	cc = Tent_Kbufc * (CaBuf + dCai + Cai);
-	// Cai = (sqrt(bc * bc + 4 * cc) - bc) / 2;
+
+	// CaBuf = Tent_Bufc * Cai / (Cai + Tent_Kbufc);
+	// dCai = dt * ((-(IbCa + IpCa - 2 * INaCa) * Tent_inverseVcF2 * Tent_CAPACITANCE) - (Iup - Ileak) * (Tent_Vsr / Tent_Vc) + Ixfer);
+	// bc = Tent_Bufc - CaBuf - dCai - Cai + Tent_Kbufc;
+	// cc = Tent_Kbufc * (CaBuf + dCai + Cai);
+	// // Cai = (sqrt(bc * bc + 4 * cc) - bc) / 2;
+	dCai = ((-(IbCa + IpCa - 2 * INaCa) * Tent_inverseVcF2 * Tent_CAPACITANCE) - (Iup - Ileak) * (Tent_Vsr / Tent_Vc) + Ixfer)/(1.0 + (Tent_Bufc*Tent_Kbufc)/pow(Cai + Tent_Kbufc, 2.0));
+	
 
 	dNai = -(INa + IbNa + 3 * INaK + 3 * INaCa + ifna) * Tent_inverseVcF * Tent_CAPACITANCE;
 	// Nai += dt * dNai;
@@ -468,40 +510,130 @@ void ExplicitTNNP06VentUpdated::Calculate_Derivatives(const double &Vm,
 
 
 	//Set the values of the variable derivatives
-	Variable_Derivatives["Cai"] 	= ((sqrt(bc * bc + 4 * cc) - bc) / 2 - Cai)/dt;
-	Variable_Derivatives["Nai"]		= dNai;
-	Variable_Derivatives["Ki"]		= dKi;
-	Variable_Derivatives["CaSRf"]	= ((sqrt(bjsr * bjsr + 4 * cjsr) - bjsr) / 2 - CaSRf)/dt;
-	Variable_Derivatives["CaSS"]	= ((sqrt(bcss * bcss + 4 * ccss) - bcss) / 2 - CaSS)/dt;
-	Variable_Derivatives["sm"]		= (M_INF - (M_INF - sm) * exp(-dt / TAU_M) - sm)/dt;
-	Variable_Derivatives["sh"]		= (H_INF - (H_INF - sh) * exp(-dt / TAU_H) - sh)/dt;
-	Variable_Derivatives["sj"]		= (J_INF - (J_INF - sj) * exp(-dt / TAU_J) - sj)/dt;
-	Variable_Derivatives["sd"]		= (D_INF - (D_INF - sd) * exp(-dt / TAU_D) - sd)/dt;
-	Variable_Derivatives["sf"]		= (F_INF - (F_INF - sf) * exp(-dt / TAU_F) - sf)/dt;
-	Variable_Derivatives["sf2"]		= (F2_INF - (F2_INF - sf2) * exp(-dt / TAU_F2) - sf2)/dt;
-	Variable_Derivatives["sfcass"]	= (FCaSS_INF - (FCaSS_INF - sfcass) * exp(-dt / TAU_FCaSS) - sfcass)/dt;
-	Variable_Derivatives["sr"]		= (S_INF - (S_INF - sr) * exp(-dt / TAU_S) - sr)/dt;
-	Variable_Derivatives["ss"]		= (S_INF - (S_INF - ss) * exp(-dt / TAU_S) - ss)/dt;
-	Variable_Derivatives["sxr1"]	= (Xr1_INF - (Xr1_INF - sxr1) * exp(-dt / TAU_Xr1) - sxr1)/dt;
-	Variable_Derivatives["sxr2"]	= (Xr2_INF - (Xr2_INF - sxr2) * exp(-dt / TAU_Xr2) - sxr2)/dt;
-	Variable_Derivatives["sxs"]		= (Xs_INF - (Xs_INF - sxs) * exp(-dt / TAU_Xs) - sxs)/dt;
-	Variable_Derivatives["y"]		= (y_inf - (y_inf - y) * exp(-dt / tau_y) - y)/dt;
-	Variable_Derivatives["sRR"]		= dRR;
-	Variable_Derivatives["sOO"]		= (k1 * CaSS * CaSS * sRR / (Tent_k3 + k1 * CaSS * CaSS) -sOO)/dt;
+	// Variable_Derivatives[Cai_TT] 	= ((sqrt(bc * bc + 4 * cc) - bc) / 2 - Cai)/dt;
+	// Variable_Derivatives[Nai_TT]		= dNai;
+	// Variable_Derivatives[Ki_TT]		= dKi;
+	// Variable_Derivatives[CaSRf_TT]	= ((sqrt(bjsr * bjsr + 4 * cjsr) - bjsr) / 2 - CaSRf)/dt;
+	// Variable_Derivatives[CaSS_TT]	= ((sqrt(bcss * bcss + 4 * ccss) - bcss) / 2 - CaSS)/dt;
+	// Variable_Derivatives[sm_TT]		= (M_INF - (M_INF - sm) * exp(-dt / TAU_M) - sm)/dt;
+	// Variable_Derivatives[sh_TT]		= (H_INF - (H_INF - sh) * exp(-dt / TAU_H) - sh)/dt;
+	// Variable_Derivatives[sj_TT]		= (J_INF - (J_INF - sj) * exp(-dt / TAU_J) - sj)/dt;
+	// Variable_Derivatives[sd_TT]		= (D_INF - (D_INF - sd) * exp(-dt / TAU_D) - sd)/dt;
+	// Variable_Derivatives[sf_TT]		= (F_INF - (F_INF - sf) * exp(-dt / TAU_F) - sf)/dt;
+	// Variable_Derivatives[sf2_TT]		= (F2_INF - (F2_INF - sf2) * exp(-dt / TAU_F2) - sf2)/dt;
+	// Variable_Derivatives[sfcass_TT]	= (FCaSS_INF - (FCaSS_INF - sfcass) * exp(-dt / TAU_FCaSS) - sfcass)/dt;
+	// Variable_Derivatives[sr_TT]		= (S_INF - (S_INF - sr) * exp(-dt / TAU_S) - sr)/dt;
+	// Variable_Derivatives[ss_TT]		= (S_INF - (S_INF - ss) * exp(-dt / TAU_S) - ss)/dt;
+	// Variable_Derivatives[sxr1_TT]	= (Xr1_INF - (Xr1_INF - sxr1) * exp(-dt / TAU_Xr1) - sxr1)/dt;
+	// Variable_Derivatives[sxr2_TT]	= (Xr2_INF - (Xr2_INF - sxr2) * exp(-dt / TAU_Xr2) - sxr2)/dt;
+
+	// Variable_Derivatives[sr_TT]		= (S_INF - sr)/ TAU_S;
+	// Variable_Derivatives[ss_TT]		= (S_INF - ss)/ TAU_S;
+	// Variable_Derivatives[sxr1_TT]	= (Xr1_INF - sxr1)/ TAU_Xr1;
+	// Variable_Derivatives[sxr2_TT]	= (Xr2_INF - sxr2)/ TAU_Xr2;
+	// Variable_Derivatives[sxs_TT]		= (Xs_INF - (Xs_INF - sxs) * exp(-dt / TAU_Xs) - sxs)/dt;
+	// Variable_Derivatives[y_TT]		= (y_inf - (y_inf - y) * exp(-dt / tau_y) - y)/dt;
+	// Variable_Derivatives[sRR_TT]		= dRR;
+	// Variable_Derivatives[sOO_TT]		= (k1 * CaSS * CaSS * sRR / (Tent_k3 + k1 * CaSS * CaSS) -sOO)/dt;
+
+
+	//Set the values of the variable derivatives
+	
+	
+
+
+	// Variable_Derivatives[Cai_TT] 	= ((sqrt(bc * bc + 4 * cc) - bc) / 2 - Cai)/dt;
+	// Variable_Derivatives[CaSRf_TT]	= ((sqrt(bjsr * bjsr + 4 * cjsr) - bjsr) / 2 - CaSRf)/dt;
+	// Variable_Derivatives[CaSS_TT]	= ((sqrt(bcss * bcss + 4 * ccss) - bcss) / 2 - CaSS)/dt;
+	Variable_Derivatives[Cai_TT] 		= dCai;			//((sqrt(bc * bc + 4 * cc) - bc) / 2 - Cai)/dt;
+	Variable_Derivatives[Nai_TT]		= dNai;
+	Variable_Derivatives[Ki_TT]			= dKi;
+	Variable_Derivatives[CaSRf_TT]		= dCaSR;		//((sqrt(bjsr * bjsr + 4 * cjsr) - bjsr) / 2 - CaSRf)/dt;
+	Variable_Derivatives[CaSS_TT]		= dCaSS;		//((sqrt(bcss * bcss + 4 * ccss) - bcss) / 2 - CaSS)/dt;
+	Variable_Derivatives[sm_TT]			= (1.0 / TAU_M)*(M_INF - sm);
+	Variable_Derivatives[sh_TT]			= (1.0 / TAU_H)*(H_INF - sh);
+	Variable_Derivatives[sj_TT]			= (1.0 / TAU_J)*(J_INF - sj);
+	Variable_Derivatives[sd_TT]			= (1.0 / TAU_D)*(D_INF - sd);
+	Variable_Derivatives[sf_TT]			= (1.0 / TAU_F)*(F_INF - sf);
+	Variable_Derivatives[sf2_TT]		= (1.0 / TAU_F2)*(F2_INF - sf2);
+	Variable_Derivatives[sfcass_TT]		= (1.0 / TAU_FCaSS)*(FCaSS_INF - sfcass);
+	Variable_Derivatives[sr_TT]			= (1.0 / TAU_S)*(S_INF - sr);
+	Variable_Derivatives[ss_TT]			= (1.0 / TAU_S)*(S_INF - ss);
+	Variable_Derivatives[sxr1_TT]		= (1.0 / TAU_Xr1)*(Xr1_INF - sxr1);
+	Variable_Derivatives[sxr2_TT]		= (1.0 / TAU_Xr2)*(Xr2_INF - sxr2);
+	Variable_Derivatives[sxs_TT]		= (1.0 / TAU_Xs)*(Xs_INF - sxs);
+	Variable_Derivatives[y_TT]			= (1.0 / tau_y)*(y_inf - y);
+	Variable_Derivatives[sRR_TT]		= dRR;
 
 	//Set the value of the total ionic current
-	Iion = (IKr + IKs + IK1 + Ito + Isus + (INa) + IbNa + ICaL + IbCa + INaK + INaCa + IpCa + IpK + (If));
+	Iion = -(IKr + IKs + IK1 + Ito + Isus + (INa) + IbNa + ICaL + IbCa + INaK + INaCa + IpCa + IpK + (If) + Istim);
+
+	for(unsigned i=0; i<Num_Cell_Vars; i++){
+		if(!std::isfinite(Variable_Derivatives[i])){
+			// oomph_info << "Shuffling " << i << "th derivative due to NaN" << std::endl;
+			Variable_Derivatives[i] = ((double)std::rand()/(RAND_MAX));
+		}
+	}
+	if(!std::isfinite(Iion)){
+		// oomph_info << "Shuffling iion due to NaN" << std::endl;
+		Iion = ((double)std::rand()/(RAND_MAX));
+	}
 }
 
 
 
 
 
-std::unordered_map<std::string, double> ExplicitTNNP06VentUpdated::get_data_output()
-{
-	std::unordered_map<std::string, double> OutputData;
+void ExplicitTNNP06VentUpdated::get_optional_output(const double &Vm,
+												const Vector<double> &CellVariables,
+												const double &t,
+												const unsigned &cell_type,
+												const double &Istim,
+												const Vector<double> &Other_Parameters,
+												const Vector<double> &Other_Variables,
 
-	return OutputData;
+												Vector<double> &Out) const
+{
+	// const double sxs	= CellVariables[sxs_TT];
+
+	// const double Nai	= CellVariables[Nai_TT];
+	// const double Ki		= CellVariables[Ki_TT];
+
+	// const double Eks = Tent_RTONF * (log((Tent_Ko + Tent_pKNa * Tent_Nao) / (Ki + Tent_pKNa * Nai)));
+
+	// // double iks_right_ventricle_factor;
+ // //    if (cell_type == 103 || cell_type == 105 || cell_type == 104)
+	// // 	iks_right_ventricle_factor = 2.0;
+	// // else 
+	// // 	iks_right_ventricle_factor = 1.0;
+	
+ // //    //OURS
+ // //    double Gks;
+ // //    if (cell_type == 100 || cell_type == 103)		Gks = 0.392 * iks_right_ventricle_factor; 
+ // //    else if (cell_type == 102 || cell_type == 105)  Gks = 0.392 * iks_right_ventricle_factor;
+ // //    else if (cell_type == 101 || cell_type == 104) Gks = 0.098 * iks_right_ventricle_factor; 
+
+	// double Gks;
+	// if (cell_type == 108 || cell_type == 107 || cell_type == 106)
+	// 	Gks = 0.2352;
+	// else if (cell_type == 101)
+	// 	Gks = 0.098;
+	// else if (cell_type == 102 || cell_type == 100)
+	// 	Gks = 0.392;
+	// else if (cell_type == 104)
+	// 	Gks = 0.098 * 2;
+	// else
+	// 	Gks = 0.392 * 2;
+
+	// // Xs_INF = 1. / (1. + exp((-5. - Vm) / 14.));
+	// // Axs = (1400. / (sqrt(1. + exp((5. - Vm) / 6))));
+	// // Bxs = (1. / (1. + exp((Vm - 35.) / 15.)));
+	// // TAU_Xs = Axs * Bxs + 80;
+	
+	// // sxs = Xs_INF - (Xs_INF - sxs) * exp(-dt / TAU_Xs);
+	
+	// Out[EKs_TT] = Eks;
+ //    Out[IKs_TT] = Gks * sxs * sxs * (Vm - Eks);
 }
 
 

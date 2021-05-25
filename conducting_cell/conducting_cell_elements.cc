@@ -1,5 +1,11 @@
 #include "conducting_cell_elements.h"
 
+#include "../cell_model_updated/TNNP_06_Updated.h"
+#include "../cell_model_updated/validate_cell.h"
+#include "../cell_model_updated/validate_NSpecies_Lotka_Volterra.h"
+#include "../cell_model_updated/TomekORudy_Updated.h"
+#include "../cell_model_updated/TNNP_06_MC_IKr.h"
+
 
 namespace oomph
 {
@@ -72,4 +78,26 @@ namespace oomph
 	// {
 	// 	return (static_cast<CLASS*>(context)->get_other_variables(t));
 	// }
+
+	// template class FastSingleCellUpdated<TNNP06MCIKr>;
+
+	// template class FastSingleCellUpdated<ExplicitTNNP06VentUpdated>;
+
+	// template class FastSingleCellUpdated<TomekORudyVentUpdated>;
+
+	// template class FastSingleCellUpdated<ValidateCell>;
+
+	// template class FastSingleCellUpdated<ValidateCellLotkaVolterra>;
+
+
+	// template<class CELL_MODEL>
+	// template class ConductingCellEquations<CELL_MODEL, MonodomainEquations<1>>;
+
+
+	// template<class CELL_MODEL>
+	// template class ConductingCellEquations<CELL_MODEL, MonodomainEquations<2>>;
+
+
+	// template<class CELL_MODEL>
+	// template class ConductingCellEquations<CELL_MODEL, MonodomainEquations<3>>;
 }
