@@ -5,6 +5,7 @@
 namespace oomph{
 	//Default variables used by the class
 	double NelderMeadOptimisation::Default_Acceptable_Edge_Length = 1e-4;
+	double NelderMeadOptimisation::Default_Acceptable_Homogenous_Fitness = 1e-4;
 
 
 
@@ -89,6 +90,11 @@ namespace oomph{
 	void NelderMeadOptimisation::evaluate_fitness_of_node(Vector<double> &node,
 														double &fitness,
 														std::ostream &raw_data_outfile){
+		if(Num_Concurrent_Node_Evaluation>Max_Num_Concurrent_Node_Evaluation){
+			Vector<unsigned> Sorted_node_indexes(this->n_variables()+1);
+			sort_nodes(Sorted_node_indexes);
+			node = Simplex[Sorted_node_indexes[0]]; //just set it to be the best node if we cannot find another non-nan node
+		}
 		//push the node to all dependent elements
 		push_optimisation_parameter_values_to_dependent_elements(node);
 		//condense the residuals from each trainable problem into
@@ -98,6 +104,38 @@ namespace oomph{
 		}
 		if(std::isnan(fitness)){
 			fitness = 1e300;
+
+			//So it's easy to match run number with output from sub problems
+			// raw_data_outfile << Evaluations_performed << "\t\t";
+			// for(unsigned var=0; var<this->n_variables(); var++){
+			// 	raw_data_outfile << node[var] << " ";
+			// }
+			// raw_data_outfile << std::to_string(std::nan("")) << std::endl;
+
+			// Evaluations_performed++;
+
+
+
+
+			// //Zero the faulty node
+			// for(unsigned v=0; v<this->n_variables(); v++){
+			// 	node[v] = 0.0;
+			// }
+
+			// //Create a new random node from the rest of the simplex				
+			// for(unsigned i=0; i<this->n_variables()+1; i++){
+			// 	std::srand(std::time(0));
+			// 	double ran_val = 2.0*((double)std::rand()/(RAND_MAX) - 0.5); //random number between -1 and 1
+			// 	for(unsigned v=0; v<this->n_variables(); v++){
+			// 		if(std::abs(Simplex[i][v] - node[v])<1e-12){continue;}//If the node vertex is identical to the one creating a nan then skip it
+			// 		node[v] += Simplex[i][v]/(this->n_variables()); //Take random weighted average over all nodes in the simplex, except the one we are changing
+			// 	}
+			// }
+
+			// //Call evaluate fitness again
+			// fitness = 0.0;
+			// Num_Concurrent_Node_Evaluation++;
+			// return evaluate_fitness_of_node(node, fitness, raw_data_outfile);
 		}
 
 		//So it's easy to match run number with output from sub problems
@@ -107,6 +145,7 @@ namespace oomph{
 		}
 		raw_data_outfile << fitness << std::endl;
 
+		Num_Concurrent_Node_Evaluation = 0;
 		Evaluations_performed++;
 	}
 
@@ -206,6 +245,20 @@ namespace oomph{
 		//	need to be reevaluated
 		double Maximum_Edge_Length = simplex_maximum_edge_length();
 		while(Maximum_Edge_Length > Acceptable_Edge_Length && Iterations < Max_Iters){
+
+			//Check if all fitnesses are identical, if they are then terminate
+			bool simplex_is_uniformly_fit = true;
+			for(unsigned i=1; i<this->n_variables()+1; i++){
+				if(std::abs(Node_Fitnesses[i]-Node_Fitnesses[i-1])>Acceptable_Homogenous_Fitness){simplex_is_uniformly_fit = false;break;}
+			}
+			if(simplex_is_uniformly_fit){
+				outfile << "Fitness of all nodes is identical and we don't know how to proceed. Terminating." << std::endl;
+				sort_nodes(Sorted_node_indexes);
+				best_node_index = Sorted_node_indexes[0];
+				//Return the best calculated node
+				return Simplex[best_node_index];
+			}
+
 			//Calculate maximum edge length
 			Maximum_Edge_Length = simplex_maximum_edge_length();
 			Iterations++;

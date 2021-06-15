@@ -3,12 +3,12 @@
 #-----------------------
 
 # Define the sources
-sources = multi_domain_cardiac_tissue_sub_elements.cc
+sources = 
 	
 # Define the headers
 headers = \
-	multi_domain_cardiac_tissue_sub_elements.h \
-	projectable_multi_domain_cardiac_tissue_sub_elements.h
+	updated_multi_domain_cardiac_tissue_sub_elements.h \
+	single_domain_cardiac_tissue_elements.h
 
 # Define name of library
 libname = component_multiphysics

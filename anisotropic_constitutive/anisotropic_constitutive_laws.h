@@ -1039,8 +1039,8 @@ private:
   double a;
   double b;
   double af;
-  double as;
   double bf;
+  double as;
   double bs;
   double afs;
   double bfs;

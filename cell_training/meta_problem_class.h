@@ -140,6 +140,8 @@ public:
 
 	NelderMeadOptimisation(){
 		Acceptable_Edge_Length = Default_Acceptable_Edge_Length;
+		Acceptable_Homogenous_Fitness = Default_Acceptable_Homogenous_Fitness;
+		Max_Num_Concurrent_Node_Evaluation = 10;
 		alpha = 1.0;
 		gamma = 2.0;
 		rho = 0.5;
@@ -167,6 +169,8 @@ public:
 
 	//set the acceptable length the largest edge of the simplex can have
 	void set_acceptable_edge_length(const double &new_acceptable_edge_length){Acceptable_Edge_Length = new_acceptable_edge_length;}
+
+	void set_acceptable_homogenous_fitness(const double &new_acceptable_homogenous_fitness){Acceptable_Homogenous_Fitness = new_acceptable_homogenous_fitness;}
 
 
 	void set_minimum_permitted_value(const Vector<double> &val){
@@ -256,6 +260,10 @@ private:
 	//And it's default value
 	static double Default_Acceptable_Edge_Length;
 
+	double Acceptable_Homogenous_Fitness;
+
+	static double Default_Acceptable_Homogenous_Fitness;
+
 	//Number of node evaluations we have performed
 	unsigned Evaluations_performed;
 
@@ -263,6 +271,10 @@ private:
 	unsigned Max_Iters;
 
 	unsigned Iterations;
+
+	unsigned Num_Concurrent_Node_Evaluation;
+
+	unsigned Max_Num_Concurrent_Node_Evaluation;
 
 
 	//Strongly applied boundaries

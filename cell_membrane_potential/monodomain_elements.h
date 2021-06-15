@@ -125,6 +125,16 @@ namespace oomph{
 		     DenseMatrix<double> D(DIM,DIM,0.0);
 		     this->get_diff_monodomain(ipt,s,interpolated_x,D);
 
+		     // for(unsigned i=0; i<DIM; i++){
+		     // 	std::string outstring;
+		     // 	for(unsigned j=0; j<DIM; j++){
+		     // 		outstring += std::to_string(D(i,j)) + " ";
+		     // 	}
+		     // 	oomph_info << outstring;
+		     // 	oomph_info << std::endl;
+		     // }
+		     // oomph_info << std::endl << std::endl;
+
 		     // Assemble residuals and Jacobian
 		     //--------------------------------
 		         

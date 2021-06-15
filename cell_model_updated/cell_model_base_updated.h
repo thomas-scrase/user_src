@@ -29,7 +29,7 @@ namespace oomph{
 	class CellModelBaseUpdated
 	{
 	public:
-		CellModelBaseUpdated()
+		CellModelBaseUpdated() : active_strain_index(-1)
 		{
 			//Resize the variable names vectors to zero
 			Names_Of_Cell_Variables.resize(0);
@@ -125,7 +125,7 @@ namespace oomph{
 		}
 
 		//The names of the other parameters passed to the function, we provide this for error checking,
-		//	if the library is built with DPARANOID then we can automatically check to ensure that the
+		//	if the library is built with PARANOID then we can automatically check to ensure that the
 		//	user is correctly creating the other parameters data.
 		const std::vector<std::string>& names_of_other_parameters() const
 		{
@@ -158,6 +158,19 @@ namespace oomph{
 			return 	Num_Output_Data;
 		}
 
+		inline unsigned get_index_of_active_strain() const{
+			#ifdef PARANOID
+			// oomph_info << "In fct which should die" << std::endl;
+			//If the user has failed to specify at which index the active strain is stored at then we throw an error 
+			if(active_strain_index<0){
+				throw OomphLibError("You appear to be attempting to access active strain stored in a cell element\nbut you haven't set the index at which it is stored. Please make sure that you override\nget_index_of_active_strain() to return the correct index you have stored it at.",
+			                       	OOMPH_CURRENT_FUNCTION,
+			                       	OOMPH_EXCEPTION_LOCATION);
+			}
+			#endif
+			return active_strain_index;
+		}
+
 	protected:
 		//The vectors of variable names, these need to be assigned at construction of the cell model.
 		//	these are used for the headers of output files
@@ -186,6 +199,9 @@ namespace oomph{
 			// std::cout << Num_Other_Vars << std::endl;
 			// std::cout << Num_Output_Data << std::endl;
 		}
+
+
+		int active_strain_index;
 
 
 
@@ -228,13 +244,13 @@ namespace oomph{
 	// 	//	by default this function will simply check if the passed cell type compatible
 	// 	//	with both cell models. If it is only compatible with one then return true for
 	// 	//	CELL_MODEL_1, or false for CELL_MODEL_2. If it is compatible with both then
-	// 	//	in DPARANOID throw an error.
+	// 	//	in PARANOID throw an error.
 	// 	//	Implemented as virtual so that user defined cell type distributions over
 	// 	//	the cell models can be used
 	// 	//		i.e. both models are of atria type but right atrium is to be computed
 	// 	//		by CELL_MODEL_2 and the rest are to be computed by CELL_MODEL_1
 	// 	virtual inline bool Identify_Correct_Cell_Model(const unsigned& cell_type){
-	// 		#ifdef DPARANOID
+	// 		#ifdef PARANOID
 	// 		if(CELL_MODEL_1::compatible_cell_types(cell_type) and CELL_MODEL_2::compatible_cell_types(cell_type)){
 	// 			throw OomphLibError("Cell type is compatible with both cell models, since paranoid is enabled I\n"
 	// 								"am killing the process. Please use non-overlapping cell models or alternatively redefine this function to\n"

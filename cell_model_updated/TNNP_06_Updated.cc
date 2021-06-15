@@ -86,6 +86,7 @@ ExplicitTNNP06VentUpdated::ExplicitTNNP06VentUpdated(){ //: CellModelBaseUpdated
 	};
 	Names_Of_Output_Data =
 	{
+		"ActiveStrain"
 		// "EKs",
 		// "IKs"
 	};
@@ -169,7 +170,6 @@ void ExplicitTNNP06VentUpdated::Calculate_Derivatives(const double &Vm,
 											Vector<double> &Variable_Derivatives,
 											double &Iion)
 {
-	// std::cout << "boom" << std::endl;
 	//Get all the cell variables
 	const double Cai	= CellVariables[Cai_TT];
 	const double Nai	= CellVariables[Nai_TT];

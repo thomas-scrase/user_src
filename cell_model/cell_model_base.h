@@ -295,13 +295,13 @@ namespace oomph{
 		//	by default this function will simply check if the passed cell type compatible
 		//	with both cell models. If it is only compatible with one then return true for
 		//	CELL_MODEL_1, or false for CELL_MODEL_2. If it is compatible with both then
-		//	in DPARANOID throw an error.
+		//	in PARANOID throw an error.
 		//	Implemented as virtual so that user defined cell type distributions over
 		//	the cell models can be used
 		//		i.e. both models are of atria type but right atrium is to be computed
 		//		by CELL_MODEL_2 and the rest are to be computed by CELL_MODEL_1
 		virtual inline bool Identify_Correct_Cell_Model(const unsigned& cell_type){
-			#ifdef DPARANOID
+			#ifdef PARANOID
 			if(CELL_MODEL_1::compatible_cell_types(cell_type) and CELL_MODEL_2::compatible_cell_types(cell_type)){
 				throw OomphLibError("Cell type is compatible with both cell models, since paranoid is enabled I\n"
 									"am killing the process. Please use non-overlapping cell models or alternatively redefine this function to\n"

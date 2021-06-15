@@ -734,6 +734,8 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
         {
          sigma(i,j) += C1*(Gup(i,k)*Gup(j,l)+Gup(i,l)*Gup(j,k)+
                            C2*Gup(i,j)*Gup(k,l))*strain(k,l);
+
+         sigma(i,j) += V[0]*A(i,0)*A(j,0);
         }
       }
     }
@@ -865,6 +867,8 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
         {
          sigma_dev(i,j) += 
           C1*(Gup(i,k)*Gup(j,l)+Gup(i,l)*Gup(j,k))*strain(k,l);
+
+          sigma_dev(i,j) += V[0]*A(i,0)*A(j,0);
         }
       }
     }

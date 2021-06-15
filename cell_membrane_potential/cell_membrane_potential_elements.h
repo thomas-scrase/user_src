@@ -111,6 +111,19 @@ public:
   return this->node_pt(n)->value(t, vm_index_BaseCellMembranePotential());
  }
 
+ //get the interpolated membrane potential
+ inline double get_interpolated_membrane_potential_BaseCellMembranePotential(const Vector<double>& s) const
+ {
+  const unsigned n_node = this->nnode();
+  Shape psi(n_node);
+  shape(s, psi);
+  double val = 0.0;
+  for(unsigned l=0; l<n_node; l++){
+    val += get_nodal_membrane_potential_BaseCellMembranePotential(l)*psi[l];
+  }
+  return val;
+ }
+
  /// \short du/dt at local node n. 
  /// Uses suitably interpolated value for hanging nodes.
  double dvm_dt_BaseCellMembranePotential(const unsigned &n) const

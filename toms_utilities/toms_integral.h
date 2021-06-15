@@ -1472,9 +1472,9 @@ class TGaussWithNodes<3,2> : public Integral
   private:
 
  /// Number of integration points in the scheme
- static const unsigned Npts=4;
+ static const unsigned Npts=8;//=4+4
  /// Array to hold the weights and knots (defined in cc file)
- static const double Knot[4][3], Weight[4];
+ static const double Knot[8][3], Weight[8];
 
   public:
 
@@ -1505,7 +1505,6 @@ class TGaussWithNodes<3,2> : public Integral
  double weight(const unsigned &i) const {return Weight[i];}
 
 };
-
 
 
 //=========================================================
