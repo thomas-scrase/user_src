@@ -47,11 +47,16 @@ public:
  /// x is a Vector! 
  typedef void (*BaseCellMembranePotentialSourceFctPt)
   (const Vector<double>& x, double& f);
+
+///short function pointer to vm predicted at node l.
+  typedef double (*BaseCellMembranePotentialPredictedVmFctPt)
+  (const unsigned& l);
   
 
  /// \short Constructor: Initialise the Source_fct_pt and Wind_fct_pt 
  /// to null and set (pointer to) Peclet number to default
  BaseCellMembranePotentialEquations() : Source_fct_pt(0),
+                                        Predicted_vm_pt(0),
                                         ALE_is_disabled(false)
   {
    //Set membrane capacitance to default
@@ -553,6 +558,12 @@ public:
   {return Source_fct_pt;}
 
 
+  BaseCellMembranePotentialPredictedVmFctPt predicted_vm_pt()
+  {return Predicted_vm_pt;}
+  BaseCellMembranePotentialPredictedVmFctPt predicted_vm_pt() const
+  {return Predicted_vm_pt;}
+
+
  /// membrane capacitance
  const double &cm() const {return *Cm_pt;}
 
@@ -574,6 +585,19 @@ public:
     {
      // Get source strength
      (*Source_fct_pt)(x,source);
+    }
+  }
+
+  //Get the predicted vm at node l - used by strang splitting elements to get the value of vm
+  // achieved through a segregated, decoupled cell solve step
+  inline virtual double get_nodal_predicted_vm_BaseCellMembranePotential(const unsigned &l) const
+  {
+   //If no source function has been set, return zero
+   if(Predicted_vm_pt==0) {return 0.0;}
+   else
+    {
+     // Get source strength
+     return (*Predicted_vm_pt)(l);
     }
   }
 
@@ -759,8 +783,9 @@ protected:
  double *Cm_pt;
 
  /// Pointer to source function:
- BaseCellMembranePotentialSourceFctPt Source_fct_pt;
- 
+  BaseCellMembranePotentialSourceFctPt Source_fct_pt;
+  
+ BaseCellMembranePotentialPredictedVmFctPt Predicted_vm_pt;
  /// \short Boolean flag to indicate if ALE formulation is disabled when 
  /// time-derivatives are computed. Only set to false if you're sure
  /// that the mesh is stationary.

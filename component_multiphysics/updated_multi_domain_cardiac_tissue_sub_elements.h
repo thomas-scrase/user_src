@@ -377,10 +377,10 @@ public:
                        const Vector<double>& xi,
                        Vector<double>& V)
     {
-    	V.resize(this->dim());
-    	V[0] = dynamic_cast<EXT_UPDATED_CELL_ELEMENT*>(external_element_pt(cell_interaction_index, ipt))->
+    	V.resize(this->dim(), 0.0);
+    	V[0] = -dynamic_cast<EXT_UPDATED_CELL_ELEMENT*>(external_element_pt(cell_interaction_index, ipt))->
     			get_interpolated_active_strain(external_element_local_coord(cell_interaction_index, ipt));
-    	// oomph_info << V[0] << std::endl;
+    	// oomph_info << "Active Strain " << V[0] << std::endl;
     }
 
 	//Tell the elements how to fill in residuals

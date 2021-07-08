@@ -836,6 +836,23 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
  // Strain tensor 
  DenseMatrix<double> strain(dim,dim);
 
+ //calculate stress due to the active strain
+ DenseMatrix<double> active_strain(dim, dim);
+ for (unsigned i=0;i<dim;i++)
+  {
+   for (unsigned j=i;j<dim;j++)
+    {
+      active_strain(i,j) = V[0]*A(i,0)*A(j,0);
+    }
+  }
+
+ double active_strain_dev = 0.0;
+ for (unsigned i=0;i<dim;i++)
+  {
+    active_strain_dev += active_strain(i,i);
+  }
+
+
  // Upper triangle
  for (unsigned i=0;i<dim;i++)
   {
@@ -868,7 +885,10 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
          sigma_dev(i,j) += 
           C1*(Gup(i,k)*Gup(j,l)+Gup(i,l)*Gup(j,k))*strain(k,l);
 
-          sigma_dev(i,j) += V[0]*A(i,0)*A(j,0);
+          //The above is already the deviatoric part
+          sigma_dev(i,j) += (active_strain(i,j) - active_strain_dev/3.0);
+
+
         }
       }
     }
@@ -1031,46 +1051,47 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
   }
 
 
- //Calculate 2nd piola kitchhoff stress tensor
+  //calculate stress due to the active strain
+ DenseMatrix<double> active_strain(dim, dim);
+ for (unsigned i=0;i<dim;i++)
+  {
+   for (unsigned j=i;j<dim;j++)
+    {
+      active_strain(i,j) = V[0]*A(i,0)*A(j,0);
+    }
+  }
 
- DenseMatrix<double> sigma(dim);
+ double active_strain_tr = 0.0;
+ for (unsigned i=0;i<dim;i++)
+  {
+    active_strain_tr += active_strain(i,i);
+  }
 
+
+ DenseMatrix<double> sigma(dim, dim);
  for(unsigned i=0;i<dim;i++){
   for(unsigned j=i;j<dim;j++){
-   sigma(i,j) = a*exp(b*(I1-3.0))*gup(i,j)
-                + 2.0*af*(I4f-1.0)*exp(bf*pow(I4f-1.0,  2.0))*A(i,0)*A(j,0)
-                + 2.0*as*(I4s-1.0)*exp(bs*pow(I4s-1.0,  2.0))*A(i,1)*A(j,1)
-                + afs*I8fs*exp(bfs*pow(I8fs,  2.0))*(A(i,0)*A(j,1) + A(i,1)*A(j,0))
-
-                + Active_Scaling*V[0]*A(i,0)*A(j,0); //Add the active strain
+   sigma(i,j) = a*exp(b*(I1-3.0))*G(j,i)
+              + 2.0*af*(I4f-1.0)*exp(bf*pow(I4f-1.0,  2.0))*A(i,0)*A(j,0)
+              + 2.0*as*(I4s-1.0)*exp(bs*pow(I4s-1.0,  2.0))*A(i,1)*A(j,1)
+              + afs*I8fs*exp(bfs*pow(I8fs,  2.0))*(A(i,0)*A(j,1) + A(i,1)*A(j,0));
   }
  }
+ double sigma_tr = 0.0;
+ for(unsigned i=0;i<dim;i++){
+  sigma_tr += sigma(i,i);
+ }
 
- // //copy across
- // for(unsigned i=0;i<dim;i++){
- //  for(unsigned j=0;j<i;j++){
- //   sigma(i,j) = sigma(j,i);
- //  }
- // }
-
-
- //!!!!! Pressure is taken from the sigma dev in the fill in residual and jacobian
- // //   function of the solid element. So it shouldn't be taken here?
-
- // //Calculate mechanical pressure
- // double P = 0.0;
- // for(unsigned i=0;i<dim;i++){
- //  for(unsigned j=0;j<dim;j++){
- //   P += sigma(i,j)*G(i,j);
- //  }
- // }
- // P/=3;
-
- 
- //Calculate deviatoric part of 2nd piola kirchhoff stress
+ //Calculate 2nd piola kitchhoff stress tensor
  for(unsigned i=0;i<dim;i++){
   for(unsigned j=i;j<dim;j++){
-   sigma_dev(i,j) = sigma(i,j);// - P*G_contra(i,j);
+   // sigma_dev(i,j) = a*exp(b*(I1-3.0))*gup(i,j)
+   //              + 2.0*af*(I4f-1.0)*exp(bf*pow(I4f-1.0,  2.0))*A(i,0)*A(j,0)
+   //              + 2.0*as*(I4s-1.0)*exp(bs*pow(I4s-1.0,  2.0))*A(i,1)*A(j,1)
+   //              + afs*I8fs*exp(bfs*pow(I8fs,  2.0))*(A(i,0)*A(j,1) + A(i,1)*A(j,0))
+
+                // + (active_strain(i,j)-active_strain_dev/3.0); //Add the active strain
+    sigma_dev(i,j) = (sigma(i,j) - sigma_tr/3.0) + (active_strain(i,j) - active_strain_tr/3.0);
   }
  }
 

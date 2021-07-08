@@ -1008,6 +1008,26 @@ public:
                               bfs(HOParams[7]),
                               Active_Scaling(active_scaling) {}
 
+  HolzapfelOgdenConstitutiveLaw(const double HO_a,
+                                const double HO_b,
+                                const double HO_af,
+                                const double HO_bf,
+                                const double HO_as,
+                                const double HO_bs,
+                                const double HO_afs,
+                                const double HO_bfs, 
+                                const double active_scaling) : 
+  AnisotropicConstitutiveLaw(),
+  a(HO_a),
+  b(HO_b),
+  af(HO_af),
+  bf(HO_bf),
+  as(HO_as),
+  bs(HO_bs),
+  afs(HO_afs),
+  bfs(HO_bf),
+  Active_Scaling(active_scaling) {}
+
   virtual ~HolzapfelOgdenConstitutiveLaw(){ }
 
   void calculate_second_piola_kirchhoff_stress(

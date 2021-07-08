@@ -101,10 +101,6 @@ namespace oomph{
 	typedef boost::numeric::odeint::rosenbrock4< Boost_State_Type > implicit_controlled_error_stepper_type;
 
 
-	
-
-
-
 
 	class CellSourcesPackagedWithLocationData
 	{
@@ -619,6 +615,7 @@ namespace oomph{
 			integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-10, 1.0e-6),
 									FunctionsContainer, x, t, t+dt, dt);
 
+			// std::cout << "solving for vm" << std::endl;
 			//Unpack the data from the boost solve
 			New_Vm = x[FunctionsContainer.get_Num_Cell_Vars()];
 			for(unsigned i=0; i<FunctionsContainer.get_Num_Cell_Vars(); i++){
