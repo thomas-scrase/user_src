@@ -78,6 +78,8 @@ namespace oomph{
 		     double interpolated_vm=0.0;
 		     double dvmdt=0.0;
 
+		     double interpolated_predvm = 0.0;
+
 		     Vector<double> interpolated_x(DIM,0.0);
 		     Vector<double> interpolated_dvmdx(DIM,0.0);
 		     Vector<double> interpolated_dpredvmdx(DIM, 0.0);
@@ -91,6 +93,8 @@ namespace oomph{
 		       //Get the value at the node
 		       double vm_value = this->raw_nodal_value(l,vm_nodal_index);
 		       interpolated_vm += vm_value*psi(l);
+
+		       interpolated_predvm += this->get_nodal_predicted_vm_BaseCellMembranePotential(l)*psi(l);
 
 
 		       dvmdt += this->dvm_dt_BaseCellMembranePotential(l)*psi(l);
@@ -134,7 +138,8 @@ namespace oomph{
 		        if(local_eqn >= 0)
 		          {
 		          // Add body force term and time derivative
-		          residuals[local_eqn] -= (dvmdt)*test(l)*W;
+		          // residuals[local_eqn] -= (dvmdt)*test(l)*W;
+		          	residuals[local_eqn] -= (interpolated_vm - interpolated_predvm)/(this->node_pt(l)->time_stepper_pt()->time_pt()->dt())*test(l)*W;
 		         
 		          // The Generalised Advection Diffusion bit itself
 		          for(unsigned k=0;k<DIM;k++)
@@ -150,14 +155,11 @@ namespace oomph{
 		             //Now the diuffusive term
 		             for(unsigned j=0;j<DIM;j++)
 		              {
-		              	// oomph_info << interpolated_dpredvmdx[j] << std::endl;
 		               tmp2 += 0.5*(interpolated_dvmdx[j] + interpolated_dpredvmdx[j])*D(k,j);
 		              }
 		             //Now construct the contribution to the residuals
-		              // oomph_info << "not pinned and setting value" << std::endl;
 		             residuals[local_eqn] -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
 		            }
-		            // oomph_info << "filling res by monodomain " << this->eqn_number(local_eqn) <<": " << residuals[local_eqn] << std::endl;
 
 		         
 		          // Calculate the jacobian
@@ -174,9 +176,12 @@ namespace oomph{
 		              if(local_unknown >= 0)
 		                {
 		                //Mass matrix term
-		                jacobian(local_eqn,local_unknown) 
-		                  -= test(l)*psi(l2)*
-		                  this->node_pt(l2)->time_stepper_pt()->weight(1,0)*W;
+		                // jacobian(local_eqn,local_unknown) 
+		                //   -= test(l)*psi(l2)*
+		                //   this->node_pt(l2)->time_stepper_pt()->weight(1,0)*W;
+
+		                jacobian(local_eqn, local_unknown)
+		                	-= test(l)*psi(l2)*(W/(this->node_pt(l)->time_stepper_pt()->time_pt()->dt()));
 
 		                //Add the mass matrix term
 		                if(flag==2)

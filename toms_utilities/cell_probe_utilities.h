@@ -6,7 +6,9 @@
 	#include <oomph-lib-config.h>
 #endif
 
-#include "../conducting_cell/conducting_cell_elements.h"
+// #include "../conducting_cell/conducting_cell_elements.h"
+#include "../cell_solvers_fully_segregated/cell_solvers_fully_segregated_elements.h"
+
 
 
 namespace oomph{

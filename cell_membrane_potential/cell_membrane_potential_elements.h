@@ -221,7 +221,6 @@ public:
  /// nplot^DIM plot points
  void output(std::ostream &outfile, const unsigned &nplot)
  {
-  // std::cout << "BOOM" << std::endl;
   //Vector of local coordinates
   Vector<double> s(DIM);
 
@@ -230,13 +229,11 @@ public:
 
   const unsigned n_node = this->nnode();
   const unsigned vm_index = vm_index_BaseCellMembranePotential();
-  // std::cout << "n_node " << n_node << std::endl;
   Shape psi(n_node);
   DShape dpsidx(n_node,DIM);
 
   // Loop over plot points
   unsigned num_plot_points=nplot_points(nplot);
-  // std::cout << "Begin loop over ipt" << std::endl;
   for (unsigned iplot=0;iplot<num_plot_points;iplot++)
   {
     // Get local coordinates of plot point
@@ -247,7 +244,6 @@ public:
     interpolated_x(s,x);
 
     for(unsigned i=0;i<DIM;i++) {outfile << x[i] << " ";}
-    // std::cout << "outputting interpolated_u_monodomain" << std::endl;
     outfile << interpolated_vm_BaseCellMembranePotential(s) << " ";
 
     //Get the gradients
@@ -268,7 +264,6 @@ public:
   }
   // Write tecplot footer (e.g. FE connectivity lists)
   write_tecplot_zone_footer(outfile,nplot);
-  // std::cout << "ENDBOOM" << std::endl;
 }
 
 
@@ -558,7 +553,7 @@ public:
   {return Source_fct_pt;}
 
 
-  BaseCellMembranePotentialPredictedVmFctPt predicted_vm_pt()
+  BaseCellMembranePotentialPredictedVmFctPt& predicted_vm_pt()
   {return Predicted_vm_pt;}
   BaseCellMembranePotentialPredictedVmFctPt predicted_vm_pt() const
   {return Predicted_vm_pt;}

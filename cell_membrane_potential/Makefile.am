@@ -17,7 +17,8 @@ monodomain_flux_elements.h \
 refineable_monodomain_elements.h \
 bidomain_elements.h \
 bidomain_flux_elements.h \
-refineable_bidomain_elements.h
+refineable_bidomain_elements.h \
+monodomain_elements_strang_splitting.h
 
 # Define name of library
 libname = cell_membrane_potential

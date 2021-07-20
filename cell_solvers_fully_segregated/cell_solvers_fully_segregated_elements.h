@@ -90,7 +90,7 @@ public:
 
 	//Set cell type of cell at node
 	void set_cell_type(const unsigned &l, const unsigned &cell_type){
-		Cell_associated_with_each_node_pt[l]->set_cell_type(cell_Type);
+		Cell_associated_with_each_node_pt[l]->set_cell_type(cell_type);
 	}
 
 	//Send general data to cell at node
@@ -100,7 +100,7 @@ public:
 
 	//Assign initial conditions - the cell model generally does this itself but we can override it by forcing it to use the variables this function sends instead
 	inline void assign_initial_conditions(const unsigned&l, const Vector<double>& vals, const double& vm){
-		Cell_associated_with_each_node_pt[l]->assign_initial_conditions(vals);
+		Cell_associated_with_each_node_pt[l]->assign_initial_conditions(vals, vm);
 	}
 
 
@@ -117,9 +117,20 @@ public:
 		shape(s,psi);
 		//Loop over the nodes
 		for(unsigned l=0; l<n_node; l++){
-			Out += psi[l]*get_nodal_predicted_vm(l);
+			out += psi[l]*get_nodal_predicted_vm(l);
 		}
+
+		return out;
 	}
+
+
+	//Overload this function of the conduction element in case it needs to do strang splitting
+	double get_nodal_predicted_vm_BaseCellMembranePotential(const unsigned &l) const
+	{	
+		// oomph_info << "getting nodal predicted vm" << std::endl;
+		return get_nodal_predicted_vm(l);
+	}
+
 
 	//Get interpolated active strain from cell model
 	double get_interpolated_active_strain_from_cell_model(const Vector<double>& s) const {
@@ -131,8 +142,10 @@ public:
 		shape(s,psi);
 		//Loop over the nodes
 		for(unsigned l=0; l<n_node; l++){
-			Out += psi[l]*get_nodal_active_strain(l);
+			out += psi[l]*get_nodal_active_strain(l);
 		}
+
+		return out;
 	}
 
 
@@ -140,7 +153,18 @@ public:
 	//													the issue arrises from that each node could be associated with different cell models, the general output data
 	//													of which might not line up if you are not careful. I provide no safety checks for this, you are on your own.
 	// void get_interpolated_general_output_from_cell_model(const Vector<double>& s, Vector<double> &Out) const {
-	// 	Out.resize(Cell_associated_with_each_node_pt[l]->Num_Output_Data, 0.0);
+	// 	Out.resize(Cell_associated_with_each_node_pt[0]->Num_Output_Data, 0.0);
+	// 	#ifdef DPARANOID
+	// 	for(unsigned l=1; l<n_node; l++){
+	// 		if(Cell_associated_with_each_node_pt[l]->Num_Output_Data != Cell_associated_with_each_node_pt[0]->Num_Output_Data)
+	// 		{
+	// 			throw OomphLibError(
+	// 				"Number of output variables of nodes does not match",
+	// 				OOMPH_CURRENT_FUNCTION,
+	// 				OOMPH_EXCEPTION_LOCATION);
+	// 		}
+	// 	}
+	// 	#endif
 
 	// 	const unsigned n_node = this->nnode();
 	// 	Shape psi(n_node);
@@ -154,7 +178,7 @@ public:
 	// 		}
 	// 	}
 	// }
-		
+	
 
 
 	/////Set general node-wise data
@@ -184,6 +208,61 @@ public:
 		FiniteElement::fill_in_contribution_to_jacobian_and_mass_matrix(residuals, jacobian, mass_matrix);
 	}
 
+
+
+
+	unsigned nscalar_paraview() const
+	{
+		return 1;
+	}
+
+	void scalar_value_paraview(std::ofstream& file_out,
+								const unsigned& i,
+								const unsigned& nplot) const
+	{
+		//Vector of local coordinates
+		Vector<double> s(this->dim());
+
+		const unsigned n_node = this->nnode();
+		// const unsigned vm_index = this->vm_index_BaseCellMembranePotential();
+		Shape psi(n_node);
+		DShape dpsidx(n_node,this->dim());
+
+		// Loop over plot points
+		unsigned num_plot_points=this->nplot_points_paraview(nplot);
+		for (unsigned iplot=0;iplot<num_plot_points;iplot++){
+			// Get local coordinates of plot point
+			this->get_s_plot(iplot,nplot,s);
+
+			if(i==0){
+				file_out << this->interpolated_vm_BaseCellMembranePotential(s) << std::endl;
+			}
+
+			// Vector<double> out(2, 0.0);
+			// get_interpolated_general_output_from_cell_model(s, out);
+			// if( i==1 || i==2 ){
+			// 	return out[i-1];
+			// }
+		}
+	}
+
+	void scalar_value_fct_paraview(std::ofstream& file_out,
+									const unsigned& i,
+									const unsigned& nplot,
+									FiniteElement::SteadyExactSolutionFctPt
+									exact_soln_pt) const
+	{
+		scalar_value_paraview(file_out,i,nplot);
+	}
+
+	std::string scalar_name_paraview(const unsigned& i) const
+	{
+		return "Transmembrane potential";
+		// switch(i)
+		// case(0) : return "Transmembrane potential";
+		// case(1) : return "ActStrain";
+		// case(2) : return "CellType";
+	}
 
 
 
@@ -456,9 +535,58 @@ public:
 //Mesh base class which handles cell objects and provides suitable pointers to the cells to each element in the mesh
 //NOTE this class requires the elements and nodes to already be constructed hence you MUST inherit from this class
 // AFTER the mesh class
-class CellMeshBase
+template<class CONDUCTANCE_MODEL>
+class CellMeshBase : public virtual Mesh
 {
 private:
+	//Work out what elements contain each 'global' node and which local node indexes correspond to these nodes.
+	// For large meshes this function will likely take a very long time, is there a way to speed it up?
+	void BuildNodeElementTables()
+	{
+		//First we allocate suitable storage in the vectors
+		Elements_containing_node.resize(this->nnode());
+
+		//Next we loop over all the nodes
+		for(unsigned l=0; l<this->nnode(); l++){
+			//Get a pointer to the l-th node
+			Node* mesh_nod_pt = this->node_pt(l);
+
+			//Next loop over all the elements in the mesh
+			for(unsigned e=0; e<this->nelement(); e++){
+				//Get a pointer to the element
+				FiniteElement* elem_pt = this->finite_element_pt(e);
+
+				//Now we loop over the nodes in that element
+				for(unsigned l1=0; l1<elem_pt->nnode(); l1++){
+					//get a pointer to that element
+					Node* elem_nod_pt = elem_pt->node_pt(l1);
+
+					if(mesh_nod_pt==elem_nod_pt){
+						//If the pointers point to the same object then add the element and the local node number to the table
+						Elements_containing_node[l].push_back(std::pair<unsigned long, unsigned>(e, l1));
+					}
+				}
+			}
+		}
+
+
+		// for(unsigned l=0; l<this->nnode(); l++){
+		// 	oomph_info << "Node " << l << ": ";
+		// 	for(unsigned e=0; e<Elements_containing_node[l].size(); e++){
+		// 		oomph_info << Elements_containing_node[l][e].first << " " << Elements_containing_node[l][e].second << "    ";
+		// 	}
+		// 	oomph_info << std::endl;
+		// }
+
+	}
+
+protected:
+
+	//Should you wish to change the way the mesh calculates the elements containing each node then use this function
+	void Set_Elements_containing_node(const Vector<Vector<std::pair<unsigned long, unsigned>>> &new_vect)
+	{
+		Elements_containing_node = new_vect;	
+	}
 
 	//This function is left virtual since the way in which cells are built on the mesh is entirely problem-dependent.
 	// the helper function build_cell_at_node(...) is provided to handle all of the tricky communications, I strongly
@@ -469,37 +597,6 @@ private:
 			"I am attempting to build the cells in the mesh but you haven't overloaded the appropriate function",
 			OOMPH_CURRENT_FUNCTION,
 			OOMPH_EXCEPTION_LOCATION);
-	}
-
-
-	//Work out what elements contain each 'global' node and which local node indexes correspond to these nodes.
-	// For large meshes this function will likely take a very long time, is there a way to speed it up?
-	void BuildNodeElementTables()
-	{
-		//First we allocate suitable storage in the vectors
-		Elements_containing_node.resize(this->nnode());
-		Local_node_in_element_equal_to_global_node.resize(this->nnode());
-
-		//Next we loop over all the nodes
-		for(unsigned l=0; l<this->nnode(); l++){
-			//Get a pointer to the l-th node
-			Node* mesh_nod_pt = this->node_pt(l);
-
-			//Next loop over all the elements in the mesh
-			for(unsigned e=0; e<this->nelement(); e++){
-				//Get a pointer to the element
-				GeneralisedElement* elem_pt this->element_pt(e);
-
-				//Now we loop over the nodes in that element
-				for(unsigned l1=0; l1<elem_pt->nnode(); l1++){
-					//get a pointer to that element
-					Node* elem_nod_pt = elem_pt->nope_pt(l1);
-
-					//If the pointers point to the same object then add the element and the local node number to the table
-					Elements_containing_node[l].push_back(std::pair<unsigned long, unsigned>(e, l1));
-				}
-			}
-		}
 	}
 
 	//Build a cell at the location of the l-th node in the mesh. We need to pass the cell by pointer to all elements which contain
@@ -514,8 +611,7 @@ private:
 		//Pass the cell by pointer to all of the elements containing the node
 		for(unsigned i=0; i<Elements_containing_node[l].size(); i++){
 			//Get a pointer to the i-th element containing the node
-			ConductingCellFunctionsBase* elem_pt = dynamic_cast<ConductingCellFunctionsBase*>(this->element_pt(Elements_containing_node[l][i].first));
-
+			CONDUCTANCE_MODEL* elem_pt = dynamic_cast<CONDUCTANCE_MODEL*>(this->element_pt(Elements_containing_node[l][i].first));
 			//Add the pointer to the suitable entry in the vector of cell pointers in the element
 			elem_pt->add_cell_to_node(Elements_containing_node[l][i].second, Cells_pt[NumCells]);
 		}
@@ -523,15 +619,15 @@ private:
 
 
 		//Pass the element and node to the cell - we just take the first element number in the lookup table
-		ConductingCellFunctionsBase* elem_pt = dynamic_cast<ConductingCellFunctionsBase*>(this->element_pt(Elements_containing_node[l][0].first));
+		CONDUCTANCE_MODEL* elem_pt = dynamic_cast<CONDUCTANCE_MODEL*>(this->element_pt(Elements_containing_node[l][0].first));
 		//Get the local node index in the element
-		unsigned node_ind = Elements_containing_node[l][0].second;
+		const unsigned node_ind = Elements_containing_node[l][0].second;
 
 		//Get the integral point and local and global coordinates of the node in the element
 		//Integral point
 		const unsigned ipt = elem_pt->ipt_at_node(node_ind);
 		//Local coordinate
-		Vector<double> s(elem_pt->dim());
+		Vector<double> s;
 		elem_pt->local_coordinate_of_node(node_ind, s);
 		//Global coordinate
 		Vector<double> x(elem_pt->dim());
@@ -539,8 +635,14 @@ private:
 
 
 		//add the element and local and global coordinates to the cell
-		Cells_pt[NumCells]->set_my_element_and_coordinate(elem_pt, ipt, s, x, node_ind);
+		Cells_pt[NumCells]->set_my_element_and_coordinate(dynamic_cast<ConductingCellFunctionsBase*>(elem_pt),
+															elem_pt->node_pt(node_ind),
+															Cells_pt[NumCells],
+															elem_pt->vm_index_BaseCellMembranePotential(),
+															ipt, s, x, node_ind);
 
+
+		Cells_pt[NumCells]->assign_initial_conditions();
 
 		//Increment the number of cells
 		NumCells++;
@@ -548,6 +650,7 @@ private:
 
 	//Setup the indexes of where in the vector of cell data each cells data starts
 	// Data is packaged as Vm_0, w_0, Vm_1, w_1, ... , Vm_n, w_n
+	#ifdef OOMPH_HAS_MPI
 	void SetupDataIndices()
 	{
 		//provide suitable storage
@@ -562,27 +665,10 @@ private:
 		//The total number of data associated with the cells
 		Total_cell_data = Starting_Index_For_Data_Of_Cell[NumCells-1] + 1 + Cells_pt[NumCells-1]->get_Num_Cell_Vars();
 	}
-
-
-	//Vector of cells in the mesh
-	Vector<CellModelBaseFullySegregated*> Cells_pt;
-
-	//The number of cells in the mesh
-	unsigned long NumCells;
-
-	//Vector containing vectors of element numbers containing each node in the mesh and the local node number of the node within that element
-	Vector<Vector<std::pair(unsigned long, unsigned)>> Elements_containing_node;
-
-	#ifdef OOMPH_HAS_MPI
-	//Indices in a vector containing all variables for the cells in the mesh of where each cells data begins
-	Vector<unsigned long> Starting_Index_For_Data_Of_Cell;
-	unsigned long Total_cell_data;
 	#endif
 
 
-
-public:
-	CellMeshBase() : NumCells(0)
+	virtual void FinalizeMeshSetup()
 	{
 		//Setup node and element tables
 		BuildNodeElementTables();
@@ -595,6 +681,32 @@ public:
 		#endif
 	}
 
+
+	//Vector of cells in the mesh
+	Vector<CellModelBaseFullySegregated*> Cells_pt;
+	
+private:
+
+	//The number of cells in the mesh
+	unsigned long NumCells;
+
+	//Vector containing vectors of element numbers containing each node in the mesh and the local node number of the node within that element
+	Vector<Vector<std::pair<unsigned long, unsigned>>> Elements_containing_node;
+
+	#ifdef OOMPH_HAS_MPI
+	//Indices in a vector containing all variables for the cells in the mesh of where each cells data begins
+	Vector<unsigned long> Starting_Index_For_Data_Of_Cell;
+	unsigned long Total_cell_data;
+	#endif
+
+
+
+public:
+	CellMeshBase() : NumCells(0)
+	{
+
+	}
+
 	~CellMeshBase()
 	{
 		//Kill all the cells
@@ -604,9 +716,25 @@ public:
 		}
 	}
 
+	void output_cells(const double &t, std::ostream &outfile)
+	{
+		for(unsigned c=0; c<NumCells; c++){
+			// Cells_pt[c]->calculate_optional_output(t);
+
+			Cells_pt[c]->output_global_coord(outfile);
+			Cells_pt[c]->output_cell_type(outfile);
+			Cells_pt[c]->output_cell_variables(outfile);
+			Cells_pt[c]->output_additional_data(outfile);
+
+			outfile << std::endl;
+		}
+	}
+
 	//Take a timestep with all the cells in the mesh, use mpi if we have built with it, this is the reason we need
 	// a pointer to a problem - for access to the mpi communicator
-	void Take_time_step_with_all_cells_in_mesh(const double& dt, Problem* problem_pt)
+	// use_node_vm_as_initial_value - should the decoupled cell solvers use the value stored internall or the value at the node for initial vm
+	//	used in segregated solvers
+	void Take_time_step_with_all_cells_in_mesh(const double& dt, Problem* problem_pt, const bool &use_node_vm_as_initial_value = false)
 	{
 		oomph_info << "Performing a timestep for all cells in a mesh" << std::endl;
 		double t_start = TimingHelpers::timer();
@@ -623,7 +751,7 @@ public:
 			//Loop over all of the cells in the mesh
 			for(unsigned c=0; c<NumCells; c++){
 				//Take a timestep
-				Cells_pt[c]->TakeTimestep(problem_pt->timestepper_pt()->time_pt()->time(), dt);
+				Cells_pt[c]->TakeTimestep(problem_pt->time_stepper_pt()->time_pt()->time(), dt, use_node_vm_as_initial_value);
 			}
 
 
@@ -635,15 +763,15 @@ public:
 
 			for(unsigned c=0; c<NumCells; c++){
 				//If this processor is not required to solve this cell then skip it
-				if(c%problem_pt->problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()) continue;
+				if(c%problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()) continue;
 
 				//Take a timestep with the cell
-				Cells_pt[c]->TakeTimestep(problem_pt->timestepper_pt()->time_pt()->time(), dt);
+				Cells_pt[c]->TakeTimestep(problem_pt->time_stepper_pt()->time_pt()->time(), dt, use_node_vm_as_initial_value);
 
 				//Add the data to the vector of new cell values
 				My_cell_data[Starting_Index_For_Data_Of_Cell[c]] = Cells_pt[c]->get_predicted_vm();
 				for(unsigned i=0; i<Cells_pt[c]->get_Num_Cell_Vars(); i++){
-					My_cell_data[Starting_Index_For_Data_Of_Cell[c]+1+i] = Cells_pt->get_cell_variable(i);
+					My_cell_data[Starting_Index_For_Data_Of_Cell[c]+1+i] = Cells_pt[c]->get_cell_variable(i);
 				}
 			}
 
@@ -656,16 +784,20 @@ public:
 			//Loop over the cells again and get the new values
 			for(unsigned c=0; c<NumCells; c++){
 				//If this processor was not required to solve the cell then we need to update the data associated with it
-				if(c%problem_pt->problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()){
+				if(c%problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()){
 					//Get the start and end point in the collected cell data vector of the data associated with this cell
-					Vector<double>::const_iterator first = Collected_cell_data.begin() + Starting_Index_For_Data_Of_Cell[c]+1;
-					Vector<double>::const_iterator last = Collected_cell_data.begin() + Starting_Index_For_Data_Of_Cell[c]+1+Cells_pt[c]->get_Num_Cell_Vars();
+					// Vector<double>::const_iterator first = Collected_cell_data.begin() + Starting_Index_For_Data_Of_Cell[c]+1;
+					// Vector<double>::const_iterator last = Collected_cell_data.begin() + Starting_Index_For_Data_Of_Cell[c]+1+Cells_pt[c]->get_Num_Cell_Vars();
 
 					//Create a new sub vector of it
-					Vector<double> Cell_data(first, last);
+					// Vector<double> Cell_data(first, last); 
 
 					//Call the assign initial conditions of the cell with the new values as those to be assigned
-					Cells_pt[c]->assign_initial_conditions(Cell_data, Collected_cell_data[Starting_Index_For_Data_Of_Cell]);
+					// Cells_pt[c]->assign_initial_conditions(Cell_data, Collected_cell_data[Starting_Index_For_Data_Of_Cell[c]]);
+
+					// Vector<double>::iterator first = Collected_cell_data.begin() + Starting_Index_For_Data_Of_Cell[c];
+
+					// Cells_pt[c]->assign_initial_conditions(first);
 				}
 			}
 

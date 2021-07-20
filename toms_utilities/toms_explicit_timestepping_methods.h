@@ -16,7 +16,9 @@
 #include "../generic/Telements.h"
 #include "../generic/error_estimator.h"
 
-#include "../cell_model_updated/cell_model_base_updated.h"
+// #include "../cell_model_updated/cell_model_base_updated.h"
+#include "../cell_solvers_fully_segregated/cell_solvers_fully_segregated_elements.h"
+
 
 #include <boost/numeric/odeint.hpp>
 
