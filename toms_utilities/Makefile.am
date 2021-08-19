@@ -4,7 +4,8 @@
 
 # Define the sources
 sources =  \
-toms_integral.cc
+toms_integral.cc \
+toms_timesteppers.cc
 # Define the headers
 headers =  \
 toms_integral.h \

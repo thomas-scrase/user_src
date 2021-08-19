@@ -18,7 +18,10 @@ refineable_monodomain_elements.h \
 bidomain_elements.h \
 bidomain_flux_elements.h \
 refineable_bidomain_elements.h \
-monodomain_elements_strang_splitting.h
+monodomain_elements_strang_splitting.h \
+monodomain_elements_toms_splitting_method.h \
+monodomain_elements_integral_splitting_method.h \
+monodomain_elements_crank_nicolson_splitting_method.h
 
 # Define name of library
 libname = cell_membrane_potential

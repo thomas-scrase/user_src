@@ -8,11 +8,3 @@ clean-local:
 	rm -f *~
 doc_dirs:
 	echo $(SUBDIRS)
-
-# SUBDIRS = 	anisotropicconstitutive \
-# 			anisotropicsolid \
-# 			monodomain \
-# 			CNZ \
-# 			CRN \
-# 			CRNCell2 \
-# 			cardiac_multiphysics

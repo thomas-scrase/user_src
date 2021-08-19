@@ -38,8 +38,27 @@ static double Default_membrane_capacitance = 1.0;
 /// This contains the generic maths. Shape functions, geometric
 /// mapping etc. must get implemented in derived class.
 //=============================================================
+
+class DimensionlessMembranePotentialEquationsBase : public virtual FiniteElement
+{
+public:
+  //Update the value of membrane potential stored in the local node l according to some value. This is virtual
+  // since in some implementations of this element the value stored is not actually the membrane potential
+  virtual inline void update_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &l, const double& vm)=0;
+
+  //These are virtual since for toms method of operator splitting the nodal value actually represents the time integral
+  // of the membrane potential - not the membrane potential itself
+  //Get the membrane potential at the nth node
+  virtual inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &n) const =0;
+
+  //Get the t-th history value of membrane potential at the nth node
+  virtual inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &t, const unsigned &n) const =0;
+  
+};
+
 template <unsigned DIM>
-class BaseCellMembranePotentialEquations : public virtual FiniteElement
+class BaseCellMembranePotentialEquations : public virtual FiniteElement,
+                                            public virtual DimensionlessMembranePotentialEquationsBase
 {
 public:
 
@@ -57,6 +76,7 @@ public:
  /// to null and set (pointer to) Peclet number to default
  BaseCellMembranePotentialEquations() : Source_fct_pt(0),
                                         Predicted_vm_pt(0),
+                                        Integral_Iion_pt(0),
                                         ALE_is_disabled(false)
   {
    //Set membrane capacitance to default
@@ -102,20 +122,6 @@ public:
     }
   }
 
-
-
- //Get the membrane potential at the nth node
- inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &n) const
- {
-  return this->get_nodal_membrane_potential_BaseCellMembranePotential(0, n);
- }
-
- //Get the t-th history value of membrane potential at the nth node
- inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &t, const unsigned &n) const
- {
-  return this->node_pt(n)->value(t, vm_index_BaseCellMembranePotential());
- }
-
  //get the interpolated membrane potential
  inline double get_interpolated_membrane_potential_BaseCellMembranePotential(const Vector<double>& s) const
  {
@@ -128,6 +134,12 @@ public:
   }
   return val;
  }
+
+ //By default we set the value at the node
+  inline void update_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &l, const double& vm)
+  {
+    this->node_pt(l)->set_value(vm_index_BaseCellMembranePotential(), vm);
+  }
 
  /// \short du/dt at local node n. 
  /// Uses suitably interpolated value for hanging nodes.
@@ -189,6 +201,18 @@ public:
     "Assign initial conditions has not been implemented yet",
     OOMPH_CURRENT_FUNCTION,
     OOMPH_EXCEPTION_LOCATION);
+  }
+
+  //Assign initial conditions of node l to be consistent with the provided value of membrane potential from
+  // the cell model. For monodomain this is trivially setting the value to be that provided. However,
+  // for bidomain equations a more involved solution may be required. However this may depend of spatial
+  // derivatives which makes it more difficult.. how can this be incorporated?
+  virtual void assign_initial_conditions_consistent_with_cell_model(const unsigned &l, const double& vm)
+  {
+    throw OomphLibError(
+        "Assign consistent initial conditions has not been implemented yet",
+        OOMPH_CURRENT_FUNCTION,
+        OOMPH_EXCEPTION_LOCATION);
   }
   
 
@@ -559,6 +583,12 @@ public:
   {return Predicted_vm_pt;}
 
 
+  BaseCellMembranePotentialPredictedVmFctPt& integral_iion_pt()
+  {return Integral_Iion_pt;}
+  BaseCellMembranePotentialPredictedVmFctPt integral_iion_pt() const
+  {return Integral_Iion_pt;}
+
+
  /// membrane capacitance
  const double &cm() const {return *Cm_pt;}
 
@@ -593,6 +623,33 @@ public:
     {
      // Get source strength
      return (*Predicted_vm_pt)(l);
+    }
+  }
+
+
+  //Get the predicted vm at node l - used by strang splitting elements to get the value of vm
+  // achieved through a segregated, decoupled cell solve step
+  inline virtual double get_nodal_integral_iion_BaseCellMembranePotential(const unsigned &l) const
+  {
+   //If no source function has been set, return zero
+   if(Integral_Iion_pt==0) {return 0.0;}
+   else
+    {
+     // Get source strength
+     return (*Integral_Iion_pt)(l);
+    }
+  }
+
+
+  //get the nodal membrane capacitance
+  inline virtual double get_nodal_cm_BaseCellMembranePotential(const unsigned &l) const
+  {
+   //If no source function has been set, return one
+   if(Cm_pt==0) {return 1.0;}
+   else
+    {
+     // Get the membrane potential
+     return (*Cm_pt);
     }
   }
 
@@ -781,6 +838,8 @@ protected:
   BaseCellMembranePotentialSourceFctPt Source_fct_pt;
   
  BaseCellMembranePotentialPredictedVmFctPt Predicted_vm_pt;
+
+ BaseCellMembranePotentialPredictedVmFctPt Integral_Iion_pt;
  /// \short Boolean flag to indicate if ALE formulation is disabled when 
  /// time-derivatives are computed. Only set to false if you're sure
  /// that the mesh is stationary.

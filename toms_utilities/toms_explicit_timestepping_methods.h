@@ -16,7 +16,7 @@
 #include "../generic/Telements.h"
 #include "../generic/error_estimator.h"
 
-// #include "../cell_model_updated/cell_model_base_updated.h"
+#include "../cell_model_updated/cell_model_base_updated.h"
 #include "../cell_solvers_fully_segregated/cell_solvers_fully_segregated_elements.h"
 
 
@@ -31,64 +31,64 @@ namespace oomph{
 	// we are calling are not static, this means we can't easily (or maybe ever) pass them as pointers. I spent a good
 	// amount of time trying to find workarounds but I think this is the lesser of all evils
 
-	class ConductingCellFunctionsBase
-	{
-	public:
+	// class ConductingCellFunctionsBase
+	// {
+	// public:
 
-		ConductingCellFunctionsBase() : StimFctPt(0)
-		{}
+	// 	ConductingCellFunctionsBase() : StimFctPt(0)
+	// 	{}
 
-		~ConductingCellFunctionsBase(){}
+	// 	~ConductingCellFunctionsBase(){}
 		
-		//Define the function template used for forcing terms and stuff
-		typedef double (*CellInterfaceScalarFctPt)
-		(const unsigned& ipt, const Vector<double>& s, const Vector<double>& x, const double& t);
+	// 	//Define the function template used for forcing terms and stuff
+	// 	typedef double (*CellInterfaceScalarFctPt)
+	// 	(const unsigned& ipt, const Vector<double>& s, const Vector<double>& x, const double& t);
 
-		/////////////////////////////////////////////////////////////////////////////////
-		//Get other variables
-		//	these could be, for example:
-		//	 strain in the tissue,
-		//	 oxygen concentration,
-		//	 variables which could be assigned node-wise, or could be the result of some computation and exist in a continuum
-		//We leave this virtual since it's very implementation dependent, it could simply use function pointers to get the
-		//	data we need as is seen in other source functions, or it could call on external elements to interpolate data
-		//	from their own computation, or it could be any other exotic structure you like.
-		/////////////////////////////////////////////////////////////////////////////////
-		inline virtual void get_other_variables(const unsigned& ipt,
-									            const Vector<double> &s,
-									            const Vector<double>& x,
-												const unsigned &l,
-												const double &t,
-												Vector<double> &Variables) const
-		{
+	// 	/////////////////////////////////////////////////////////////////////////////////
+	// 	//Get other variables
+	// 	//	these could be, for example:
+	// 	//	 strain in the tissue,
+	// 	//	 oxygen concentration,
+	// 	//	 variables which could be assigned node-wise, or could be the result of some computation and exist in a continuum
+	// 	//We leave this virtual since it's very implementation dependent, it could simply use function pointers to get the
+	// 	//	data we need as is seen in other source functions, or it could call on external elements to interpolate data
+	// 	//	from their own computation, or it could be any other exotic structure you like.
+	// 	/////////////////////////////////////////////////////////////////////////////////
+	// 	inline virtual void get_other_variables(const unsigned& ipt,
+	// 								            const Vector<double> &s,
+	// 								            const Vector<double>& x,
+	// 											const unsigned &l,
+	// 											const double &t,
+	// 											Vector<double> &Variables) const
+	// 	{
 
-		}
-
-
-		CellInterfaceScalarFctPt StimFctPt;
+	// 	}
 
 
-		inline double get_stimulus(const unsigned& ipt,
-						            const Vector<double> &s,
-						            const Vector<double>& x,
-									const double &t) const
-		{
-			if(StimFctPt!=nullptr){
-				return (*StimFctPt)(ipt,s,x,t);
-			}
-			else{
-				return 0.0;
-			}
-		}
+	// 	CellInterfaceScalarFctPt StimFctPt;
 
 
-		CellInterfaceScalarFctPt &Stimulus_Function_Pt()
-		{
-			return StimFctPt;
-		}
+	// 	inline double get_stimulus(const unsigned& ipt,
+	// 					            const Vector<double> &s,
+	// 					            const Vector<double>& x,
+	// 								const double &t) const
+	// 	{
+	// 		if(StimFctPt!=nullptr){
+	// 			return (*StimFctPt)(ipt,s,x,t);
+	// 		}
+	// 		else{
+	// 			return 0.0;
+	// 		}
+	// 	}
 
 
-	};
+	// 	CellInterfaceScalarFctPt &Stimulus_Function_Pt()
+	// 	{
+	// 		return StimFctPt;
+	// 	}
+
+
+	// };
 
 
 

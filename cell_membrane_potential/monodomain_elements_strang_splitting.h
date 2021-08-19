@@ -28,6 +28,25 @@ namespace oomph{
 
         }
 
+
+        virtual inline void update_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &l, const double& vm)
+		{
+			this->node_pt(l)->set_value(this->vm_index_BaseCellMembranePotential(), vm);
+		}
+
+		//The membrane potential is just stored at the nodes
+		virtual inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &n) const
+		{
+			return this->get_nodal_membrane_potential_BaseCellMembranePotential(0, n);
+		}
+
+		//Get the t-th history value of membrane potential at the nth node
+		virtual inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &t, const unsigned &n) const
+		{
+			return this->node_pt(n)->value(t, this->vm_index_BaseCellMembranePotential());
+		}
+		
+
 		//Overload the residual for the monodomain equations
 		void fill_in_generic_residual_contribution_BaseCellMembranePotential(
 	    Vector<double> &residuals, DenseMatrix<double> &jacobian, 
@@ -64,7 +83,7 @@ namespace oomph{
 		     //Get the integral weight
 		     double w = this->integral_pt()->weight(ipt);
 
-		      if(w==0.0){continue;}
+		      if(w<1e-9){continue;}
 		      
 		     //Call the derivatives of the shape and test functions
 		     double J = 
@@ -76,7 +95,7 @@ namespace oomph{
 		     //Calculate local values of the solution and its derivatives
 		     //Allocate
 		     double interpolated_vm=0.0;
-		     double dvmdt=0.0;
+		     // double dvmdt=0.0;
 
 		     double interpolated_predvm = 0.0;
 
@@ -94,19 +113,27 @@ namespace oomph{
 		       double vm_value = this->raw_nodal_value(l,vm_nodal_index);
 		       interpolated_vm += vm_value*psi(l);
 
-		       interpolated_predvm += this->get_nodal_predicted_vm_BaseCellMembranePotential(l)*psi(l);
+		       double pred_vm_value = this->get_nodal_predicted_vm_BaseCellMembranePotential(l);
+
+		       interpolated_predvm += pred_vm_value*psi(l);
 
 
-		       dvmdt += this->dvm_dt_BaseCellMembranePotential(l)*psi(l);
+		       // dvmdt += this->dvm_dt_BaseCellMembranePotential(l)*psi(l);
 
 		       // Loop over directions
 		       for(unsigned j=0;j<DIM;j++)
 		        {
 		         interpolated_x[j] += this->raw_nodal_position(l,j)*psi(l);
 		         interpolated_dvmdx[j] += vm_value*dpsidx(l,j);
-		         interpolated_dpredvmdx[j] += this->get_nodal_predicted_vm_BaseCellMembranePotential(l)*dpsidx(l,j);
+		         interpolated_dpredvmdx[j] += pred_vm_value*dpsidx(l,j);
 		        }
 		      }
+
+		     // for(unsigned j=0;j<DIM;j++)
+	      //    {
+	      //     oomph_info << interpolated_dpredvmdx[j] << " ";
+	      //    }
+	      //    oomph_info << std::endl;
 		     
 		     // Mesh velocity?
 		     if (!this->ALE_is_disabled)
@@ -139,6 +166,14 @@ namespace oomph{
 		          {
 		          // Add body force term and time derivative
 		          // residuals[local_eqn] -= (dvmdt)*test(l)*W;
+		          	// oomph_info << residuals[local_eqn] << std::endl;
+		          	// oomph_info << interpolated_vm << std::endl;
+		          	// oomph_info << interpolated_predvm << std::endl;
+		          	// oomph_info << this->node_pt(l)->time_stepper_pt()->time_pt()->dt() << std::endl;
+		          	// oomph_info << test(l) << std::endl;
+		          	// oomph_info << W << std::endl;
+
+
 		          	residuals[local_eqn] -= (interpolated_vm - interpolated_predvm)/(this->node_pt(l)->time_stepper_pt()->time_pt()->dt())*test(l)*W;
 		         
 		          // The Generalised Advection Diffusion bit itself
@@ -180,6 +215,12 @@ namespace oomph{
 		                //   -= test(l)*psi(l2)*
 		                //   this->node_pt(l2)->time_stepper_pt()->weight(1,0)*W;
 
+
+		                // oomph_info << "dt " << (this->node_pt(l)->time_stepper_pt()->time_pt()->dt()) << std::endl;
+		                // oomph_info << "W " << W << std::endl;
+		                // oomph_info << "test(l) " << test(l) << std::endl;
+		                // oomph_info << "psi(l2) " << psi(l2) << std::endl;
+
 		                jacobian(local_eqn, local_unknown)
 		                	-= test(l)*psi(l2)*(W/(this->node_pt(l)->time_stepper_pt()->time_pt()->dt()));
 
@@ -196,25 +237,33 @@ namespace oomph{
 		                  double tmp = 0.0;
 		                  if(!this->ALE_is_disabled)
 		                   {tmp -= mesh_velocity[k];}
+
+		               	// oomph_info << "dpsidx(l2,k) " << dpsidx(l2,k) << std::endl;
+		                  
 		                  tmp *= dpsidx(l2,k);
 
 		                  double tmp2 = 0.0;
 		                  //Now the diffusive term
 		                  for(unsigned j=0;j<DIM;j++)
 		                    {
-		                    tmp2 += D(k,j)*dpsidx(l2,j);
+		                    // oomph_info << "D(k,j) " << D(k,j) << std::endl;
+		                    // oomph_info << "dpsidx(l2,j) " << dpsidx(l2,j) << std::endl;
+		                    // oomph_info << "dtestdx(l,k) " << dtestdx(l,k) << std::endl;
+
+
+		                    tmp2 += 0.5*D(k,j)*dpsidx(l2,j);
 		                    }
 		                 
 		                  //Now assemble Jacobian term
 		                  jacobian(local_eqn,local_unknown) 
 		                    -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
+
+
 		                  }
 		                }
-		                // else{oomph_info << "mono var pinned" << std::endl;}
 		              }
 		            }
 		          }
-		          // else{oomph_info << "mono var pinned" << std::endl;}
 		        }
 		      } // End of loop over integration points
 		    }
@@ -234,6 +283,11 @@ namespace oomph{
 		void assign_additional_initial_conditions()
 		{
 			//Do nothing - we have no additional variables to assign values to
+		}
+
+		void assign_initial_conditions_consistent_with_cell_model(const unsigned &l, const double& vm)
+		{
+			this->node_pt(l)->set_value(this->vm_index_BaseCellMembranePotential(), vm);
 		}
 
 
@@ -699,6 +753,24 @@ namespace oomph{
 	};
 
 
+	//Override functions in specific implementations of the diff augmented wrapper
+	template<unsigned DIM, unsigned NNODE_1D>
+	class DiffAugmentedCell<QMonodomainElementStrangSplitting<DIM, NNODE_1D>>:
+		public TMonodomainElement<DIM, NNODE_1D>
+	{
+	public:
+
+		inline void get_diff_monodomain(const unsigned& ipt,
+                                        const Vector<double> &s,
+                                        const Vector<double>& x,
+                                        DenseMatrix<double>& D) const
+		{
+			this->get_interpolated_diffusion_matrix(s, D);
+		}
+
+	};
+
+
 
 
 
@@ -932,6 +1004,27 @@ namespace oomph{
 	 FaceGeometry() : PointElement() {}
 
 	};
+
+
+	//Override functions in specific implementations of the diff augmented wrapper
+	template<unsigned DIM, unsigned NNODE_1D>
+	class DiffAugmentedCell<TMonodomainElementStrangSplitting<DIM, NNODE_1D>>:
+		public TMonodomainElement<DIM, NNODE_1D>
+	{
+	public:
+
+		inline void get_diff_monodomain(const unsigned& ipt,
+                                        const Vector<double> &s,
+                                        const Vector<double>& x,
+                                        DenseMatrix<double>& D) const
+		{
+			this->get_interpolated_diffusion_matrix(s, D);
+		}
+
+	};
+
+
+
 }
 
 

@@ -3,10 +3,8 @@
 //LIC// from the base cell membrane potential equations
 //LIC//====================================================================
 
-#ifndef OOMPH_MONODOMAIN
-#define OOMPH_MONODOMAIN
-
-#include "../toms_utilities/diff_augmented_cell_wrapper.h"
+#ifndef OOMPH_MONODOMAIN_CRANK_NICOLSON_SPLITTING_METHOD
+#define OOMPH_MONODOMAIN_CRANK_NICOLSON_SPLITTING_METHOD
 
 #include "cell_membrane_potential_elements.h"
 
@@ -14,28 +12,47 @@ namespace oomph{
 
 //Monodomain Equations
 	template <unsigned DIM>
-	class MonodomainEquations :
+	class MonodomainEquationsCrankNicolsonMethod :
 	public BaseCellMembranePotentialEquations<DIM>
 	{
 	public:
 
 		//change this to take s instead of x? (no functional change, just notation)
 		/// \short Funciton pointer to a diffusivity function
-		typedef void (*MonodomainEquationsDiffFctPt)
+		typedef void (*MonodomainEquationsCrankNicolsonMethodDiffFctPt)
 		(const Vector<double> &x, DenseMatrix<double> &D);
 
 
-        MonodomainEquations()	:	Diff_fct_pt(0)
+        MonodomainEquationsCrankNicolsonMethod()	:	Diff_fct_pt(0)
         {
 
         }
+
+
+        virtual inline void update_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &l, const double& vm)
+		{
+			this->node_pt(l)->set_value(this->vm_index_BaseCellMembranePotential(), vm);
+		}
+
+		//The membrane potential is just stored at the nodes
+		virtual inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &n) const
+		{
+			return this->get_nodal_membrane_potential_BaseCellMembranePotential(0, n);
+		}
+
+		//Get the t-th history value of membrane potential at the nth node
+		virtual inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &t, const unsigned &n) const
+		{
+			return this->node_pt(n)->value(t, this->vm_index_BaseCellMembranePotential());
+		}
+
+
 
 		//Overload the residual for the monodomain equations
 		void fill_in_generic_residual_contribution_BaseCellMembranePotential(
 	    Vector<double> &residuals, DenseMatrix<double> &jacobian, 
 	    DenseMatrix<double> &mass_matrix, unsigned flag)
 	    {
-	    	// oomph_info << "getting res/jac" << std::endl;
 		   //Find out how many nodes there are
 		   const unsigned n_node = this->nnode();
 
@@ -55,12 +72,10 @@ namespace oomph{
 		   //Integers used to store the local equation number and local unknown
 		   //indices for the residuals and jacobians
 		   int local_eqn=0, local_unknown=0;
-		   // if(n_intpt==0){oomph_info << "no int pts" << std::endl;}
-		   // oomph_info << n_intpt << std::endl;
+
 		   //Loop over the integration points
 		   for(unsigned ipt=0;ipt<n_intpt;ipt++)
 		    {
-		      // std::cout << "integration point " << ipt << std::endl;
 
 		     //Assign values of s
 		     for(unsigned i=0;i<DIM;i++) s[i] = this->integral_pt()->knot(ipt,i);
@@ -68,7 +83,7 @@ namespace oomph{
 		     //Get the integral weight
 		     double w = this->integral_pt()->weight(ipt);
 
-		      if(w==0.0){/* oomph_info << ipt << " continue."<<std::endl;*/ continue;}
+		      if(w<=1e-9){/* oomph_info << ipt << " continue."<<std::endl;*/ continue;}
 		      
 		     //Call the derivatives of the shape and test functions
 		     double J = 
@@ -84,7 +99,12 @@ namespace oomph{
 
 		     Vector<double> interpolated_x(DIM,0.0);
 		     Vector<double> interpolated_dvmdx(DIM,0.0);
+		     Vector<double> interpolated_d_predvmdx(DIM,0.0);
 		     Vector<double> mesh_velocity(DIM,0.0);
+
+		     //Get source function
+		     //-------------------
+		     // double source = 0.0;
 
 		     //Calculate function value and derivatives:
 		     //-----------------------------------------
@@ -95,14 +115,23 @@ namespace oomph{
 		       double vm_value = this->raw_nodal_value(l,vm_nodal_index);
 		       interpolated_vm += vm_value*psi(l);
 
+		       //The average source over the timestep
+		       // source -= this->get_nodal_integral_iion_BaseCellMembranePotential(l)*psi(l)/(this->node_pt(l)->time_stepper_pt()->time_pt()->dt());
+
+
 
 		       dvmdt += this->dvm_dt_BaseCellMembranePotential(l)*psi(l);
+
+				double pred_vm_value = this->get_nodal_predicted_vm_BaseCellMembranePotential(l);
+
 
 		       // Loop over directions
 		       for(unsigned j=0;j<DIM;j++)
 		        {
 		         interpolated_x[j] += this->raw_nodal_position(l,j)*psi(l);
 		         interpolated_dvmdx[j] += vm_value*dpsidx(l,j);
+
+		         interpolated_d_predvmdx[j] += pred_vm_value*dpsidx(l,j);
 		        }
 		      }
 		     
@@ -120,22 +149,13 @@ namespace oomph{
 
 		     //Get source function
 		     //-------------------
-		     double source;
-		     this->get_source_BaseCellMembranePotential(ipt,s,interpolated_x,source);
+		     // double source;
+		     // this->get_source_BaseCellMembranePotential(ipt,s,interpolated_x,source);
+
 
 		     //Get diffusivity tensor
 		     DenseMatrix<double> D(DIM,DIM,0.0);
 		     this->get_diff_monodomain(ipt,s,interpolated_x,D);
-
-		     // for(unsigned i=0; i<DIM; i++){
-		     // 	std::string outstring;
-		     // 	for(unsigned j=0; j<DIM; j++){
-		     // 		outstring += std::to_string(D(i,j)) + " ";
-		     // 	}
-		     // 	oomph_info << outstring;
-		     // 	oomph_info << std::endl;
-		     // }
-		     // oomph_info << std::endl << std::endl;
 
 		     // Assemble residuals and Jacobian
 		     //--------------------------------
@@ -151,7 +171,7 @@ namespace oomph{
 		        if(local_eqn >= 0)
 		          {
 		          // Add body force/source term and time derivative
-		          residuals[local_eqn] -= (dvmdt + source)*test(l)*W;
+		          // residuals[local_eqn] -= (dvmdt /*+ source*/)*test(l)*W;
 		         
 		          // The Generalised Advection Diffusion bit itself
 		          for(unsigned k=0;k<DIM;k++)
@@ -159,21 +179,19 @@ namespace oomph{
 		             //Terms that multiply the test function 
 		              double tmp = 0.0;
 		             // //If the mesh is moving need to subtract the mesh velocity
-		             if(!this->ALE_is_disabled) {tmp -= mesh_velocity[k];}
-		             tmp *= interpolated_dvmdx[k];
+		             // if(!this->ALE_is_disabled) {tmp -= mesh_velocity[k];}
+		             // tmp *= interpolated_dvmdx[k];
 
 		             //Terms that multiply the derivative of the test function
 		              double tmp2 = 0.0;
 		             //Now the diuffusive term
 		             for(unsigned j=0;j<DIM;j++)
 		              {
-		               tmp2 += interpolated_dvmdx[j]*D(k,j);
+		               tmp2 += 0.5*(interpolated_dvmdx[j] + interpolated_d_predvmdx[j])*D(k,j);
 		              }
 		             //Now construct the contribution to the residuals
-		              // oomph_info << "not pinned and setting value" << std::endl;
 		             residuals[local_eqn] -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
 		            }
-		            // oomph_info << "filling res by monodomain " << this->eqn_number(local_eqn) <<": " << residuals[local_eqn] << std::endl;
 
 		         
 		          // Calculate the jacobian
@@ -190,9 +208,9 @@ namespace oomph{
 		              if(local_unknown >= 0)
 		                {
 		                //Mass matrix term
-		                jacobian(local_eqn,local_unknown) 
-		                  -= test(l)*psi(l2)*
-		                  this->node_pt(l2)->time_stepper_pt()->weight(1,0)*W;
+		                // jacobian(local_eqn,local_unknown) 
+		                //   -= test(l)*psi(l2)*
+		                //   this->node_pt(l2)->time_stepper_pt()->weight(1,0)*W;
 
 		                //Add the mass matrix term
 		                if(flag==2)
@@ -205,15 +223,15 @@ namespace oomph{
 		                for(unsigned k=0;k<DIM;k++){
 		                  //Temporary term used in assembly
 		                  double tmp = 0.0;
-		                  if(!this->ALE_is_disabled)
-		                   {tmp -= mesh_velocity[k];}
-		                  tmp *= dpsidx(l2,k);
+		                  // if(!this->ALE_is_disabled)
+		                  //  {tmp -= mesh_velocity[k];}
+		                  // tmp *= dpsidx(l2,k);
 
 		                  double tmp2 = 0.0;
 		                  //Now the diffusive term
 		                  for(unsigned j=0;j<DIM;j++)
 		                    {
-		                    tmp2 += D(k,j)*dpsidx(l2,j);
+		                    tmp2 += 0.5*D(k,j)*dpsidx(l2,j);
 		                    }
 		                 
 		                  //Now assemble Jacobian term
@@ -221,11 +239,9 @@ namespace oomph{
 		                    -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
 		                  }
 		                }
-		                // else{oomph_info << "mono var pinned" << std::endl;}
 		              }
 		            }
 		          }
-		          // else{oomph_info << "mono var pinned" << std::endl;}
 		        }
 		      } // End of loop over integration points
 		    }
@@ -234,11 +250,11 @@ namespace oomph{
 	  		{return 1;}
 
 		/// Access function: Pointer to diffusion  function
-		MonodomainEquationsDiffFctPt& diff_fct_pt() 
+		MonodomainEquationsCrankNicolsonMethodDiffFctPt& diff_fct_pt() 
 		{return Diff_fct_pt;}
 
 		/// Access function: Pointer to diffusion function. Const version
-		MonodomainEquationsDiffFctPt diff_fct_pt() const 
+		MonodomainEquationsCrankNicolsonMethodDiffFctPt diff_fct_pt() const 
 		{return Diff_fct_pt;}
 
 
@@ -376,7 +392,7 @@ namespace oomph{
 				// Get local coordinates of plot point
 				this->get_s_plot(iplot,nplot,s);
 
-				file_out << this->interpolated_vm_BaseCellMembranePotential(s) << std::endl;
+				file_out << this->get_interpolated_membrane_potential_BaseCellMembranePotential(s) << std::endl;
 			}
 		}
 
@@ -434,7 +450,7 @@ namespace oomph{
 	protected:
 		/// Pointer to diffusivity function:
 		///		function typedef is given in BaseCellMembranePotentialEquations
-		MonodomainEquationsDiffFctPt Diff_fct_pt;
+		MonodomainEquationsCrankNicolsonMethodDiffFctPt Diff_fct_pt;
 
 };
 
@@ -442,14 +458,14 @@ namespace oomph{
 //Monodomain Elements
 
 	//======================================================================
-	/// \short QMonodomainElement elements are 
+	/// \short QMonodomainElementCrankNicolsonMethod elements are 
 	/// linear/quadrilateral/brick-shaped Advection Diffusion elements with 
 	/// isoparametric interpolation for the function.
 	//======================================================================
 	template <unsigned DIM, unsigned NNODE_1D>
-	 class QMonodomainElement : 
+	 class QMonodomainElementCrankNicolsonMethod : 
 	 public virtual QElement<DIM,NNODE_1D>,
-	 public virtual MonodomainEquations<DIM>
+	 public virtual MonodomainEquationsCrankNicolsonMethod<DIM>
 	{
 
 	private:
@@ -463,21 +479,21 @@ namespace oomph{
 
 	 ///\short  Constructor: Call constructors for QElement and 
 	 /// Advection Diffusion equations
-	 QMonodomainElement() : QElement<DIM,NNODE_1D>(), 
-	  MonodomainEquations<DIM>()
+	 QMonodomainElementCrankNicolsonMethod() : QElement<DIM,NNODE_1D>(), 
+	  MonodomainEquationsCrankNicolsonMethod<DIM>()
 	  { }
 
 	 /// Broken copy constructor
-	 QMonodomainElement(
-	  const QMonodomainElement<DIM,NNODE_1D>&  dummy) 
+	 QMonodomainElementCrankNicolsonMethod(
+	  const QMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D>&  dummy) 
 	  { 
-	   BrokenCopy::broken_copy("QMonodomainElement");
+	   BrokenCopy::broken_copy("QMonodomainElementCrankNicolsonMethod");
 	  } 
 	 
 	 /// Broken assignment operator
-	 void operator=(const QMonodomainElement<DIM,NNODE_1D>&) 
+	 void operator=(const QMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D>&) 
 	  {
-	   BrokenCopy::broken_assign("QMonodomainElement");
+	   BrokenCopy::broken_assign("QMonodomainElementCrankNicolsonMethod");
 	  }
 
 	 /// \short  Required  # of `values' (pinned or dofs) 
@@ -610,7 +626,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double QMonodomainElement<DIM,NNODE_1D>::
+	double QMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_BaseCellMembranePotential(const Vector<double> &s,
 	                                         Shape &psi, 
 	                                         DShape &dpsidx,
@@ -644,7 +660,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double QMonodomainElement<DIM,NNODE_1D>::
+	double QMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(
 	 const unsigned &ipt,
 	 Shape &psi, 
@@ -671,13 +687,13 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// \short Face geometry for the QMonodomainElement elements: 
+	/// \short Face geometry for the QMonodomainElementCrankNicolsonMethod elements: 
 	/// The spatial dimension of the face elements is one lower than that 
 	/// of the bulk element but they have the same number of points along 
 	/// their 1D edges.
 	//=======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	class FaceGeometry<QMonodomainElement<DIM,NNODE_1D> >: 
+	class FaceGeometry<QMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D> >: 
 	 public virtual QElement<DIM-1,NNODE_1D>
 	{
 
@@ -700,7 +716,7 @@ namespace oomph{
 	/// Face geometry for the 1D QMonodomain elements: Point elements
 	//=======================================================================
 	template<unsigned NNODE_1D>
-	class FaceGeometry<QMonodomainElement<1,NNODE_1D> >: 
+	class FaceGeometry<QMonodomainElementCrankNicolsonMethod<1,NNODE_1D> >: 
 	 public virtual PointElement
 	{
 
@@ -716,8 +732,8 @@ namespace oomph{
 
 	//Override functions in specific implementations of the diff augmented wrapper
 	template<unsigned DIM, unsigned NNODE_1D>
-	class DiffAugmentedCell<QMonodomainElement<DIM, NNODE_1D>>:
-		public QMonodomainElement<DIM, NNODE_1D>
+	class DiffAugmentedCell<QMonodomainElementCrankNicolsonMethod<DIM, NNODE_1D>>:
+		public QMonodomainElementCrankNicolsonMethod<DIM, NNODE_1D>
 	{
 	public:
 
@@ -737,21 +753,21 @@ namespace oomph{
 
 	/////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////
-	// TMonodomainElement
+	// TMonodomainElementCrankNicolsonMethod
 	////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////
 
 
 
 	//======================================================================
-	/// \short TMonodomainElement elements are isoparametric triangular 
+	/// \short TMonodomainElementCrankNicolsonMethod elements are isoparametric triangular 
 	/// DIM-dimensional General Advection Diffusion Equations with  NNODE_1D nodal points along each
-	/// element edge. Inherits from TElement and MonodomainEquations
+	/// element edge. Inherits from TElement and MonodomainEquationsCrankNicolsonMethod
 	//======================================================================
 	template <unsigned DIM, unsigned NNODE_1D>
-	 class TMonodomainElement : 
+	 class TMonodomainElementCrankNicolsonMethod : 
 	 public virtual TElement<DIM,NNODE_1D>,
-	 public virtual MonodomainEquations<DIM>
+	 public virtual MonodomainEquationsCrankNicolsonMethod<DIM>
 	{
 
 	private:
@@ -765,21 +781,21 @@ namespace oomph{
 
 	 ///\short  Constructor: Call constructors for TElement and 
 	 /// Advection Diffusion equations
-	 TMonodomainElement() : TElement<DIM,NNODE_1D>(), 
-	  MonodomainEquations<DIM>()
+	 TMonodomainElementCrankNicolsonMethod() : TElement<DIM,NNODE_1D>(), 
+	  MonodomainEquationsCrankNicolsonMethod<DIM>()
 	  { }
 
 	 /// Broken copy constructor
-	 TMonodomainElement(
-	  const TMonodomainElement<DIM,NNODE_1D>&  dummy) 
+	 TMonodomainElementCrankNicolsonMethod(
+	  const TMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D>&  dummy) 
 	  { 
-	   BrokenCopy::broken_copy("TMonodomainElement");
+	   BrokenCopy::broken_copy("TMonodomainElementCrankNicolsonMethod");
 	  } 
 	 
 	 /// Broken assignment operator
-	 void operator=(const TMonodomainElement<DIM,NNODE_1D>&) 
+	 void operator=(const TMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D>&) 
 	  {
-	   BrokenCopy::broken_assign("TMonodomainElement");
+	   BrokenCopy::broken_assign("TMonodomainElementCrankNicolsonMethod");
 	  }
 
 	 /// \short  Required  # of `values' (pinned or dofs) 
@@ -864,7 +880,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double TMonodomainElement<DIM,NNODE_1D>::
+	double TMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_BaseCellMembranePotential(const Vector<double> &s,
 	                                         Shape &psi, 
 	                                         DShape &dpsidx,
@@ -898,7 +914,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double TMonodomainElement<DIM,NNODE_1D>::
+	double TMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(
 	 const unsigned &ipt,
 	 Shape &psi, 
@@ -925,13 +941,13 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// \short Face geometry for the TMonodomainElement elements: 
+	/// \short Face geometry for the TMonodomainElementCrankNicolsonMethod elements: 
 	/// The spatial dimension of the face elements is one lower than that 
 	/// of the bulk element but they have the same number of points along 
 	/// their 1D edges.
 	//=======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	class FaceGeometry<TMonodomainElement<DIM,NNODE_1D> >: 
+	class FaceGeometry<TMonodomainElementCrankNicolsonMethod<DIM,NNODE_1D> >: 
 	 public virtual TElement<DIM-1,NNODE_1D>
 	{
 
@@ -951,10 +967,10 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// Face geometry for the 1D TMonodomainElement: Point elements
+	/// Face geometry for the 1D TMonodomainElementCrankNicolsonMethod: Point elements
 	//=======================================================================
 	template<unsigned NNODE_1D>
-	class FaceGeometry<TMonodomainElement<1,NNODE_1D> >: 
+	class FaceGeometry<TMonodomainElementCrankNicolsonMethod<1,NNODE_1D> >: 
 	 public virtual PointElement
 	{
 
@@ -969,8 +985,8 @@ namespace oomph{
 
 	//Override functions in specific implementations of the diff augmented wrapper
 	template<unsigned DIM, unsigned NNODE_1D>
-	class DiffAugmentedCell<TMonodomainElement<DIM, NNODE_1D>>:
-		public TMonodomainElement<DIM, NNODE_1D>
+	class DiffAugmentedCell<TMonodomainElementCrankNicolsonMethod<DIM, NNODE_1D>>:
+		public TMonodomainElementCrankNicolsonMethod<DIM, NNODE_1D>
 	{
 	public:
 

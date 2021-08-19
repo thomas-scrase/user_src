@@ -1,28 +1,28 @@
-
 # A few file definitions
 #-----------------------
 
 # Define the sources
-sources = 
-	
+sources =  \
+dummy.cc
+
+
 # Define the headers
-headers = \
-	updated_multi_domain_cardiac_tissue_sub_elements.h \
-	single_domain_cardiac_tissue_elements.h
+headers =  \
+cell_model_base.h
 
 # Define name of library
-libname = component_multiphysics
+libname = cell_models
 
 # Combine headers and sources
 headers_and_sources = $(headers) $(sources)
 
 # Define the library that gets placed in lib directory
 #-----------------------------------------------------
-lib_LTLIBRARIES = libcomponent_multiphysics.la
+lib_LTLIBRARIES = libcell_models.la
 
 # Sources that the library depends on: 
 #-------------------------------------
-libcomponent_multiphysics_la_SOURCES = $(headers_and_sources)
+libcell_models_la_SOURCES = $(headers_and_sources)
 
 # The library's include headers:
 #-------------------------------
@@ -32,10 +32,10 @@ libcomponent_multiphysics_la_SOURCES = $(headers_and_sources)
 include_HEADERS = $(libname).h 
 
 #Here's the subdirectory where the actual header files are placed
-library_includedir=$(includedir)/component_multiphysics
+library_includedir=$(includedir)/cell_models
 
 #These are the header files that are to be placed in subdirectory
-library_include_HEADERS=$(headers)
+library_include_HEADERS=$(headers) 
 
 
 # Required libraries -- [assuming that we want to link against stuff in generic
@@ -43,7 +43,8 @@ library_include_HEADERS=$(headers)
 # Include path for library headers -- need to refer to include files
 # in their respective source directories as they will not have been 
 # installed yet! 
-AM_CPPFLAGS += -I$(top_builddir)/src/generic -I$(top_builddir)/user_src/
+AM_CPPFLAGS += -I$(top_builddir)/src/generic
+
 
 # Combined header file
 #---------------------
@@ -53,7 +54,7 @@ $(libname).h: dummy_$(libname).h
 
 dummy_$(libname).h:  $(headers)
 	echo  $(libname) $(headers) > all_$(libname).aux
-	$(AWK) -f $(top_srcdir)/bin/headers.awk < \
+	$(AWK) -f $(top_builddir)/bin/headers.awk < \
 	       all_$(libname).aux > $(libname).h
 	rm all_$(libname).aux
 
@@ -64,7 +65,7 @@ if SYMBOLIC_LINKS_FOR_HEADERS
 install-data-hook: 
 	(cd $(library_includedir) && rm -f $(headers) )
 	(echo "$(headers)" > include_files.list )
-	($(top_srcdir)/bin/change_headers_to_links.sh `pwd`)
+	($(top_builddir)/bin/change_headers_to_links.sh `pwd`)
 	($(LN_S) `cat include_files.list.aux` $(library_includedir) )
 	(rm -r include_files.list.aux include_files.list ) 
 else

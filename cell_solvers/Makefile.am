@@ -1,57 +1,35 @@
+
 # A few file definitions
 #-----------------------
 
 # Define the sources
-sources =  \
-cell_state_container.cc \
-Explicit_TNNP_Vent.cc \
-Implicit_TNNP_Vent.cc \
-Implicit_CNZ_Atria.cc \
-Explicit_CNZ_Atria.cc \
-Explicit_TNNP_Vent_With_Rice.cc \
-Explicit_OHaraRudy_Vent.cc \
-Explicit_CNZ_Atria_MarkovChain_IKs.cc \
-Explicit_OHaraRudy_Vent_MarkovChain_IKs.cc \
-Explicit_TNNP_Vent_With_Rice_MarkovChain_IKs.cc \
-TomekORudy.cc \
-TomekORudy_MarkovChain_IKs.cc \
-TomekORudy_Anti_KCNQ1.cc \
-TomekORudy_new.cc \
-TNNP_06_Vent.cc
+sources = \
+dummy.cc
 
+# # Include files which shouldn't be compiled
+# incl_cc_files =
 
 # Define the headers
-headers =  \
-cell_state_container.h \
-cell_model_base.h \
-Explicit_TNNP_Vent.h \
-Implicit_TNNP_Vent.h \
-Implicit_CNZ_Atria.h \
-Explicit_CNZ_Atria.h \
-Explicit_TNNP_Vent_With_Rice.h \
-Explicit_OHaraRudy_Vent.h \
-Explicit_CNZ_Atria_MarkovChain_IKs.h \
-Explicit_OHaraRudy_Vent_MarkovChain_IKs.h \
-Explicit_TNNP_Vent_With_Rice_MarkovChain_IKs.h \
-TomekORudy.h \
-TomekORudy_MarkovChain_IKs.h \
-TomekORudy_Anti_KCNQ1.h \
-TomekORudy_new.h \
-TNNP_06_Vent.h
+headers = \
+cell_solvers_fully_segregated.h 
+
+# # Template only files. These should be included in include directory
+# # but should not be listed in combined header file
+# templates = 
 
 # Define name of library
-libname = cell_model
+libname = cell_solvers
 
 # Combine headers and sources
 headers_and_sources = $(headers) $(sources)
 
 # Define the library that gets placed in lib directory
 #-----------------------------------------------------
-lib_LTLIBRARIES = libcell_model.la
+lib_LTLIBRARIES = libcell_solvers.la
 
 # Sources that the library depends on: 
 #-------------------------------------
-libcell_model_la_SOURCES = $(headers_and_sources)
+libcell_solvers_la_SOURCES = $(headers_and_sources)
 
 # The library's include headers:
 #-------------------------------
@@ -61,7 +39,7 @@ libcell_model_la_SOURCES = $(headers_and_sources)
 include_HEADERS = $(libname).h 
 
 #Here's the subdirectory where the actual header files are placed
-library_includedir=$(includedir)/cell_model
+library_includedir=$(includedir)/cell_solvers
 
 #These are the header files that are to be placed in subdirectory
 library_include_HEADERS=$(headers) 
@@ -106,5 +84,5 @@ endif
 #--------
 clean-local:
 	rm -f $(libname).h
-
-
+# distclean-local:
+# 	rm -f $(libname).h *~

@@ -24,6 +24,9 @@
 #include <boost/numeric/odeint.hpp>
 
 
+#include "../cell_membrane_potential/cell_membrane_potential_elements.h"
+
+
 namespace oomph{
 
 
@@ -97,7 +100,8 @@ namespace oomph{
 	typedef boost::numeric::ublas::vector< double > Boost_State_Type;
 	typedef boost::numeric::ublas::matrix< double > boost_matrix_type;
 
-	typedef boost::numeric::odeint::runge_kutta_cash_karp54< Boost_State_Type > controlled_error_stepper_type;
+	// typedef boost::numeric::odeint::runge_kutta_cash_karp54< Boost_State_Type > controlled_error_stepper_type;
+	typedef boost::numeric::odeint::runge_kutta_fehlberg78< Boost_State_Type > controlled_error_stepper_type;
 	typedef boost::numeric::odeint::rosenbrock4< Boost_State_Type > implicit_controlled_error_stepper_type;
 
 
@@ -105,15 +109,14 @@ namespace oomph{
 	class CellModelBaseFullySegregated
 	{
 	public:
-		CellModelBaseFullySegregated() : active_strain_index(-1)
+		CellModelBaseFullySegregated() : active_strain_index(-1), Integral_Iion(0.0), Base_Cell_Sources_Pt(0), Base_Node_Pt(0),
+																		Non_this_pointer(this)
 		{
 			//Resize the variable names vectors to zero
 			Names_Of_Cell_Variables.resize(0);
 			Names_Of_Other_Parameters.resize(0);
 			Names_Of_Other_Variables.resize(0);
 			Names_Of_Output_Data.resize(0);
-
-			// std::cout << "Names of variables size at base construction " << Names_Of_Cell_Variables.size() << std::endl;
 		}
 		virtual ~CellModelBaseFullySegregated(){}
 		
@@ -195,6 +198,20 @@ namespace oomph{
 			return MyVm;
 		}
 
+		double set_predicted_vm(const double& new_vm)
+		{
+			return MyVm = new_vm;
+		}
+
+
+
+		double get_Integral_Iion() const
+		{
+			return Integral_Iion;
+		}
+
+
+
 		double get_cell_variable(const unsigned& i)
 		{
 			return Cell_Variables[i];
@@ -203,7 +220,6 @@ namespace oomph{
 		double get_active_strain() const
 		{
 			#ifdef PARANOID
-			// oomph_info << "In fct which should die" << std::endl;
 			//If the user has failed to specify at which index the active strain is stored at then we throw an error 
 			if(active_strain_index<0){
 				throw OomphLibError("You appear to be attempting to access active strain stored in a cell element\nbut you haven't set the index at which it is stored. Please make sure that you override\nget_index_of_active_strain() to return the correct index you have stored it at.",
@@ -223,8 +239,23 @@ namespace oomph{
 		}
 
 
+		double get_additional_data_val(const unsigned &n)
+		{
+			#ifdef PARANOID
+			if(n>Num_Output_Data-1)
+			{
+				throw OomphLibError("Index of requested output data too large.",
+			                       	OOMPH_CURRENT_FUNCTION,
+			                       	OOMPH_EXCEPTION_LOCATION);
+			}
+			#endif
+			return Output_Data[n];
+		}
 
 
+		const void output_membrane_potential(std::ostream &outfile){
+			outfile << MyVm << " ";
+		}
 
 		const void output_global_coord(std::ostream &outfile){
 			const unsigned dim=X.size();
@@ -251,6 +282,18 @@ namespace oomph{
 		}
 
 
+
+		const void output_names_of_cell_variables(std::ostream &outfile){
+			for(unsigned i=0; i<Num_Cell_Vars; i++){
+				outfile << Names_Of_Cell_Variables[i] << " ";
+			}
+		}
+
+		const void output_names_of_additional_data(std::ostream &outfile){
+			for(unsigned i=0; i<Num_Output_Data; i++){
+				outfile << Names_Of_Output_Data[i] << " ";
+			}
+		}
 
 
 
@@ -309,11 +352,11 @@ namespace oomph{
 		void set_my_element_and_coordinate(ConductingCellFunctionsBase* ConductingCellFunctionsBase_Pt,
 											Node* Node_pt,
 											CellModelBaseFullySegregated* cell_pt,
-											const unsigned Index_of_Vm,
-											const unsigned &ipt,
-											const Vector<double> &s,
-											const Vector<double> &x,
-											const unsigned &l)
+											const unsigned& Index_of_Vm,
+											const unsigned& ipt,
+											const Vector<double>& s,
+											const Vector<double>& x,
+											const unsigned& l)
 		{
 			Base_Cell_Sources_Pt = ConductingCellFunctionsBase_Pt;
 
@@ -329,6 +372,47 @@ namespace oomph{
 			L = l;
 		}
 
+		
+		double get_stimulus_current(const double &t)
+		{
+			if(Base_Cell_Sources_Pt!=nullptr)
+			{
+				return (Base_Cell_Sources_Pt->get_stimulus)(Ipt, S, X, t);
+			}
+			else
+			{
+				return 0.0;
+			}
+		}
+
+		void get_other_variables(const double& t, Vector<double> boost_Other_Variables)
+		{
+			if(Base_Cell_Sources_Pt!=nullptr)
+			{
+				(Base_Cell_Sources_Pt->get_other_variables)(Ipt, S, X, L, t, boost_Other_Variables);
+			}
+			else
+			{
+				//do nothing
+			}
+		}
+
+		double get_base_node_membrane_potential()
+		{
+			if(Base_Cell_Sources_Pt!=nullptr)
+			{
+				return dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->get_nodal_membrane_potential_BaseCellMembranePotential(L);
+			}
+			else
+			{
+				//throw an error since we explicitly asked for the membrane potential of the base node but none has been assigned
+				throw OomphLibError("A cell is requesting its base node membrane potential but no such node exists.",
+														OOMPH_CURRENT_FUNCTION,
+														OOMPH_EXCEPTION_LOCATION);
+			}
+		}
+
+
 		//The function used by boost when solving the cell model
 		void operator() ( const Boost_State_Type &x , Boost_State_Type &dxdt , const double t )
 		{
@@ -343,19 +427,19 @@ namespace oomph{
 			}
 			Vector<double> boost_Other_Variables(Num_Cell_Vars, 0.0);
 
-			const double stimulus_current = (Base_Cell_Sources_Pt->get_stimulus)(Ipt, S, X, t);
+			const double stimulus_current = get_stimulus_current(t);
 
-			(Base_Cell_Sources_Pt->get_other_variables)(Ipt, S, X, L, t, boost_Other_Variables);
+			get_other_variables(t, boost_Other_Variables);
 
 			Non_this_pointer->Calculate_Derivatives(boost_Vm,
-														boost_Cell_Variables,
-														t,
-														Cell_Type,
-														stimulus_current,
-														Other_Parameters,
-														boost_Other_Variables,
-														boost_Variable_Derivatives,
-														boost_Iion);
+																							boost_Cell_Variables,
+																							t,
+																							Cell_Type,
+																							stimulus_current,
+																							Other_Parameters,
+																							boost_Other_Variables,
+																							boost_Variable_Derivatives,
+																							boost_Iion);
 
 			//Fill in the derivatives to be sent back to the boost solver
 			dxdt[Num_Cell_Vars] = boost_Iion;
@@ -365,32 +449,191 @@ namespace oomph{
 		}
 
 
+		// void first( const Boost_State_Type &x , Boost_State_Type &dxdt , const double t )
+		// {
+		// 	//Things used throughout the computation
+		// 	const double boost_Vm = x[Num_Cell_Vars];
+		// 	double boost_Iion = 0.0;
+		// 	Vector<double> boost_Cell_Variables(Num_Cell_Vars, 0.0);
+		// 	Vector<double> boost_Variable_Derivatives(Num_Cell_Vars, 0.0);
+		// 	for(unsigned i=0; i<Num_Cell_Vars; i++){
+		// 		boost_Cell_Variables[i] = x[i];
+		// 		boost_Variable_Derivatives[i] = 0.0;
+		// 	}
+		// 	Vector<double> boost_Other_Variables(Num_Cell_Vars, 0.0);
+
+		// 	const double stimulus_current = (Base_Cell_Sources_Pt->get_stimulus)(Ipt, S, X, t);
+
+		// 	(Base_Cell_Sources_Pt->get_other_variables)(Ipt, S, X, L, t, boost_Other_Variables);
+
+		// 	Non_this_pointer->Calculate_Derivatives(boost_Vm,
+		// 												boost_Cell_Variables,
+		// 												t,
+		// 												Cell_Type,
+		// 												stimulus_current,
+		// 												Other_Parameters,
+		// 												boost_Other_Variables,
+		// 												boost_Variable_Derivatives,
+		// 												boost_Iion);
+
+		// 	//Fill in the derivatives to be sent back to the boost solver
+		// 	dxdt[Num_Cell_Vars] = boost_Iion;
+		// 	for(unsigned i=0; i<Num_Cell_Vars; i++){
+		// 		dxdt[i] = boost_Variable_Derivatives[i];
+		// 	}
+		// }
+
+		// void second( const Boost_State_Type &x , boost_matrix_type &jacobi , const double t )
+		// {
+		// 	//The base vector for finite differencing
+		// 	Boost_State_Type dxdt0(x.size());
+
+		// 	//Things used throughout the computation
+		// 	double boost_Vm = x[Num_Cell_Vars];
+		// 	double boost_Iion = 0.0;
+		// 	Vector<double> boost_Cell_Variables(Num_Cell_Vars, 0.0);
+		// 	Vector<double> boost_Variable_Derivatives(Num_Cell_Vars, 0.0);
+		// 	for(unsigned i=0; i<Num_Cell_Vars; i++){
+		// 		boost_Cell_Variables[i] = x[i];
+		// 		boost_Variable_Derivatives[i] = 0.0;
+		// 	}
+		// 	Vector<double> boost_Other_Variables(Num_Cell_Vars, 0.0);
+
+		// 	const double stimulus_current = (Base_Cell_Sources_Pt->get_stimulus)(Ipt, S, X, t);
+
+		// 	(Base_Cell_Sources_Pt->get_other_variables)(Ipt, S, X, L, t, boost_Other_Variables);
+
+		// 	Non_this_pointer->Calculate_Derivatives(boost_Vm,
+		// 												boost_Cell_Variables,
+		// 												t,
+		// 												Cell_Type,
+		// 												stimulus_current,
+		// 												Other_Parameters,
+		// 												boost_Other_Variables,
+		// 												boost_Variable_Derivatives,
+		// 												boost_Iion);
+
+
+		// 	//Fill in the base derivatives
+		// 	dxdt0[Num_Cell_Vars] = boost_Iion;
+		// 	for(unsigned i=0; i<Num_Cell_Vars; i++){
+		// 		dxdt0[i] = boost_Variable_Derivatives[i];
+		// 	}
+
+		// 	//perform the finite differencing:
+
+
+		// 	//Finite difference membrane potential
+
+		// 	//Things used throughout the computation
+		// 	boost_Vm += 1e-9;
+
+		// 	Non_this_pointer->Calculate_Derivatives(boost_Vm,
+		// 												boost_Cell_Variables,
+		// 												t,
+		// 												Cell_Type,
+		// 												stimulus_current,
+		// 												Other_Parameters,
+		// 												boost_Other_Variables,
+		// 												boost_Variable_Derivatives,
+		// 												boost_Iion);
+
+		// 	//Fill in the base derivatives
+		// 	jacobi.insert_element(Num_Cell_Vars, Num_Cell_Vars, (boost_Iion - dxdt0[Num_Cell_Vars])/(1e-9));
+		// 	for(unsigned i=0; i<Num_Cell_Vars; i++){
+		// 		jacobi.insert_element(i, Num_Cell_Vars, (dxdt0[i] - boost_Variable_Derivatives[i])/(1e-9));
+		// 	}
+
+		// 	boost_Vm -= 1e-9;
+
+
+		// 	//Finite difference the cell variables variables
+
+		// 	for(unsigned v=0; v<Num_Cell_Vars; v++){
+		// 		//Things used throughout the computation
+		// 		boost_Cell_Variables[v] += 1e-9;
+
+		// 		Non_this_pointer->Calculate_Derivatives(boost_Vm,
+		// 													boost_Cell_Variables,
+		// 													t,
+		// 													Cell_Type,
+		// 													stimulus_current,
+		// 													Other_Parameters,
+		// 													boost_Other_Variables,
+		// 													boost_Variable_Derivatives,
+		// 													boost_Iion);
+
+		// 		//Fill in the base derivatives
+		// 		jacobi.insert_element(Num_Cell_Vars, v, (boost_Iion - dxdt0[Num_Cell_Vars])/(1e-9));
+		// 		for(unsigned i=0; i<Num_Cell_Vars; i++){
+		// 			jacobi.insert_element(i, v, (dxdt0[i] - boost_Variable_Derivatives[i])/(1e-9));
+		// 		}
+
+		// 		boost_Cell_Variables[v] -= 1e-9;
+		// 	}
+
+		// }
+
+
 		//Take a timestep using boost solver. pass the initial time and total duration of the solve
 		// the boolean use_node_vm_as_initial_value indicates whether or not the cell should use it's
 		// internally stored value of vm or the value stored in the underlying oomph-lib node
 		void TakeTimestep(const double &t, const double& dt, const bool &use_node_vm_as_initial_value = false)
 		{
-			//preallocate memory for the new variable values
-			// Vector<double> New_Variables(Num_Cell_Vars, 0.0);
-			// for(unsigned it = 0; it < Num_Cell_Vars; it++){
-			// 	New_Variables[it] = 0.0;
-			// }
-			//Allocate memory for New_Vm
-			// double New_Vm = 0.0;
-
 			//Fill in the current Vm and variable values
 			Boost_State_Type x(Num_Cell_Vars+1, 0.0);
 			//Fill in membrane potential
-			if(use_node_vm_as_initial_value){x[Num_Cell_Vars] = Base_Node_Pt->value(Base_Node_Index_of_Vm);}
-			else{x[Num_Cell_Vars] = MyVm;}
+			// if(use_node_vm_as_initial_value){x[Num_Cell_Vars] = Base_Node_Pt->value(Base_Node_Index_of_Vm);}
+			if(use_node_vm_as_initial_value)
+			{
+				x[Num_Cell_Vars] = get_base_node_membrane_potential();
+			}
+			else
+			{
+				x[Num_Cell_Vars] = MyVm;
+			}
+
 			//Fill in cell variables
 			for(unsigned i=0; i<Num_Cell_Vars; i++){
 				x[i] = Cell_Variables[i];
 			}
 
 			//Call the adaptive boost solver over the specified range, t to t+dt
+			// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-10, 1.0e-6),
+			// 						(*this), x, t, t+dt, dt);
+
+			//Integrate over dt. This is specialised for the crank nicolson strang splitting method. If we are not getting initial vm from the underlying node then we
+			// start the integration at the underlying node current time. If we are getting the initial vm from the underlying node then we expect
+			// that the underlying node has taken a timestep of 2*dt so we need to push back the time value by dt and solve over dt.
+			// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-10, 1.0e-6),
+			// 						(*this), x, t - dt, t, dt);
+
+
+
 			integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-10, 1.0e-6),
-									(*this), x, t, t+dt, dt);
+									(*this), x, t - dt, t, dt);
+
+			
+			
+				// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(dt*dt, dt*dt),
+				// 					(*this), x, t, t+dt, dt);
+
+			// boost::numeric::odeint::euler<Boost_State_Type> Euler;
+			// Euler.do_step((*this), x, t, dt);
+
+			// boost::numeric::odeint::runge_kutta4<Boost_State_Type> RK4;
+			// RK4.do_step((*this), x, t, dt);
+
+			// boost::numeric::odeint::implicit_euler<Boost_State_Type> ImplicitEuler;
+			// ImplicitEuler.do_step( (*this), x, t, dt);
+
+
+			
+			//Calculate the integral of membrane current by the fundamental theorem of calculus
+			// Integral_Iion = (MyVm - x[Num_Cell_Vars]);
+			Integral_Iion = (x[Num_Cell_Vars] - MyVm);
+
+			// oomph_info << Integral_Iion << std::endl;
 
 			//Unpack the data from the boost solve
 			MyVm = x[Num_Cell_Vars];
@@ -399,14 +642,17 @@ namespace oomph{
 			}
 		}
 
+
+
+
 		void calculate_optional_output(const double &t)
 		{
 
-			const double stimulus_current = (Base_Cell_Sources_Pt->get_stimulus)(Ipt, S, X, t);
+			const double stimulus_current = get_stimulus_current(t);
 
 			Vector<double> Other_Variables(Num_Cell_Vars, 0.0);
 
-			(Base_Cell_Sources_Pt->get_other_variables)(Ipt, S, X, L, t, Other_Variables);
+			get_other_variables(t, Other_Variables);
 
 			get_optional_output(MyVm,
 												Cell_Variables,
@@ -418,42 +664,116 @@ namespace oomph{
 												Output_Data);
 		}
 
-		void operator() ()
+
+
+		//Update the membrane potential of the underlying node to be consistent with that of the cell
+		void update_underlying_node_membrane_potential()
 		{
-			// return_initial_state_variable(0, 0);
-			// return_initial_membrane_potential(0);
-			TakeTimestep(0.0, 0.1, false);
+			#ifdef PARANOID
+			if(dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)==nullptr){
+				throw OomphLibError("No node assigned to this cell.",
+			                       	OOMPH_CURRENT_FUNCTION,
+			                       	OOMPH_EXCEPTION_LOCATION);
+			}
+			#endif
+			dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->update_nodal_membrane_potential_BaseCellMembranePotential(L, MyVm);
 		}
 
-		void assign_initial_conditions(){
+
+		//Assign initial conditions or update the current values of variables
+		//When updating the vm of the underlying node this is not done directly
+		// but calls a function of the underlying element - this is because
+		// the value stored in the underlying node may not actually
+		// represent vm.
+
+		void assign_initial_conditions(const bool &also_set_nodal_value = false){
 			//Assign initial conditions from the cell model
+
+			Integral_Iion = 0.0;
+
+			
 			//Cell variables
 			for(unsigned i=0; i<Num_Cell_Vars; i++){
 				Cell_Variables[i] = this->return_initial_state_variable(i, Cell_Type);
 			}
 			//Membrane potential
 			MyVm = this->return_initial_membrane_potential(Cell_Type);
+
+			if(also_set_nodal_value)
+			{
+				update_underlying_node_membrane_potential();
+			}
 		}
 
-		void assign_initial_conditions(const Vector<double>& vals, const double& vm){
-			//Assign initial conditions from the cell model
+		//Used to update values post mpi solve to be consistent with values on other processors
+		void assign_values_post_mpi_solve(const Vector<double>& vals, const double& vm, const bool &also_set_nodal_value = false){	
+
+			//Update the integral of iion
+			// Integral_Iion = (MyVm - vm);
+			Integral_Iion = (vm - MyVm);
+
+			//Membrane potential
+			MyVm = vm;
+
 			//Cell variables
 			for(unsigned i=0; i<Num_Cell_Vars; i++){
 				Cell_Variables[i] = vals[i];
 			}
-			//Membrane potential
-			MyVm = vm;
+
+			if(also_set_nodal_value)
+			{
+				update_underlying_node_membrane_potential();
+			}
 		}
 
-		// void assign_initial_conditions(Vector<double>::iterator itStart)
-		// {
-		// 	Vector<double>::iterator it = itStart;
+
+		//Assign initial conditions
+		void assign_initial_conditions(const Vector<double>& vals, const double& vm, const bool &also_set_nodal_value = false){		
+
+			//Update the integral of iion
+			Integral_Iion = 0.0;
+
+			//Membrane potential
+			MyVm = vm;
+
+			//Cell variables
+			for(unsigned i=0; i<Num_Cell_Vars; i++){
+				Cell_Variables[i] = vals[i];
+			}
+
+			if(also_set_nodal_value)
+			{
+				update_underlying_node_membrane_potential();
+			}
+		}
+
+
+
+
+		void assign_initial_membrane_potential(const double& Vm, const bool &also_set_nodal_value = false){
+			MyVm = Vm;
+
+			if(also_set_nodal_value)
+			{
+				update_underlying_node_membrane_potential();
+			}
+		}
+
+		void assign_initial_conditions(Vector<double>::iterator itStart, const bool &also_set_nodal_value = false)
+		{
+			Vector<double>::iterator it = itStart;
 			
-		// 	MyVm = *(++it);
-		// 	for(unsigned i=0; i<Num_Cell_Vars; i++){
-		// 		Cell_Variables[i] = *(++it);
-		// 	}
-		// }
+			MyVm = *(++it);
+			// oomph_info << MyVm << std::endl;
+			for(unsigned i=0; i<Num_Cell_Vars; i++){
+				Cell_Variables[i] = *(++it);
+			}
+
+			if(also_set_nodal_value)
+			{
+				update_underlying_node_membrane_potential();
+			}
+		}
 
 	protected:
 		//The vectors of variable names, these need to be assigned at construction of the cell model.
@@ -501,8 +821,12 @@ namespace oomph{
 		//	prediction given by solving the cell equations full decoupled from the diffusion
 		double MyVm;
 
+		double Integral_Iion;
+
 		//The variables we solve for when solving the cell model
 		Vector<double> Cell_Variables;
+
+
 
 		//Other parameters that define the general behaviour of this cell, e.g. apico-basal ratio
 		Vector<double> Other_Parameters;

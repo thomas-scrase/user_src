@@ -26,13 +26,15 @@
 #include "../generic/assembly_handler.h"
 
 
-#include "../cell_model_fully_segregated/cell_model_base_fully_segregated.h"
+#include "../cell_models/cell_model_base.h"
 
 #include "../cell_membrane_potential/cell_membrane_potential_elements.h"
 
 namespace oomph
 {
 
+//A wrapper class for the membrane potential equations defined in CONDUCTANCE_MODEL. Essentially provides suitably overriden version of the
+// functions which get data from the cell model as well as lookup schemes for the cells associated with the nodes of the element.
 template <class CONDUCTANCE_MODEL>
 class FullySegregatedCellEquations : public virtual FiniteElement,
 									public virtual CONDUCTANCE_MODEL,
@@ -55,6 +57,83 @@ public:
 
 	}
 
+
+	//Sometimes when generating a mesh from a list of elements and nodes the elements are inverted
+	//To solve this we simply swap the first and second nodes, however this requires also
+	//swapping the cell associated with the nodes as well so we provide a function to do it all for us
+	void check_for_and_deal_with_inverted_jacobian()
+	{
+		//Check if it is negative
+		bool jacobian_passed_test;
+		this->check_J_eulerian_at_knots(jacobian_passed_test);
+		//If it is, swap the first two node pointers
+		if(!jacobian_passed_test){
+			//Save a pointer to the first node
+			Node* nod_pt = this->node_pt(0);
+
+
+			//Swap the first and second nodes
+			this->node_pt(0) = this->node_pt(1);
+			this->node_pt(1) = nod_pt;
+
+
+			//Now we need to swap the pointers to the cells for the nodes,
+			// we do this and reapply the initial conditions - essentially we are
+			// calling the build cell function again but without actually re-building
+			// the cell
+
+			//Swap the cells associated with the nodes since we have swapped the nodes
+			CellModelBaseFullySegregated* cell_pt = Cell_associated_with_each_node_pt[0];
+			Cell_associated_with_each_node_pt[0] = Cell_associated_with_each_node_pt[1];
+			Cell_associated_with_each_node_pt[1] = cell_pt;
+
+			//Reinform the cells what the local node and coordinates are in the element
+
+			//First the first cell
+
+			//Get the integral point and local and global coordinates of the node in the element
+			//Integral point
+			unsigned ipt = this->ipt_at_node(0);
+			//Local coordinate
+			Vector<double> s;
+			this->local_coordinate_of_node(0, s);
+			//Global coordinate
+			Vector<double> x(this->dim());
+			this->get_x(s, x);
+			//add the element and local and global coordinates to the cell
+			Cell_associated_with_each_node_pt[0]->set_my_element_and_coordinate(dynamic_cast<ConductingCellFunctionsBase*>(this),
+																this->node_pt(0),
+																Cell_associated_with_each_node_pt[0],
+																this->vm_index_BaseCellMembranePotential(),
+																ipt, s, x, 0);
+			//Call the cell to assign initial conditions
+			Cell_associated_with_each_node_pt[0]->assign_initial_conditions(true);
+
+
+			//Then the second cell
+
+			//Get the integral point and local and global coordinates of the node in the element
+			//Integral point
+			ipt = this->ipt_at_node(1);
+			//Local coordinate
+			this->local_coordinate_of_node(1, s);
+			//Global coordinate
+			this->get_x(s, x);
+			//add the element and local and global coordinates to the cell
+			Cell_associated_with_each_node_pt[1]->set_my_element_and_coordinate(dynamic_cast<ConductingCellFunctionsBase*>(this),
+																this->node_pt(1),
+																Cell_associated_with_each_node_pt[1],
+																this->vm_index_BaseCellMembranePotential(),
+																ipt, s, x, 1);
+			//Call the cell to assign initial conditions
+			Cell_associated_with_each_node_pt[1]->assign_initial_conditions(true);
+
+
+			// oomph_info << "element " << e << " swapped nodes." << std::endl;
+		}
+	}	
+
+
 	//get the integration point associated with node n
 	inline unsigned ipt_at_node(const unsigned &n) const
 			{return ipt_not_at_nodes + n;}
@@ -74,8 +153,33 @@ public:
 
 	//Get Vm predicted from cell model
 	inline double get_nodal_predicted_vm(const unsigned &l) const {
+		#ifdef PARANOID
+			if(Cell_associated_with_each_node_pt[l]==nullptr)
+			{
+				throw OomphLibError(
+					"There is no cell associated with that local node",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+			}
+		#endif
 		return Cell_associated_with_each_node_pt[l]->get_predicted_vm();
 	}
+
+	//Get Integral of Iion from cell model
+	inline double get_nodal_integral_iion(const unsigned &l) const {
+		#ifdef PARANOID
+			if(Cell_associated_with_each_node_pt[l]==nullptr)
+			{
+				throw OomphLibError(
+					"There is no cell associated with that local node",
+					OOMPH_CURRENT_FUNCTION,
+					OOMPH_EXCEPTION_LOCATION);
+			}
+		#endif
+		return Cell_associated_with_each_node_pt[l]->get_Integral_Iion();
+	}
+
+
 
 	//Get active strain from cell model
 	inline double get_nodal_active_strain(const unsigned &l) const {
@@ -127,8 +231,14 @@ public:
 	//Overload this function of the conduction element in case it needs to do strang splitting
 	double get_nodal_predicted_vm_BaseCellMembranePotential(const unsigned &l) const
 	{	
-		// oomph_info << "getting nodal predicted vm" << std::endl;
 		return get_nodal_predicted_vm(l);
+	}
+
+
+	//Overload this function of the conduction element in case it needs to do toms splitting method
+	double get_nodal_integral_iion_BaseCellMembranePotential(const unsigned &l) const
+	{	
+		return get_nodal_integral_iion(l);
 	}
 
 
@@ -154,7 +264,7 @@ public:
 	//													of which might not line up if you are not careful. I provide no safety checks for this, you are on your own.
 	// void get_interpolated_general_output_from_cell_model(const Vector<double>& s, Vector<double> &Out) const {
 	// 	Out.resize(Cell_associated_with_each_node_pt[0]->Num_Output_Data, 0.0);
-	// 	#ifdef DPARANOID
+	// 	#ifdef PARANOID
 	// 	for(unsigned l=1; l<n_node; l++){
 	// 		if(Cell_associated_with_each_node_pt[l]->Num_Output_Data != Cell_associated_with_each_node_pt[0]->Num_Output_Data)
 	// 		{
@@ -402,6 +512,9 @@ public:
 
 
 
+
+
+
 //T Element
 template<unsigned DIM, unsigned NNODE_1D, template<unsigned> class CONDUCTANCE_MODEL>
 class TFullySegregatedCellElement : public virtual TElement<DIM, NNODE_1D>,
@@ -540,43 +653,80 @@ class CellMeshBase : public virtual Mesh
 {
 private:
 	//Work out what elements contain each 'global' node and which local node indexes correspond to these nodes.
-	// For large meshes this function will likely take a very long time, is there a way to speed it up?
 	void BuildNodeElementTables()
 	{
+		//Original slow brute force method
+
+		// //First we allocate suitable storage in the vectors
+		// Elements_containing_node.resize(this->nnode());
+
+		// //Next we loop over all the nodes
+		// for(unsigned l=0; l<this->nnode(); l++){
+		// 	//Get a pointer to the l-th node
+		// 	Node* mesh_nod_pt = this->node_pt(l);
+
+		// 	//Next loop over all the elements in the mesh
+		// 	for(unsigned e=0; e<this->nelement(); e++){
+		// 		//Get a pointer to the element
+		// 		FiniteElement* elem_pt = this->finite_element_pt(e);
+
+		// 		//Now we loop over the nodes in that element
+		// 		for(unsigned l1=0; l1<elem_pt->nnode(); l1++){
+		// 			//get a pointer to that element
+		// 			Node* elem_nod_pt = elem_pt->node_pt(l1);
+
+		// 			if(mesh_nod_pt==elem_nod_pt){
+		// 				//If the pointers point to the same object then add the element and the local node number to the table
+		// 				Elements_containing_node[l].push_back(std::pair<unsigned long, unsigned>(e, l1));
+		// 			}
+		// 		}
+		// 	}
+		// }
+
+
+		//Much faster method
+
+		oomph_info << "Building node-element/local node table" << std::endl;
+		double t_start = TimingHelpers::timer();
+
 		//First we allocate suitable storage in the vectors
 		Elements_containing_node.resize(this->nnode());
 
-		//Next we loop over all the nodes
+		//Map of node pointers to global node number
+		std::map<Node*, unsigned> Node_pt_to_global_number;
+		//Build the map of node pointers to global node numbers
 		for(unsigned l=0; l<this->nnode(); l++){
 			//Get a pointer to the l-th node
-			Node* mesh_nod_pt = this->node_pt(l);
+			Node* nod_pt = this->node_pt(l);
+			//Fill in the entry
+			Node_pt_to_global_number[nod_pt] = l;
+		}
 
-			//Next loop over all the elements in the mesh
-			for(unsigned e=0; e<this->nelement(); e++){
-				//Get a pointer to the element
-				FiniteElement* elem_pt = this->finite_element_pt(e);
-
-				//Now we loop over the nodes in that element
-				for(unsigned l1=0; l1<elem_pt->nnode(); l1++){
-					//get a pointer to that element
-					Node* elem_nod_pt = elem_pt->node_pt(l1);
-
-					if(mesh_nod_pt==elem_nod_pt){
-						//If the pointers point to the same object then add the element and the local node number to the table
-						Elements_containing_node[l].push_back(std::pair<unsigned long, unsigned>(e, l1));
-					}
-				}
+		//Loop over all the elements in the mesh
+		for(unsigned e=0; e<this->nelement(); e++){
+			//get a pointer to the element
+			FiniteElement* elem_pt = this->finite_element_pt(e);
+			//Now we loop over the nodes in that element
+			for(unsigned l1=0; l1<elem_pt->nnode(); l1++){
+				//get a pointer to that element
+				Node* elem_nod_pt = elem_pt->node_pt(l1);
+				//Use the map setup earlier to determine what the global node number of the local node l1 is and fill in its entry of the table
+				Elements_containing_node[Node_pt_to_global_number[elem_nod_pt]].push_back(std::pair<unsigned long, unsigned>(e, l1));
 			}
 		}
 
 
 		// for(unsigned l=0; l<this->nnode(); l++){
-		// 	oomph_info << "Node " << l << ": ";
+		// 	oomph_info << "Node " << l << ": " << std::endl;
 		// 	for(unsigned e=0; e<Elements_containing_node[l].size(); e++){
-		// 		oomph_info << Elements_containing_node[l][e].first << " " << Elements_containing_node[l][e].second << "    ";
+		// 		oomph_info << "\t" << Elements_containing_node[l][e].first << " " << Elements_containing_node[l][e].second << std::endl;
 		// 	}
 		// 	oomph_info << std::endl;
 		// }
+
+
+		double t_end = TimingHelpers::timer();
+		oomph_info << "Done. It took me " << (t_end - t_start) << " seconds." << std::endl;
 
 	}
 
@@ -641,8 +791,8 @@ protected:
 															elem_pt->vm_index_BaseCellMembranePotential(),
 															ipt, s, x, node_ind);
 
-
-		Cells_pt[NumCells]->assign_initial_conditions();
+		//Call the cell to assign initial conditions
+		Cells_pt[NumCells]->assign_initial_conditions(true);
 
 		//Increment the number of cells
 		NumCells++;
@@ -656,14 +806,20 @@ protected:
 		//provide suitable storage
 		Starting_Index_For_Data_Of_Cell.resize(NumCells, 0);
 
+		// oomph_info << 0 << " " << Starting_Index_For_Data_Of_Cell[0] << std::endl;
+
 		//iterate through the cells other than the first, that one obviously starts at 0
 		for(unsigned c=1; c<NumCells; c++){
 			//The index at which this cells data is stored
 			Starting_Index_For_Data_Of_Cell[c] = (Starting_Index_For_Data_Of_Cell[c-1] + 1 + Cells_pt[c-1]->get_Num_Cell_Vars());
+
+			// oomph_info << c << " " << Starting_Index_For_Data_Of_Cell[c] << std::endl;
 		}
 
 		//The total number of data associated with the cells
 		Total_cell_data = Starting_Index_For_Data_Of_Cell[NumCells-1] + 1 + Cells_pt[NumCells-1]->get_Num_Cell_Vars();
+
+		// oomph_info << "Total cell data " << Total_cell_data << std::endl;
 	}
 	#endif
 
@@ -675,6 +831,8 @@ protected:
 
 		//Build the cells in the mesh, this is a user overloaded function
 		BuildCells();
+
+		oomph_info << Cells_pt.size() << std::endl;
 
 		#ifdef OOMPH_HAS_MPI
 		SetupDataIndices();
@@ -730,79 +888,128 @@ public:
 		}
 	}
 
+
+	void check_for_and_deal_with_inverted_elements()
+	{
+		//We check all of the elements
+		for(unsigned e=0; e<this->nelement(); e++){
+			dynamic_cast<CONDUCTANCE_MODEL*>(this->element_pt(e))->check_for_and_deal_with_inverted_jacobian();
+		}
+
+		//We have reordered some nodes so we need to regenerate the local and global node elements tables
+		BuildNodeElementTables();
+	}
+
 	//Take a timestep with all the cells in the mesh, use mpi if we have built with it, this is the reason we need
 	// a pointer to a problem - for access to the mpi communicator
-	// use_node_vm_as_initial_value - should the decoupled cell solvers use the value stored internall or the value at the node for initial vm
+	// use_node_vm_as_initial_value - should the decoupled cell solvers use the value stored internal or the value at the node for initial vm
 	//	used in segregated solvers
-	void Take_time_step_with_all_cells_in_mesh(const double& dt, Problem* problem_pt, const bool &use_node_vm_as_initial_value = false)
+	//update_underlying_node_value_post_solve - should the value of vm of the underlying node be updated post solve.
+	//	in strang splitting with crank nicolson this is true, however for other methods this may not be.
+	// void Take_time_step_with_all_cells_in_mesh(const double& dt,
+	// 											Problem* problem_pt,
+	// 											const bool &use_node_vm_as_initial_value = false,
+	// 											const bool &update_underlying_node_value_post_solve = false)
+	// {
+	// 	oomph_info << "Performing a timestep for all cells in a mesh" << std::endl;
+	// 	double t_start = TimingHelpers::timer();
+
+	// 	#ifdef OOMPH_HAS_MPI
+	// 	Vector<double> My_cell_data(Total_cell_data, 0.0);
+	// 	Vector<double> Collected_cell_data(Total_cell_data, 0.0);
+	// 	#endif		
+
+	// 	//Serial (or one processor case)
+	// 	#ifdef OOMPH_HAS_MPI
+	// 	if(problem_pt->communicator_pt()->nproc() == 1){
+	// 	#endif
+	// 		//Loop over all of the cells in the mesh
+	// 		for(unsigned c=0; c<NumCells; c++){
+	// 			//Take a timestep
+	// 			// oomph_info << "Took a step with cell " << c << std::endl;
+	// 			Cells_pt[c]->TakeTimestep(problem_pt->time_stepper_pt()->time_pt()->time(), dt, use_node_vm_as_initial_value);
+	// 		}
+
+
+	// 	//Otherwise parallel case
+	// 	#ifdef OOMPH_HAS_MPI
+	// 	}
+	// 	else{
+	// 		//If we are doing it with mpi then we need to do a bit extra...
+
+	// 		for(unsigned c=0; c<NumCells; c++){
+	// 			//If this processor is not required to solve this cell then skip it
+	// 			if(c%problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()) continue;
+
+	// 			// oomph_info << "Took a parallel step with cell " << c << std::endl;
+	// 			//Take a timestep with the cell
+	// 			Cells_pt[c]->TakeTimestep(problem_pt->time_stepper_pt()->time_pt()->time(), dt, use_node_vm_as_initial_value);
+
+	// 			//Add the data to the vector of new cell values
+	// 			My_cell_data[Starting_Index_For_Data_Of_Cell[c]] = Cells_pt[c]->get_predicted_vm();
+	// 			for(unsigned i=0; i<Cells_pt[c]->get_Num_Cell_Vars(); i++){
+	// 				My_cell_data[Starting_Index_For_Data_Of_Cell[c]+1+i] = Cells_pt[c]->get_cell_variable(i);
+	// 			}
+	// 		}
+
+	// 		//Collect the data into the Collected_cell_data vector	
+	// 		MPI_Barrier(problem_pt->communicator_pt()->mpi_comm());
+	// 		MPI_Op myOp;
+	// 		MPI_Allreduce(My_cell_data.data(), Collected_cell_data.data(), Total_cell_data, MPI_DOUBLE, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
+
+
+	// 		// for(unsigned i=0; i<Total_cell_data; i++)
+	// 		// {
+	// 		// 	oomph_info << (Collected_cell_data[i]) << std::endl;
+	// 		// }
+
+	// 		//Loop over the cells again and get the new values
+	// 		for(unsigned c=0; c<NumCells; c++){
+	// 			// //If this processor was not required to solve the cell then we need to update the data associated with it
+	// 			// if(c%problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()){
+	// 				// oomph_info << c
+	// 				const double NewVm = Collected_cell_data[Starting_Index_For_Data_Of_Cell[c]];
+	// 				// oomph_info << NewVm	<< std::endl;
+	// 				Vector<double> NewVals(Cells_pt[c]->get_Num_Cell_Vars(), 0.0);
+	// 				for(unsigned i=0; i<Cells_pt[c]->get_Num_Cell_Vars(); i++){
+	// 					NewVals[i] = Collected_cell_data[Starting_Index_For_Data_Of_Cell[c]+1+i];
+
+	// 					// oomph_info << NewVals[i] << std::endl;
+	// 				}
+
+	// 				//Assign the variable values of the cell model to be consistent with that computed at each processor
+	// 				Cells_pt[c]->assign_values_post_mpi_solve(NewVals, NewVm, update_underlying_node_value_post_solve);
+
+	// 				// Cells_pt[c]->assign_initial_conditions(Collected_cell_data.begin() + Starting_Index_For_Data_Of_Cell[c], true);
+	// 			// }
+	// 		}
+
+	// 	}
+	// 	MPI_Barrier(problem_pt->communicator_pt()->mpi_comm());
+	// 	#endif
+
+	// 	double t_end = TimingHelpers::timer();
+	// 	oomph_info << "Done. It took me " << (t_end-t_start) << " seconds to complete." << std::endl;
+	// }
+
+	void Take_time_step_with_all_cells_in_mesh(const double& dt,
+												Problem* problem_pt,
+												const bool &use_node_vm_as_initial_value = false,
+												const bool &update_underlying_node_value_post_solve = false)
 	{
 		oomph_info << "Performing a timestep for all cells in a mesh" << std::endl;
 		double t_start = TimingHelpers::timer();
 
-		#ifdef OOMPH_HAS_MPI
-		Vector<double> My_cell_data(Total_cell_data, 0.0);
-		Vector<double> Collected_cell_data(Total_cell_data, 0.0);
-		#endif		
-
-		//Serial (or one processor case)
-		#ifdef OOMPH_HAS_MPI
-		if(problem_pt->communicator_pt()->nproc() == 1){
-		#endif
-			//Loop over all of the cells in the mesh
-			for(unsigned c=0; c<NumCells; c++){
-				//Take a timestep
-				Cells_pt[c]->TakeTimestep(problem_pt->time_stepper_pt()->time_pt()->time(), dt, use_node_vm_as_initial_value);
+		//Loop over all of the cells in the mesh
+		for(unsigned c=0; c<NumCells; c++){
+			//Take a timestep
+			Cells_pt[c]->TakeTimestep(problem_pt->time_stepper_pt()->time_pt()->time(), dt, use_node_vm_as_initial_value);
+			if(update_underlying_node_value_post_solve)
+			{
+				Cells_pt[c]->update_underlying_node_membrane_potential();
 			}
-
-
-		//Otherwise parallel case
-		#ifdef OOMPH_HAS_MPI
 		}
-		else{
-			//If we are doing it with mpi then we need to do a bit extra...
 
-			for(unsigned c=0; c<NumCells; c++){
-				//If this processor is not required to solve this cell then skip it
-				if(c%problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()) continue;
-
-				//Take a timestep with the cell
-				Cells_pt[c]->TakeTimestep(problem_pt->time_stepper_pt()->time_pt()->time(), dt, use_node_vm_as_initial_value);
-
-				//Add the data to the vector of new cell values
-				My_cell_data[Starting_Index_For_Data_Of_Cell[c]] = Cells_pt[c]->get_predicted_vm();
-				for(unsigned i=0; i<Cells_pt[c]->get_Num_Cell_Vars(); i++){
-					My_cell_data[Starting_Index_For_Data_Of_Cell[c]+1+i] = Cells_pt[c]->get_cell_variable(i);
-				}
-			}
-
-			//Collect the data into the Collected_cell_data vector	
-			MPI_Barrier(problem_pt->communicator_pt()->mpi_comm());
-			MPI_Op myOp;
-			MPI_Allreduce(My_cell_data.data(), Collected_cell_data.data(), Total_cell_data, MPI_DOUBLE, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
-
-
-			//Loop over the cells again and get the new values
-			for(unsigned c=0; c<NumCells; c++){
-				//If this processor was not required to solve the cell then we need to update the data associated with it
-				if(c%problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()){
-					//Get the start and end point in the collected cell data vector of the data associated with this cell
-					// Vector<double>::const_iterator first = Collected_cell_data.begin() + Starting_Index_For_Data_Of_Cell[c]+1;
-					// Vector<double>::const_iterator last = Collected_cell_data.begin() + Starting_Index_For_Data_Of_Cell[c]+1+Cells_pt[c]->get_Num_Cell_Vars();
-
-					//Create a new sub vector of it
-					// Vector<double> Cell_data(first, last); 
-
-					//Call the assign initial conditions of the cell with the new values as those to be assigned
-					// Cells_pt[c]->assign_initial_conditions(Cell_data, Collected_cell_data[Starting_Index_For_Data_Of_Cell[c]]);
-
-					// Vector<double>::iterator first = Collected_cell_data.begin() + Starting_Index_For_Data_Of_Cell[c];
-
-					// Cells_pt[c]->assign_initial_conditions(first);
-				}
-			}
-
-		}
-		#endif
 
 		double t_end = TimingHelpers::timer();
 		oomph_info << "Done. It took me " << (t_end-t_start) << " seconds to complete." << std::endl;
