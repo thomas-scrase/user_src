@@ -22,24 +22,24 @@ public:
 
 	double return_initial_membrane_potential(const unsigned &cell_type);
 
-	void Calculate_Derivatives(const double &Vm,
-								const Vector<double> &CellVariables,
-								const double &t,
-								const unsigned &cell_type,
-								const double &Istim,
-								const Vector<double> &Other_Parameters,
-								const Vector<double> &Other_Variables,
-								Vector<double> &Variable_Derivatives,
-								double &Iion);	
 
-	void get_optional_output(const double &Vm,
-									const Vector<double> &CellVariables,
-									const double &t,
-									const unsigned &cell_type,
-									const double &Istim,
-									const Vector<double> &Other_Parameters,
-									const Vector<double> &Other_Variables,
-									Vector<double> &Out);
+	void Calculate_Derivatives(const Boost_State_Type &Variables,
+														const double &t,
+														const unsigned &cell_type,
+														const double &Istim,
+														const Vector<double> &Other_Parameters,
+														const Vector<double> &Other_Variables,
+														Vector<double> &Variable_Derivatives,
+														double &Iion);
+
+
+	void get_optional_output(const Boost_State_Type &Variables,
+													const double &t,
+													const unsigned &cell_type,
+													const double &Istim,
+													const Vector<double> &Other_Parameters,
+													const Vector<double> &Other_Variables,
+													Vector<double> &Out);
 
 	enum Cell_Variables_Enum : unsigned
 	{

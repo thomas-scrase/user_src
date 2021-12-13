@@ -1,10 +1,12 @@
 //LIC// ====================================================================
 //LIC// This file contains the monodomain equations and elements, derived
-//LIC// from the base cell membrane potential equations - use strang splitting method
+//LIC// from the base cell membrane potential equations
 //LIC//====================================================================
 
-#ifndef OOMPH_MONODOMAIN_STRANG_SPLITTING
-#define OOMPH_MONODOMAIN_STRANG_SPLITTING
+
+
+#ifndef OOMPH_MONODOMAIN_PADE_2_POINT_1_1_APPROXIMANT
+#define OOMPH_MONODOMAIN_PADE_2_POINT_1_1_APPROXIMANT
 
 #include "cell_membrane_potential_elements.h"
 
@@ -12,18 +14,22 @@ namespace oomph{
 
 //Monodomain Equations
 	template <unsigned DIM>
-	class MonodomainEquationsStrangSplitting :
+	class MonodomainEquationsPadeTwoPointOneOneApproximant :
 	public BaseCellMembranePotentialEquations<DIM>
 	{
 	public:
 
 		//change this to take s instead of x? (no functional change, just notation)
 		/// \short Funciton pointer to a diffusivity function
-		typedef void (*MonodomainEquationsStrangSplittingDiffFctPt)
+		typedef void (*MonodomainEquationsPadeTwoPointOneOneApproximantDiffFctPt)
 		(const Vector<double> &x, DenseMatrix<double> &D);
 
+		//change this to take s instead of x? (no functional change, just notation)
+		/// \short Funciton pointer to a diffusivity function
+		typedef void (*MonodomainEquationsPadeTwoPointOneOneApproximantDivDiffFctPt)
+		(const Vector<double> &x, Vector<double> &D);
 
-        MonodomainEquationsStrangSplitting()	:	Diff_fct_pt(0)
+        MonodomainEquationsPadeTwoPointOneOneApproximant()	:	Diff_fct_pt(0), Div_diff_fct_pt(0)
         {
 
         }
@@ -46,12 +52,17 @@ namespace oomph{
 			return this->node_pt(n)->value(t, this->vm_index_BaseCellMembranePotential());
 		}
 		
+		//Number of second derivatives for the element according to its dimension
+		const unsigned d2_dof[3]={1,3,6};
+		const unsigned get_d2_dof(){return d2_dof[DIM-1];}
+
 
 		//Overload the residual for the monodomain equations
 		void fill_in_generic_residual_contribution_BaseCellMembranePotential(
 	    Vector<double> &residuals, DenseMatrix<double> &jacobian, 
 	    DenseMatrix<double> &mass_matrix, unsigned flag)
 	    {
+
 	    	// oomph_info << "getting res/jac" << std::endl;
 		   //Find out how many nodes there are
 		   const unsigned n_node = this->nnode();
@@ -62,6 +73,9 @@ namespace oomph{
 		   //Set up memory for the shape and test functions
 		   Shape psi(n_node), test(n_node);
 		   DShape dpsidx(n_node,DIM), dtestdx(n_node,DIM);
+
+		   DShape d2psidx(n_node, 1, get_d2_dof()), d2testdx(n_node, 1, get_d2_dof());
+
 		   
 		   //Set the value of n_intpt
 		   const unsigned n_intpt = this->integral_pt()->nweight();
@@ -84,72 +98,193 @@ namespace oomph{
 		     double w = this->integral_pt()->weight(ipt);
 
 		      if(w<1e-9){continue;}
-		      
-		     //Call the derivatives of the shape and test functions
-		     double J = 
-		      this->dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(ipt,psi,dpsidx,test,dtestdx);
+
+		      //Call the derivatives of the shape and test functions
+			double J = this->d2shape_and_d2test_eulerian_at_knot_BaseCellMembranePotential(ipt, 
+																							psi, dpsidx, d2psidx,
+																							test, dtestdx, d2testdx);
+
+			  //Put the 2nd derivatives in matrix form because I can't figure out how to do it otherwise
+			Vector<DenseMatrix<double>> m_d2psidx(n_node);
+			Vector<DenseMatrix<double>> m_d2testdx(n_node);
+			// Loop over nodes
+			for(unsigned l=0;l<n_node;l++) 
+			{
+				m_d2psidx[l].resize(DIM, DIM, 0.0);
+				m_d2testdx[l].resize(DIM, DIM, 0.0);
+
+				// Loop over directions
+				for(unsigned j=0;j<DIM;j++)
+				{
+					//Do the diagonals
+					m_d2psidx[l](j,j) = d2psidx(l, j);
+					m_d2testdx[l](j,j) = d2testdx(l, j);
+
+					for(unsigned i=j+1;i<DIM;i++)
+					{
+						//Do the upper triangular
+						m_d2psidx[l](i,j) = d2psidx(l, i+j);
+						m_d2testdx[l](i,j) = d2psidx(l, i+j);
+					}
+
+					for(unsigned i=0;i<j;i++)
+					{
+						//Copy to the lower triangular
+						m_d2psidx[l](i,j) = m_d2psidx[l](j,i);
+						m_d2testdx[l](i,j) = m_d2testdx[l](j,i);
+					}
+				}
+			}
+
+
 		         
 		     //Premultiply the weights and the Jacobian
 		     double W = w*J;
 
+		     //Coordinate of the integral point
+			Vector<double> interpolated_x(DIM,0.0);
+
 		     //Calculate local values of the solution and its derivatives
 		     //Allocate
 		     double interpolated_vm=0.0;
+
+		     //Storage for the derivatives of the concentration
+			Vector<double> interpolated_dvmdx(DIM,0.0);
+
+		     double interpolatd_cell_vm = 0.0;
 		     // double dvmdt=0.0;
 
-		     double interpolated_predvm = 0.0;
+		    //Interpolated gradient of membrane potential at nodes and that given by cells
+			Vector<double> interpolated_dcell_vm_dx(DIM, 0.0);
+			Vector<double> interpolated_dvm_dx(DIM, 0.0);
 
-		     Vector<double> interpolated_x(DIM,0.0);
-		     Vector<double> interpolated_dvmdx(DIM,0.0);
-		     Vector<double> interpolated_dpredvmdx(DIM, 0.0);
-		     Vector<double> mesh_velocity(DIM,0.0);
-
-		     //Calculate function value and derivatives:
-		     //-----------------------------------------
-		     // Loop over nodes
-		     for(unsigned l=0;l<n_node;l++) 
-		      {
-		       //Get the value at the node
-		       double vm_value = this->raw_nodal_value(l,vm_nodal_index);
-		       interpolated_vm += vm_value*psi(l);
-
-		       double pred_vm_value = this->get_nodal_predicted_vm_BaseCellMembranePotential(l);
-
-		       interpolated_predvm += pred_vm_value*psi(l);
+			//Interpolated second derivatives of the membrane potential at the nodes
+			DenseMatrix<double> interpolated_d2cell_vm_dx(DIM, DIM, 0.0);
+			DenseMatrix<double> interpolated_d2vm_dx(DIM, DIM, 0.0);
 
 
-		       // dvmdt += this->dvm_dt_BaseCellMembranePotential(l)*psi(l);
+		     // double interpolated_dvmdt = 0.0;
 
-		       // Loop over directions
-		       for(unsigned j=0;j<DIM;j++)
-		        {
-		         interpolated_x[j] += this->raw_nodal_position(l,j)*psi(l);
-		         interpolated_dvmdx[j] += vm_value*dpsidx(l,j);
-		         interpolated_dpredvmdx[j] += pred_vm_value*dpsidx(l,j);
-		        }
-		      }
+		     //We assume that dt is constant over the nodes
+		     const double dt = this->node_pt(0)->time_stepper_pt()->time_pt()->dt();
 
-		     // for(unsigned j=0;j<DIM;j++)
-	      //    {
-	      //     oomph_info << interpolated_dpredvmdx[j] << " ";
-	      //    }
-	      //    oomph_info << std::endl;
-		     
-		     // Mesh velocity?
-		     if (!this->ALE_is_disabled)
-		      {
-		       for(unsigned l=0;l<n_node;l++) 
-		        {
-		         for(unsigned j=0;j<DIM;j++)
-		          {
-		           mesh_velocity[j] += this->raw_dnodal_position_dt(l,j)*psi(l);
-		          }
-		        }
-		      }
 
-		     //Get diffusivity tensor
-		     DenseMatrix<double> D(DIM,DIM,0.0);
-		     this->get_diff_monodomain(ipt,s,interpolated_x,D);
+		   
+			
+
+
+
+		    //Calculate function value and derivatives:
+			//-----------------------------------------
+			// Loop over nodes
+			for(unsigned l=0;l<n_node;l++) 
+			{
+				//If we're feeling paranoid then we check to ensure dt is infact the same for all the nodes
+				#ifdef PARANOID
+				if(std::abs(dt-this->node_pt(0)->time_stepper_pt()->time_pt()->dt())>1e-9)
+				{
+					throw OomphLibError(
+									"dt is not the same over all the nodes, but it has to be for this implementation",
+									OOMPH_CURRENT_FUNCTION,
+									OOMPH_EXCEPTION_LOCATION);
+				}
+				#endif
+
+				//Get the interpolated values at the nodes
+				double vm_value = this->raw_nodal_value(l,vm_nodal_index);
+				interpolated_vm += vm_value*psi(l);
+
+				//Get the interpolated membrane potential from the cells
+				double cell_vm_value = this->get_nodal_predicted_vm_BaseCellMembranePotential(l);
+				interpolatd_cell_vm += cell_vm_value*psi(l);
+
+				// Loop over directions
+				for(unsigned j=0;j<DIM;j++)
+				{
+					//Get the interpolated global coordinate from the nodes
+					interpolated_x[j] += this->raw_nodal_position(l,j)*psi(l);
+
+					//Get the interpolated gradients of the membrane potential from the nodes and the cells
+					interpolated_dvm_dx[j] += vm_value*dpsidx(l,j);
+					interpolated_dcell_vm_dx[j] += cell_vm_value*dpsidx(l,j);
+
+					// for(unsigned i=j+1;i<DIM;i++)
+					for(unsigned i=0;i<DIM;i++)
+					{
+						interpolated_d2vm_dx(j,i) += vm_value*m_d2psidx[l](i,j);
+
+						interpolated_d2cell_vm_dx(j,i) += cell_vm_value*m_d2psidx[l](i,j);
+					}
+				}
+			}
+
+		     // // Mesh velocity?
+		     // if (!this->ALE_is_disabled)
+		     //  {
+		     //   for(unsigned l=0;l<n_node;l++) 
+		     //    {
+		     //     for(unsigned j=0;j<DIM;j++)
+		     //      {
+		     //       mesh_velocity[j] += this->raw_dnodal_position_dt(l,j)*psi(l);
+		     //      }
+		     //    }
+		     //  }
+
+			//Get diffusivity tensor
+			DenseMatrix<double> D(DIM,DIM,0.0);
+			this->get_diff_monodomain(ipt,s,interpolated_x,D);
+
+			//Get the divergence of the diffusivity tensor
+			Vector<double> divD(DIM, 0.0);
+			this->get_div_diff_monodomain(ipt,s,interpolated_x,divD);
+
+
+			double A = 0.0;
+			double B = 0.0;
+			for(unsigned i=0;i<DIM;i++)
+			{
+				A += divD[i]*interpolated_dcell_vm_dx[i];
+
+				B += divD[i]*interpolated_dvmdx[i];
+
+				for(unsigned j=0;j<DIM;j++)
+				{
+					// oomph_info << interpolated_d2cell_vm_dx(i,j) << std::endl;
+					A += D(i,j)*interpolated_d2cell_vm_dx(i,j);
+
+					B += D(i,j)*interpolated_d2vm_dx(i,j);
+				}
+			}
+
+			double logA = 0.0;
+			double logB = 0.0;
+
+			logA = log(std::fabs(A));
+			logB = log(std::fabs(B));
+
+			// oomph_info << A << " " << logA << std::endl;
+			// oomph_info << B << " " << logB << std::endl;
+
+			if(logA==-INFINITY)
+			{
+				if(logB==-INFINITY)
+				{
+					logA = 0.0;
+					logB = 0.0;
+				}
+				else
+				{
+					throw OomphLibError(
+							"I don't know how to regularize this",
+							OOMPH_CURRENT_FUNCTION,
+							OOMPH_EXCEPTION_LOCATION);
+				}
+			}
+
+
+
+
+
 
 		     // Assemble residuals and Jacobian
 		     //--------------------------------
@@ -164,37 +299,20 @@ namespace oomph{
 		        /*IF it's not a boundary condition*/
 		        if(local_eqn >= 0)
 		          {
-		          // Add body force term and time derivative
-		          // residuals[local_eqn] -= (dvmdt)*test(l)*W;
-		          	// oomph_info << residuals[local_eqn] << std::endl;
-		          	// oomph_info << interpolated_vm << std::endl;
-		          	// oomph_info << interpolated_predvm << std::endl;
-		          	// oomph_info << this->node_pt(l)->time_stepper_pt()->time_pt()->dt() << std::endl;
-		          	// oomph_info << test(l) << std::endl;
-		          	// oomph_info << W << std::endl;
+		          	
 
-
-		          	residuals[local_eqn] -= (interpolated_vm - interpolated_predvm)/(this->node_pt(l)->time_stepper_pt()->time_pt()->dt())*test(l)*W;
-		         
-		          // The Generalised Advection Diffusion bit itself
-		          for(unsigned k=0;k<DIM;k++)
-		            {
-		             //Terms that multiply the test function 
-		              double tmp = 0.0;
-		             // //If the mesh is moving need to subtract the mesh velocity
-		             if(!this->ALE_is_disabled) {tmp -= mesh_velocity[k];}
-		             tmp *= interpolated_dvmdx[k];
-
-		             //Terms that multiply the derivative of the test function
-		              double tmp2 = 0.0;
-		             //Now the diuffusive term
-		             for(unsigned j=0;j<DIM;j++)
-		              {
-		               tmp2 += 0.5*(interpolated_dvmdx[j] + interpolated_dpredvmdx[j])*D(k,j);
-		              }
-		             //Now construct the contribution to the residuals
-		             residuals[local_eqn] -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
-		            }
+		          	//If A and B are the same then we compute a different fn
+					if(std::fabs(A-B)<1e-12)
+					{
+						residuals[local_eqn] -= (interpolated_vm - interpolatd_cell_vm)*test(l)*W;
+						residuals[local_eqn] += dt*A*test(l)*W;
+					}
+					else
+					{
+						residuals[local_eqn] -= (B-A)*(interpolated_vm - interpolatd_cell_vm)*test(l)*W;
+						residuals[local_eqn] += dt*A*B*(logB-logA)*test(l)*W;	
+					}
+					
 
 		         
 		          // Calculate the jacobian
@@ -210,56 +328,31 @@ namespace oomph{
 		              //If at a non-zero degree of freedom add in the entry
 		              if(local_unknown >= 0)
 		                {
-		                //Mass matrix term
-		                // jacobian(local_eqn,local_unknown) 
-		                //   -= test(l)*psi(l2)*
-		                //   this->node_pt(l2)->time_stepper_pt()->weight(1,0)*W;
 
+		                //If A and B are the same then we compute a different fn
+						if(std::fabs(A-B)<1e-12)
+						{
+							jacobian(local_eqn,local_unknown) -= psi(l2)*test(l)*W;
+						}
+						else
+						{
+							double tmp1 = 0.0;
+			                for(unsigned i=0; i<DIM; i++)
+			                {
+			                	tmp1 += divD[i]*dpsidx(l2, i);
+			                	for(unsigned j=0; j<DIM; j++)
+			                	{
+			                		tmp1 += D(i,j)*m_d2psidx[l2](i,j);
+			                	}
+			                }
 
-		                // oomph_info << "dt " << (this->node_pt(l)->time_stepper_pt()->time_pt()->dt()) << std::endl;
-		                // oomph_info << "W " << W << std::endl;
-		                // oomph_info << "test(l) " << test(l) << std::endl;
-		                // oomph_info << "psi(l2) " << psi(l2) << std::endl;
+			                jacobian(local_eqn, local_unknown) -= tmp1*(interpolated_vm - interpolatd_cell_vm)*test(l)*W;
 
-		                jacobian(local_eqn, local_unknown)
-		                	-= test(l)*psi(l2)*(W/(this->node_pt(l)->time_stepper_pt()->time_pt()->dt()));
+			                jacobian(local_eqn, local_unknown) -= (B-A)*psi(l2)*test(l)*W;
 
-		                //Add the mass matrix term
-		                if(flag==2)
-		                  {
-		                  mass_matrix(local_eqn,local_unknown)
-		                    += test(l)*psi(l2)*W;
-		                  }
-
-		                //Add contribution to Elemental Matrix
-		                for(unsigned k=0;k<DIM;k++){
-		                  //Temporary term used in assembly
-		                  double tmp = 0.0;
-		                  if(!this->ALE_is_disabled)
-		                   {tmp -= mesh_velocity[k];}
-
-		               	// oomph_info << "dpsidx(l2,k) " << dpsidx(l2,k) << std::endl;
-		                  
-		                  tmp *= dpsidx(l2,k);
-
-		                  double tmp2 = 0.0;
-		                  //Now the diffusive term
-		                  for(unsigned j=0;j<DIM;j++)
-		                    {
-		                    // oomph_info << "D(k,j) " << D(k,j) << std::endl;
-		                    // oomph_info << "dpsidx(l2,j) " << dpsidx(l2,j) << std::endl;
-		                    // oomph_info << "dtestdx(l,k) " << dtestdx(l,k) << std::endl;
-
-
-		                    tmp2 += 0.5*D(k,j)*dpsidx(l2,j);
-		                    }
-		                 
-		                  //Now assemble Jacobian term
-		                  jacobian(local_eqn,local_unknown) 
-		                    -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
-
-
-		                  }
+			                jacobian(local_eqn, local_unknown) += dt*A*tmp1*(logB - logA + 1)*test(l)*W;
+		
+							}
 		                }
 		              }
 		            }
@@ -272,15 +365,22 @@ namespace oomph{
 	  		{return 1;}
 
 		/// Access function: Pointer to diffusion  function
-		MonodomainEquationsStrangSplittingDiffFctPt& diff_fct_pt() 
+		MonodomainEquationsPadeTwoPointOneOneApproximantDiffFctPt& diff_fct_pt() 
 		{return Diff_fct_pt;}
 
 		/// Access function: Pointer to diffusion function. Const version
-		MonodomainEquationsStrangSplittingDiffFctPt diff_fct_pt() const 
+		MonodomainEquationsPadeTwoPointOneOneApproximantDiffFctPt diff_fct_pt() const 
 		{return Diff_fct_pt;}
 
+		/// Access function: Pointer to diffusion  function
+		MonodomainEquationsPadeTwoPointOneOneApproximantDivDiffFctPt& div_diff_fct_pt() 
+		{return Div_diff_fct_pt;}
 
-		void assign_additional_initial_conditions()
+		/// Access function: Pointer to diffusion function. Const version
+		MonodomainEquationsPadeTwoPointOneOneApproximantDivDiffFctPt div_diff_fct_pt() const 
+		{return Div_diff_fct_pt;}
+
+		void assign_additional_initial_conditions(const unsigned &l)
 		{
 			//Do nothing - we have no additional variables to assign values to
 		}
@@ -288,6 +388,37 @@ namespace oomph{
 		void assign_initial_conditions_consistent_with_cell_model(const unsigned &l, const double& vm)
 		{
 			this->node_pt(l)->set_value(this->vm_index_BaseCellMembranePotential(), vm);
+		}
+
+
+		//Calculate dvmdt but instead of using the stored value for the previous timestep, use the value predicted by the cell model
+		double dvm_dt_Strang_Split(const unsigned &n) const
+		{
+			// Get the data's timestepper
+			TimeStepper* time_stepper_pt= this->node_pt(n)->time_stepper_pt();
+
+			//Initialise dudt
+			double dvmdt=0.0;
+			//Loop over the timesteps, if there is a non Steady timestepper
+			if (!time_stepper_pt->is_steady())
+			{
+			 //Find the index at which the variable is stored
+			 const unsigned vm_nodal_index = this->vm_index_BaseCellMembranePotential();
+
+			 // Number of timsteps (past & present)
+			 const unsigned n_time = time_stepper_pt->ntstorage();
+			 
+			 //Start at the one before the previous timestep
+			 for(unsigned t=2;t<n_time;t++)
+			  {
+			   dvmdt += time_stepper_pt->weight(1,t)*this->nodal_value(t,n,vm_nodal_index);
+			  }
+			  //Add the previous timestep and the current timestep
+			  dvmdt += time_stepper_pt->weight(1,1)*this->get_nodal_predicted_vm_BaseCellMembranePotential(n);
+
+			  dvmdt += time_stepper_pt->weight(1,0)*this->nodal_value(0,n,vm_nodal_index);
+			}
+			return dvmdt;
 		}
 
 
@@ -316,6 +447,57 @@ namespace oomph{
 				// oomph_info << "Using fct pt" << std::endl;
 				// Get diffusivity tensor from function
 				(*Diff_fct_pt)(x,D);
+			}
+		}
+
+		//Get the 'divergence' of the diffusion tensor divD[i] = dD(j,i)/dx_j
+		//By default it finite differences the diffusion tensor
+		inline virtual void get_div_diff_monodomain(const unsigned& ipt,
+	                                            const Vector<double> &s,
+	                                            const Vector<double>& x,
+	                                            Vector<double>& divD) const
+		{
+			//If no diff function has been set, return the zero vector
+			if(Diff_fct_pt==0)
+			{
+				for(unsigned i=0; i<DIM; i++)
+				{
+					divD[i] =  0.0;
+				}
+				return;
+			}
+			
+			if(Div_diff_fct_pt==0)//otherwise if no div function is set perform finite differencing of the diffusion tensor function
+			{
+				//Zero the vector
+				for(unsigned i=0; i<DIM; i++)
+				{
+					divD[i] =  0.0;
+				}
+
+				Vector<double> x_fd = x;
+
+				DenseMatrix<double> D0(DIM);
+				(*Diff_fct_pt)(x,D0);
+
+				for(unsigned i=0; i<DIM; i++)
+				{
+
+					x_fd[i] += this->Default_fd_jacobian_step;
+
+					DenseMatrix<double> D1(DIM);
+					(*Diff_fct_pt)(x_fd,D1);
+
+					for(unsigned j=0; j<DIM; j++)
+					{
+						divD[i] += (D1(j,i)-D0(j,i))/this->Default_fd_jacobian_step;
+					}
+					x_fd[i] -= this->Default_fd_jacobian_step;
+				}
+			}
+			else//Otherwise, if the div function is set, use it
+			{
+				(*Div_diff_fct_pt)(x,divD);
 			}
 		}
 
@@ -472,8 +654,9 @@ namespace oomph{
 	protected:
 		/// Pointer to diffusivity function:
 		///		function typedef is given in BaseCellMembranePotentialEquations
-		MonodomainEquationsStrangSplittingDiffFctPt Diff_fct_pt;
+		MonodomainEquationsPadeTwoPointOneOneApproximantDiffFctPt Diff_fct_pt;
 
+		MonodomainEquationsPadeTwoPointOneOneApproximantDivDiffFctPt Div_diff_fct_pt;	
 };
 
 
@@ -482,14 +665,14 @@ namespace oomph{
 //Monodomain Elements
 
 	//======================================================================
-	/// \short QMonodomainElementStrangSplitting elements are 
+	/// \short QMonodomainElementPadeTwoPointOneOneApproximant elements are 
 	/// linear/quadrilateral/brick-shaped Advection Diffusion elements with 
 	/// isoparametric interpolation for the function.
 	//======================================================================
 	template <unsigned DIM, unsigned NNODE_1D>
-	 class QMonodomainElementStrangSplitting : 
+	 class QMonodomainElementPadeTwoPointOneOneApproximant : 
 	 public virtual QElement<DIM,NNODE_1D>,
-	 public virtual MonodomainEquationsStrangSplitting<DIM>
+	 public virtual MonodomainEquationsPadeTwoPointOneOneApproximant<DIM>
 	{
 
 	private:
@@ -503,21 +686,21 @@ namespace oomph{
 
 	 ///\short  Constructor: Call constructors for QElement and 
 	 /// Advection Diffusion equations
-	 QMonodomainElementStrangSplitting() : QElement<DIM,NNODE_1D>(), 
-	  MonodomainEquationsStrangSplitting<DIM>()
+	 QMonodomainElementPadeTwoPointOneOneApproximant() : QElement<DIM,NNODE_1D>(), 
+	  MonodomainEquationsPadeTwoPointOneOneApproximant<DIM>()
 	  { }
 
 	 /// Broken copy constructor
-	 QMonodomainElementStrangSplitting(
-	  const QMonodomainElementStrangSplitting<DIM,NNODE_1D>&  dummy) 
+	 QMonodomainElementPadeTwoPointOneOneApproximant(
+	  const QMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D>&  dummy) 
 	  { 
-	   BrokenCopy::broken_copy("QMonodomainElementStrangSplitting");
+	   BrokenCopy::broken_copy("QMonodomainElementPadeTwoPointOneOneApproximant");
 	  } 
 	 
 	 /// Broken assignment operator
-	 void operator=(const QMonodomainElementStrangSplitting<DIM,NNODE_1D>&) 
+	 void operator=(const QMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D>&) 
 	  {
-	   BrokenCopy::broken_assign("QMonodomainElementStrangSplitting");
+	   BrokenCopy::broken_assign("QMonodomainElementPadeTwoPointOneOneApproximant");
 	  }
 
 	 /// \short  Required  # of `values' (pinned or dofs) 
@@ -650,7 +833,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double QMonodomainElementStrangSplitting<DIM,NNODE_1D>::
+	double QMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_BaseCellMembranePotential(const Vector<double> &s,
 	                                         Shape &psi, 
 	                                         DShape &dpsidx,
@@ -684,7 +867,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double QMonodomainElementStrangSplitting<DIM,NNODE_1D>::
+	double QMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(
 	 const unsigned &ipt,
 	 Shape &psi, 
@@ -711,13 +894,13 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// \short Face geometry for the QMonodomainElementStrangSplitting elements: 
+	/// \short Face geometry for the QMonodomainElementPadeTwoPointOneOneApproximant elements: 
 	/// The spatial dimension of the face elements is one lower than that 
 	/// of the bulk element but they have the same number of points along 
 	/// their 1D edges.
 	//=======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	class FaceGeometry<QMonodomainElementStrangSplitting<DIM,NNODE_1D> >: 
+	class FaceGeometry<QMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D> >: 
 	 public virtual QElement<DIM-1,NNODE_1D>
 	{
 
@@ -740,7 +923,7 @@ namespace oomph{
 	/// Face geometry for the 1D QMonodomain elements: Point elements
 	//=======================================================================
 	template<unsigned NNODE_1D>
-	class FaceGeometry<QMonodomainElementStrangSplitting<1,NNODE_1D> >: 
+	class FaceGeometry<QMonodomainElementPadeTwoPointOneOneApproximant<1,NNODE_1D> >: 
 	 public virtual PointElement
 	{
 
@@ -755,7 +938,7 @@ namespace oomph{
 
 	//Override functions in specific implementations of the diff augmented wrapper
 	template<unsigned DIM, unsigned NNODE_1D>
-	class DiffAugmentedCell<QMonodomainElementStrangSplitting<DIM, NNODE_1D>>:
+	class DiffAugmentedCell<QMonodomainElementPadeTwoPointOneOneApproximant<DIM, NNODE_1D>>:
 		public TMonodomainElement<DIM, NNODE_1D>
 	{
 	public:
@@ -776,21 +959,21 @@ namespace oomph{
 
 	/////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////
-	// TMonodomainElementStrangSplitting
+	// TMonodomainElementPadeTwoPointOneOneApproximant
 	////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////
 
 
 
 	//======================================================================
-	/// \short TMonodomainElementStrangSplitting elements are isoparametric triangular 
+	/// \short TMonodomainElementPadeTwoPointOneOneApproximant elements are isoparametric triangular 
 	/// DIM-dimensional General Advection Diffusion Equations with  NNODE_1D nodal points along each
-	/// element edge. Inherits from TElement and MonodomainEquationsStrangSplitting
+	/// element edge. Inherits from TElement and MonodomainEquationsPadeTwoPointOneOneApproximant
 	//======================================================================
 	template <unsigned DIM, unsigned NNODE_1D>
-	 class TMonodomainElementStrangSplitting : 
+	 class TMonodomainElementPadeTwoPointOneOneApproximant : 
 	 public virtual TElement<DIM,NNODE_1D>,
-	 public virtual MonodomainEquationsStrangSplitting<DIM>
+	 public virtual MonodomainEquationsPadeTwoPointOneOneApproximant<DIM>
 	{
 
 	private:
@@ -804,21 +987,21 @@ namespace oomph{
 
 	 ///\short  Constructor: Call constructors for TElement and 
 	 /// Advection Diffusion equations
-	 TMonodomainElementStrangSplitting() : TElement<DIM,NNODE_1D>(), 
-	  MonodomainEquationsStrangSplitting<DIM>()
+	 TMonodomainElementPadeTwoPointOneOneApproximant() : TElement<DIM,NNODE_1D>(), 
+	  MonodomainEquationsPadeTwoPointOneOneApproximant<DIM>()
 	  { }
 
 	 /// Broken copy constructor
-	 TMonodomainElementStrangSplitting(
-	  const TMonodomainElementStrangSplitting<DIM,NNODE_1D>&  dummy) 
+	 TMonodomainElementPadeTwoPointOneOneApproximant(
+	  const TMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D>&  dummy) 
 	  { 
-	   BrokenCopy::broken_copy("TMonodomainElementStrangSplitting");
+	   BrokenCopy::broken_copy("TMonodomainElementPadeTwoPointOneOneApproximant");
 	  } 
 	 
 	 /// Broken assignment operator
-	 void operator=(const TMonodomainElementStrangSplitting<DIM,NNODE_1D>&) 
+	 void operator=(const TMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D>&) 
 	  {
-	   BrokenCopy::broken_assign("TMonodomainElementStrangSplitting");
+	   BrokenCopy::broken_assign("TMonodomainElementPadeTwoPointOneOneApproximant");
 	  }
 
 	 /// \short  Required  # of `values' (pinned or dofs) 
@@ -903,7 +1086,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double TMonodomainElementStrangSplitting<DIM,NNODE_1D>::
+	double TMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_BaseCellMembranePotential(const Vector<double> &s,
 	                                         Shape &psi, 
 	                                         DShape &dpsidx,
@@ -937,7 +1120,7 @@ namespace oomph{
 	/// Galerkin: Test functions = shape functions
 	//======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	double TMonodomainElementStrangSplitting<DIM,NNODE_1D>::
+	double TMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D>::
 	 dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(
 	 const unsigned &ipt,
 	 Shape &psi, 
@@ -964,13 +1147,13 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// \short Face geometry for the TMonodomainElementStrangSplitting elements: 
+	/// \short Face geometry for the TMonodomainElementPadeTwoPointOneOneApproximant elements: 
 	/// The spatial dimension of the face elements is one lower than that 
 	/// of the bulk element but they have the same number of points along 
 	/// their 1D edges.
 	//=======================================================================
 	template<unsigned DIM, unsigned NNODE_1D>
-	class FaceGeometry<TMonodomainElementStrangSplitting<DIM,NNODE_1D> >: 
+	class FaceGeometry<TMonodomainElementPadeTwoPointOneOneApproximant<DIM,NNODE_1D> >: 
 	 public virtual TElement<DIM-1,NNODE_1D>
 	{
 
@@ -990,10 +1173,10 @@ namespace oomph{
 
 
 	//=======================================================================
-	/// Face geometry for the 1D TMonodomainElementStrangSplitting: Point elements
+	/// Face geometry for the 1D TMonodomainElementPadeTwoPointOneOneApproximant: Point elements
 	//=======================================================================
 	template<unsigned NNODE_1D>
-	class FaceGeometry<TMonodomainElementStrangSplitting<1,NNODE_1D> >: 
+	class FaceGeometry<TMonodomainElementPadeTwoPointOneOneApproximant<1,NNODE_1D> >: 
 	 public virtual PointElement
 	{
 
@@ -1008,7 +1191,7 @@ namespace oomph{
 
 	//Override functions in specific implementations of the diff augmented wrapper
 	template<unsigned DIM, unsigned NNODE_1D>
-	class DiffAugmentedCell<TMonodomainElementStrangSplitting<DIM, NNODE_1D>>:
+	class DiffAugmentedCell<TMonodomainElementPadeTwoPointOneOneApproximant<DIM, NNODE_1D>>:
 		public TMonodomainElement<DIM, NNODE_1D>
 	{
 	public:

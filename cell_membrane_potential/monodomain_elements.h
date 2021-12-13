@@ -19,6 +19,32 @@ namespace oomph{
 	{
 	public:
 
+		//Update the value of membrane potential stored in the local node l according to some value. This is virtual
+		// since in some implementations of this element the value stored is not actually the membrane potential
+		virtual inline void update_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &l, const double& vm)
+		{
+			this->node_pt(l)->set_value(this->vm_index_BaseCellMembranePotential(), vm);
+		}
+
+		//These are virtual since for toms method of operator splitting the nodal value actually represents the time integral
+		// of the membrane potential - not the membrane potential itself
+		//Get the membrane potential at the nth node
+		virtual inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &n) const
+		{
+			return this->get_nodal_membrane_potential_BaseCellMembranePotential(0, n);
+		}
+
+		//Get the t-th history value of membrane potential at the nth node
+		virtual inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &t, const unsigned &n) const
+		{
+			return this->node_pt(n)->value(t, this->vm_index_BaseCellMembranePotential());
+		}
+
+		virtual void assign_additional_initial_conditions(const unsigned &l)
+		{
+			
+		}
+  
 		//change this to take s instead of x? (no functional change, just notation)
 		/// \short Funciton pointer to a diffusivity function
 		typedef void (*MonodomainEquationsDiffFctPt)
@@ -34,201 +60,236 @@ namespace oomph{
 		void fill_in_generic_residual_contribution_BaseCellMembranePotential(
 	    Vector<double> &residuals, DenseMatrix<double> &jacobian, 
 	    DenseMatrix<double> &mass_matrix, unsigned flag)
-	    {
-	    	// oomph_info << "getting res/jac" << std::endl;
-		   //Find out how many nodes there are
-		   const unsigned n_node = this->nnode();
+		{
+			//Find out how many nodes there are
+			const unsigned n_node = this->nnode();
 
-		   //Get the nodal index at which the unknown is stored
-		   const unsigned vm_nodal_index = this->vm_index_BaseCellMembranePotential();
-		     
-		   //Set up memory for the shape and test functions
-		   Shape psi(n_node), test(n_node);
-		   DShape dpsidx(n_node,DIM), dtestdx(n_node,DIM);
-		   
-		   //Set the value of n_intpt
-		   const unsigned n_intpt = this->integral_pt()->nweight();
+			//Get the nodal index at which the unknown is stored
+			const unsigned vm_nodal_index = this->vm_index_BaseCellMembranePotential();
 
-		   //Set the Vector to hold local coordinates
-		   Vector<double> s(DIM);
+			//Set up memory for the shape and test functions
+			Shape psi(n_node), test(n_node);
+			DShape dpsidx(n_node,DIM), dtestdx(n_node,DIM);
 
-		   //Integers used to store the local equation number and local unknown
-		   //indices for the residuals and jacobians
-		   int local_eqn=0, local_unknown=0;
-		   // if(n_intpt==0){oomph_info << "no int pts" << std::endl;}
-		   // oomph_info << n_intpt << std::endl;
-		   //Loop over the integration points
-		   for(unsigned ipt=0;ipt<n_intpt;ipt++)
-		    {
-		      // std::cout << "integration point " << ipt << std::endl;
+			//Set the value of n_intpt
+			const unsigned n_intpt = this->integral_pt()->nweight();
 
-		     //Assign values of s
-		     for(unsigned i=0;i<DIM;i++) s[i] = this->integral_pt()->knot(ipt,i);
+			//Set the Vector to hold local coordinates
+			Vector<double> s(DIM);
 
-		     //Get the integral weight
-		     double w = this->integral_pt()->weight(ipt);
+			//Integers used to store the local equation number and local unknown
+			//indices for the residuals and jacobians
+			int local_eqn=0, local_unknown=0;
 
-		      if(w==0.0){/* oomph_info << ipt << " continue."<<std::endl;*/ continue;}
-		      
-		     //Call the derivatives of the shape and test functions
-		     double J = 
-		      this->dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(ipt,psi,dpsidx,test,dtestdx);
-		         
-		     //Premultiply the weights and the Jacobian
-		     double W = w*J;
+			//Loop over the integration points
+			for(unsigned ipt=0;ipt<n_intpt;ipt++)
+			{
 
-		     //Calculate local values of the solution and its derivatives
-		     //Allocate
-		     double interpolated_vm=0.0;
-		     double dvmdt=0.0;
+				//Assign values of s
+				for(unsigned i=0;i<DIM;i++) s[i] = this->integral_pt()->knot(ipt,i);
 
-		     Vector<double> interpolated_x(DIM,0.0);
-		     Vector<double> interpolated_dvmdx(DIM,0.0);
-		     Vector<double> mesh_velocity(DIM,0.0);
+				//Get the integral weight
+				double w = this->integral_pt()->weight(ipt);
 
-		     //Calculate function value and derivatives:
-		     //-----------------------------------------
-		     // Loop over nodes
-		     for(unsigned l=0;l<n_node;l++) 
-		      {
-		       //Get the value at the node
-		       double vm_value = this->raw_nodal_value(l,vm_nodal_index);
-		       interpolated_vm += vm_value*psi(l);
+				if(w<1e-9){continue;}
+
+				//Call the derivatives of the shape and test functions
+				double J = 
+				this->dshape_and_dtest_eulerian_at_knot_BaseCellMembranePotential(ipt,psi,dpsidx,test,dtestdx);
+
+				//Premultiply the weights and the Jacobian
+				double W = w*J;
+
+				//Calculate local values of the solution and its derivatives
+				//Allocate
+				double interpolated_vm=0.0;
+				double dvmdt=0.0;
+
+				Vector<double> interpolated_x(DIM,0.0);
+				Vector<double> interpolated_dvmdx(DIM,0.0);
+				Vector<double> mesh_velocity(DIM,0.0);
+
+				//Calculate function value and derivatives:
+				//-----------------------------------------
+				// Loop over nodes
+				for(unsigned l=0;l<n_node;l++) 
+				{
+					//Get the value at the node
+					double vm_value = this->raw_nodal_value(l,vm_nodal_index);
+					interpolated_vm += vm_value*psi(l);
 
 
-		       dvmdt += this->dvm_dt_BaseCellMembranePotential(l)*psi(l);
+					dvmdt += this->dvm_dt_BaseCellMembranePotential(l)*psi(l);
 
-		       // Loop over directions
-		       for(unsigned j=0;j<DIM;j++)
-		        {
-		         interpolated_x[j] += this->raw_nodal_position(l,j)*psi(l);
-		         interpolated_dvmdx[j] += vm_value*dpsidx(l,j);
-		        }
-		      }
-		     
-		     // Mesh velocity?
-		     if (!this->ALE_is_disabled)
-		      {
-		       for(unsigned l=0;l<n_node;l++) 
-		        {
-		         for(unsigned j=0;j<DIM;j++)
-		          {
-		           mesh_velocity[j] += this->raw_dnodal_position_dt(l,j)*psi(l);
-		          }
-		        }
-		      }
+					// Loop over directions
+					for(unsigned j=0;j<DIM;j++)
+					{
+						interpolated_x[j] += this->raw_nodal_position(l,j)*psi(l);
+						interpolated_dvmdx[j] += vm_value*dpsidx(l,j);
+					}
+				}
 
-		     //Get source function
-		     //-------------------
-		     double source;
-		     this->get_source_BaseCellMembranePotential(ipt,s,interpolated_x,source);
+				// Mesh velocity?
+				if (!this->ALE_is_disabled)
+				{
+					for(unsigned l=0;l<n_node;l++) 
+					{
+						for(unsigned j=0;j<DIM;j++)
+						{
+							mesh_velocity[j] += this->raw_dnodal_position_dt(l,j)*psi(l);
+						}
+					}
+				}
 
-		     //Get diffusivity tensor
-		     DenseMatrix<double> D(DIM,DIM,0.0);
-		     this->get_diff_monodomain(ipt,s,interpolated_x,D);
+				//Get source function
+				//-------------------
+				double source;
+				this->get_source_BaseCellMembranePotential(ipt,s,interpolated_x,source);
 
-		     // for(unsigned i=0; i<DIM; i++){
-		     // 	std::string outstring;
-		     // 	for(unsigned j=0; j<DIM; j++){
-		     // 		outstring += std::to_string(D(i,j)) + " ";
-		     // 	}
-		     // 	oomph_info << outstring;
-		     // 	oomph_info << std::endl;
-		     // }
-		     // oomph_info << std::endl << std::endl;
+				//Get diffusivity tensor
+				DenseMatrix<double> D(DIM,DIM,0.0);
+				this->get_diff_monodomain(ipt,s,interpolated_x,D);
 
-		     // Assemble residuals and Jacobian
-		     //--------------------------------
-		         
-		     // Loop over the test functions
-		     for(unsigned l=0;l<n_node;l++)
-		      {
-		        //Fill in residual and jacobian contribution for u
-		        //Set the local equation number
-		        local_eqn = this->nodal_local_eqn(l,this->vm_index_BaseCellMembranePotential());
+				// Assemble residuals and Jacobian
+				//--------------------------------
 
-		        /*IF it's not a boundary condition*/
-		        if(local_eqn >= 0)
-		          {
-		          // Add body force/source term and time derivative
-		          residuals[local_eqn] -= (dvmdt + source)*test(l)*W;
-		         
-		          // The Generalised Advection Diffusion bit itself
-		          for(unsigned k=0;k<DIM;k++)
-		            {
-		             //Terms that multiply the test function 
-		              double tmp = 0.0;
-		             // //If the mesh is moving need to subtract the mesh velocity
-		             if(!this->ALE_is_disabled) {tmp -= mesh_velocity[k];}
-		             tmp *= interpolated_dvmdx[k];
+				// Loop over the test functions
+				for(unsigned l=0;l<n_node;l++)
+				{
+					//Fill in residual and jacobian contribution for u
+					//Set the local equation number
+					local_eqn = this->nodal_local_eqn(l,this->vm_index_BaseCellMembranePotential());
 
-		             //Terms that multiply the derivative of the test function
-		              double tmp2 = 0.0;
-		             //Now the diuffusive term
-		             for(unsigned j=0;j<DIM;j++)
-		              {
-		               tmp2 += interpolated_dvmdx[j]*D(k,j);
-		              }
-		             //Now construct the contribution to the residuals
-		              // oomph_info << "not pinned and setting value" << std::endl;
-		             residuals[local_eqn] -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
-		            }
-		            // oomph_info << "filling res by monodomain " << this->eqn_number(local_eqn) <<": " << residuals[local_eqn] << std::endl;
+					/*IF it's not a boundary condition*/
+					if(local_eqn >= 0)
+					{
+						if(flag == 3)
+						{
+							// Add body force/source term and time derivative
+							residuals[local_eqn] -= (dvmdt + source)*test(l)*W;
 
-		         
-		          // Calculate the jacobian
-		          //-----------------------
-		          if(flag)
-		            {
-		            //Loop over the velocity shape functions again
-		            for(unsigned l2=0;l2<n_node;l2++)
-		              { 
-		              //Set the number of the unknown
-		              local_unknown = this->nodal_local_eqn(l2,this->vm_index_BaseCellMembranePotential());
-		             
-		              //If at a non-zero degree of freedom add in the entry
-		              if(local_unknown >= 0)
-		                {
-		                //Mass matrix term
-		                jacobian(local_eqn,local_unknown) 
-		                  -= test(l)*psi(l2)*
-		                  this->node_pt(l2)->time_stepper_pt()->weight(1,0)*W;
+							// The Generalised Advection Diffusion bit itself
+							for(unsigned k=0;k<DIM;k++)
+							{
+								//Terms that multiply the test function 
+								double tmp = 0.0;
+								// //If the mesh is moving need to subtract the mesh velocity
+								if(!this->ALE_is_disabled)
+								{
+									tmp -= mesh_velocity[k];
+								}
+								tmp *= interpolated_dvmdx[k];
 
-		                //Add the mass matrix term
-		                if(flag==2)
-		                  {
-		                  mass_matrix(local_eqn,local_unknown)
-		                    += test(l)*psi(l2)*W;
-		                  }
+								//Terms that multiply the derivative of the test function
+								double tmp2 = 0.0;
+								//Now the diuffusive term
+								for(unsigned j=0;j<DIM;j++)
+								{
+									tmp2 += interpolated_dvmdx[j]*D(k,j);
+								}
+								//Now construct the contribution to the residuals
+								residuals[local_eqn] -= (tmp + tmp2*dpsidx(l,k))*test(l)*W;
+							}
+						}
+						else
+						{
+							// Add body force/source term and time derivative
+							residuals[local_eqn] -= (dvmdt + source)*test(l)*W;
 
-		                //Add contribution to Elemental Matrix
-		                for(unsigned k=0;k<DIM;k++){
-		                  //Temporary term used in assembly
-		                  double tmp = 0.0;
-		                  if(!this->ALE_is_disabled)
-		                   {tmp -= mesh_velocity[k];}
-		                  tmp *= dpsidx(l2,k);
+							// The Generalised Advection Diffusion bit itself
+							for(unsigned k=0;k<DIM;k++)
+							{
+								//Terms that multiply the test function 
+								double tmp = 0.0;
+								// //If the mesh is moving need to subtract the mesh velocity
+								if(!this->ALE_is_disabled)
+								{
+									tmp -= mesh_velocity[k];
+								}
+								tmp *= interpolated_dvmdx[k];
 
-		                  double tmp2 = 0.0;
-		                  //Now the diffusive term
-		                  for(unsigned j=0;j<DIM;j++)
-		                    {
-		                    tmp2 += D(k,j)*dpsidx(l2,j);
-		                    }
-		                 
-		                  //Now assemble Jacobian term
-		                  jacobian(local_eqn,local_unknown) 
-		                    -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
-		                  }
-		                }
-		                // else{oomph_info << "mono var pinned" << std::endl;}
-		              }
-		            }
-		          }
-		          // else{oomph_info << "mono var pinned" << std::endl;}
-		        }
-		      } // End of loop over integration points
-		    }
+								//Terms that multiply the derivative of the test function
+								double tmp2 = 0.0;
+								//Now the diuffusive term
+								for(unsigned j=0;j<DIM;j++)
+								{
+									tmp2 += interpolated_dvmdx[j]*D(k,j);
+								}
+								//Now construct the contribution to the residuals
+								residuals[local_eqn] -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
+							}
+						}
+
+
+						// Calculate the jacobian
+						//-----------------------
+						if(flag)
+						{
+							//If we are assembling the jacobian
+							if(flag < 3)
+							{
+								//Loop over the velocity shape functions again
+								for(unsigned l2=0;l2<n_node;l2++)
+								{ 
+									//Set the number of the unknown
+									local_unknown = this->nodal_local_eqn(l2,this->vm_index_BaseCellMembranePotential());
+
+									//If at a non-zero degree of freedom add in the entry
+									if(local_unknown >= 0)
+									{
+										//Mass matrix term
+										jacobian(local_eqn,local_unknown) -= test(l)*psi(l2)*this->node_pt(l2)->time_stepper_pt()->weight(1,0)*W;
+
+										//Add the mass matrix term
+										if(flag==2)
+										{
+											mass_matrix(local_eqn,local_unknown) += test(l)*psi(l2)*W;
+										}
+
+										//Add contribution to Elemental Matrix
+										for(unsigned k=0;k<DIM;k++)
+										{
+											//Temporary term used in assembly
+											double tmp = 0.0;
+											if(!this->ALE_is_disabled)
+											{
+												tmp -= mesh_velocity[k];
+											}
+											tmp *= dpsidx(l2,k);
+
+											double tmp2 = 0.0;
+											//Now the diffusive term
+											for(unsigned j=0;j<DIM;j++)
+											{
+												tmp2 += D(k,j)*dpsidx(l2,j);
+											}
+
+											//Now assemble Jacobian term
+											jacobian(local_eqn,local_unknown) -= (tmp*test(l) + tmp2*dtestdx(l,k))*W;
+										}
+									}
+								}
+							}
+							//We are just calculating the mass matrix
+							else
+							{
+								//Loop over the velocity shape functions again
+								for(unsigned l2=0;l2<n_node;l2++)
+								{
+									//Set the number of the unknown
+									local_unknown = this->nodal_local_eqn(l2,this->vm_index_BaseCellMembranePotential());
+									//If at a non-zero degree of freedom add in the entry
+									if(local_unknown >= 0)
+									{
+										mass_matrix(local_eqn,local_unknown) += test(l)*psi(l2)*W;
+									}
+								}
+							}
+						}
+					}
+				}
+			} // End of loop over integration points
+		}
 	
 		inline unsigned required_nvalue(const unsigned &n) const 
 	  		{return 1;}
@@ -266,7 +327,6 @@ namespace oomph{
 		{
 			//If no diff function has been set, return identity
 			if(Diff_fct_pt==0){
-				// oomph_info << "Not using fct pt" << std::endl;
 				for(unsigned i=0; i<DIM; i++){
 					for(unsigned j=0; j<DIM; j++){
 						D(i,j) =  0.0;
@@ -275,12 +335,10 @@ namespace oomph{
 				}
 			}
 			else{
-				// oomph_info << "Using fct pt" << std::endl;
 				// Get diffusivity tensor from function
 				(*Diff_fct_pt)(x,D);
 			}
 		}
-
 
 		/// Get flux: \f$\mbox{flux}[i] = \mbox{d}u / \mbox{d}x_i \f$
 		void get_total_flux_monodomain(const Vector<double>& s, 
@@ -405,7 +463,7 @@ namespace oomph{
 			//Call the generic residuals function with flag set to 0 and using
 			//a dummy matrix
 			fill_in_generic_residual_contribution_BaseCellMembranePotential(
-			    residuals, GeneralisedElement::Dummy_matrix, GeneralisedElement::Dummy_matrix, 0);
+				residuals, GeneralisedElement::Dummy_matrix, GeneralisedElement::Dummy_matrix, 0);
 		}
 
 		/// \short Add the element's contribution to its residual vector and 
@@ -414,7 +472,7 @@ namespace oomph{
 		DenseMatrix<double> &jacobian)
 		{
 			fill_in_generic_residual_contribution_BaseCellMembranePotential(
-			    residuals, jacobian, GeneralisedElement::Dummy_matrix, 1);
+				residuals, jacobian, GeneralisedElement::Dummy_matrix, 1);
 		}
 
 		/// Add the element's contribution to its residuals vector,
@@ -426,9 +484,15 @@ namespace oomph{
 			//Call the generic routine with the flag set to 2
 			// fill_in_generic_residual_contribution_cell_interface(residuals,jacobian,mass_matrix,2);
 			fill_in_generic_residual_contribution_BaseCellMembranePotential(
-			    residuals, jacobian, mass_matrix, 2);
+				residuals, jacobian, mass_matrix, 2);
 		}
 
+		///Assemble the contributions to the mass matrix and residuals
+		void fill_in_contribution_to_mass_matrix(Vector<double> &residuals, DenseMatrix<double> &mass_matrix)
+		{
+			fill_in_generic_residual_contribution_BaseCellMembranePotential(
+				residuals,GeneralisedElement::Dummy_matrix,mass_matrix,3);
+		}
 
 
 	protected:

@@ -4,13 +4,19 @@
 # Define the sources
 sources =  \
 TNNP06.cc \
-TNNP06_Distinct_IKs.cc
+OHaraRudy.cc \
+TNNP06_Force_Without_ISAC.cc \
+OHaraRudy_TestForce.cc \
+OHaraRudy_RushLarsen.cc
 
 
 # Define the headers
 headers =  \
 TNNP06.h \
-TNNP06_Distinct_IKs.h
+OHaraRudy.h \
+TNNP06_Force_Without_ISAC.h \
+OHaraRudy_TestForce.h \
+OHaraRudy_RushLarsen.h
 
 # Define name of library
 libname = toms_cell_models

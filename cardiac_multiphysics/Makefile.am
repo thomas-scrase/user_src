@@ -1,43 +1,28 @@
+
 # A few file definitions
 #-----------------------
 
 # Define the sources
-sources =  \
-cell_membrane_potential_elements.cc \
-monodomain_elements.cc \
-refineable_monodomain_elements.cc \
-bidomain_elements.cc \
-refineable_bidomain_elements.cc
-
+sources = \
+dummy.cc
+	
 # Define the headers
-headers =  \
-cell_membrane_potential_elements.h \
-monodomain_elements.h \
-monodomain_flux_elements.h \
-refineable_monodomain_elements.h \
-bidomain_elements.h \
-bidomain_flux_elements.h \
-refineable_bidomain_elements.h \
-monodomain_elements_crank_nicolson.h \
-monodomain_elements_simpsons_one_third_approximation.h \
-monodomain_elements_simpsons_three_eighths_approximation.h \
-monodomain_elements_hermite_approximation.h \
-monodomain_elements_double_taylor_approximation.h \
-monodomain_elements_pade_2_point_1_1_approximant.h
+headers = \
+	electro_mechanical_multiphysics_elements.h
 
 # Define name of library
-libname = cell_membrane_potential
+libname = cardiac_multiphysics
 
 # Combine headers and sources
 headers_and_sources = $(headers) $(sources)
 
 # Define the library that gets placed in lib directory
 #-----------------------------------------------------
-lib_LTLIBRARIES = libcell_membrane_potential.la
+lib_LTLIBRARIES = libcardiac_multiphysics.la
 
 # Sources that the library depends on: 
 #-------------------------------------
-libcell_membrane_potential_la_SOURCES = $(headers_and_sources)
+libcardiac_multiphysics_la_SOURCES = $(headers_and_sources)
 
 # The library's include headers:
 #-------------------------------
@@ -47,10 +32,10 @@ libcell_membrane_potential_la_SOURCES = $(headers_and_sources)
 include_HEADERS = $(libname).h 
 
 #Here's the subdirectory where the actual header files are placed
-library_includedir=$(includedir)/cell_membrane_potential
+library_includedir=$(includedir)/cardiac_multiphysics
 
 #These are the header files that are to be placed in subdirectory
-library_include_HEADERS=$(headers) 
+library_include_HEADERS=$(headers)
 
 
 # Required libraries -- [assuming that we want to link against stuff in generic
@@ -58,8 +43,7 @@ library_include_HEADERS=$(headers)
 # Include path for library headers -- need to refer to include files
 # in their respective source directories as they will not have been 
 # installed yet! 
-AM_CPPFLAGS += -I$(top_builddir)/src/generic
-
+AM_CPPFLAGS += -I$(top_builddir)/src/generic -I$(top_builddir)/user_src/
 
 # Combined header file
 #---------------------
@@ -69,7 +53,7 @@ $(libname).h: dummy_$(libname).h
 
 dummy_$(libname).h:  $(headers)
 	echo  $(libname) $(headers) > all_$(libname).aux
-	$(AWK) -f $(top_builddir)/bin/headers.awk < \
+	$(AWK) -f $(top_srcdir)/bin/headers.awk < \
 	       all_$(libname).aux > $(libname).h
 	rm all_$(libname).aux
 
@@ -80,7 +64,7 @@ if SYMBOLIC_LINKS_FOR_HEADERS
 install-data-hook: 
 	(cd $(library_includedir) && rm -f $(headers) )
 	(echo "$(headers)" > include_files.list )
-	($(top_builddir)/bin/change_headers_to_links.sh `pwd`)
+	($(top_srcdir)/bin/change_headers_to_links.sh `pwd`)
 	($(LN_S) `cat include_files.list.aux` $(library_includedir) )
 	(rm -r include_files.list.aux include_files.list ) 
 else

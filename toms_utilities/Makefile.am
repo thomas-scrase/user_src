@@ -11,9 +11,10 @@ headers =  \
 toms_integral.h \
 diff_augmented_cell_wrapper.h \
 enforce_positive_normal_flow_elements.h \
-toms_point_element.h
+toms_point_element.h \
+cell_probe_utilities.h \
+pseudo_ecg_elements.h
 # toms_explicit_timestepping_methods.h
-# cell_probe_utilities.h
 # segregated_cell_solver.h
 
 # Define name of library

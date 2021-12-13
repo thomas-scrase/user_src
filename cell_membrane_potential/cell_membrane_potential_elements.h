@@ -53,6 +53,108 @@ public:
 
   //Get the t-th history value of membrane potential at the nth node
   virtual inline double get_nodal_membrane_potential_BaseCellMembranePotential(const unsigned &t, const unsigned &n) const =0;
+
+  virtual void assign_additional_initial_conditions(const unsigned &l)
+  {
+    throw OomphLibError(
+    "Assign initial conditions has not been implemented yet",
+    OOMPH_CURRENT_FUNCTION,
+    OOMPH_EXCEPTION_LOCATION);
+  }
+  
+
+  //Return the value of the equation from Gima and Rudy 2002 representing the pseudo ecg for the domain this element contains
+  double integrate_ecg(const Vector<double>& xprime) const
+  {
+    // Initialise
+    double sum = 0.0;
+
+    const unsigned dim = this->dim();
+    //Vector of local coordinates
+    Vector<double> s(dim);
+
+    //Find out how many nodes there are in the element
+    const unsigned n_node = nnode();
+
+    // //Find the index at which the concentration is stored
+    // const unsigned vm_nodal_index = this->vm_index_BaseCellMembranePotential();
+
+    //Allocate memory for the shape functions
+    Shape psi(n_node);
+    DShape dpsidx(n_node,dim);
+
+    //Set the value of n_intpt
+    const unsigned n_intpt = integral_pt()->nweight();
+
+    //Loop over the integration points
+    for(unsigned ipt=0;ipt<n_intpt;ipt++)
+    {
+      //Get the integral weight
+      const double w = integral_pt()->weight(ipt);
+
+      //Get the gradients
+      (void)this->dshape_eulerian_at_knot(ipt,psi,dpsidx);
+      
+      //Memory for the membrane potential derivative, and the interpolated coordinat at the integral point
+      Vector<double> interpolated_dvmdx(dim, 0.0); 
+      Vector<double> interpolated_x(dim, 0.0);
+
+      //Loop over the nodes
+      for(unsigned l=0;l<n_node;l++)
+      {
+        for(unsigned i=0;i<dim;i++)//and the coordinates
+        {
+          //calculate the interpolated values
+          interpolated_dvmdx[i] += get_nodal_membrane_potential_BaseCellMembranePotential(l)*dpsidx(l,i);
+          interpolated_x[i] += this->raw_nodal_position(l,i)*psi(l);
+        }
+      }
+
+      //Calculate the distance of the 
+      double r = 0.0;
+      for(unsigned i=0;i<dim;i++)
+      {
+        r += pow(interpolated_x[i]-xprime[i], 2.0);
+      }
+      //If the coordinate of the electrode is of a different dimension to ours we assume that we are aligned with the coordinate axes in the extra dimensions
+      // and hence our coordinate in the y and z directions are zero
+      if(xprime.size()>dim)
+      {
+        for(unsigned i=dim; i<xprime.size(); i++)
+        {
+          r += pow(xprime[i], 2.0);
+        }
+      }
+
+      //Converse is handled
+      if(dim>xprime.size())
+      {
+        for(unsigned i=xprime.size(); i<dim; i++)
+        {
+          r += pow(interpolated_x[i], 2.0);
+        }
+      }
+
+      r = sqrt(r);
+      
+
+      double integrand_val = 0.0;
+      for(unsigned i=0;i<dim;i++)
+      {
+        // integrand_val -= interpolated_dvmdx[i]*(interpolated_x[i] - xprime[i])/r;
+
+        integrand_val += interpolated_dvmdx[i]*(interpolated_x[i] - xprime[i])/pow(r, 3.0);
+      }
+
+      // Get jacobian of mapping
+      const double J=J_eulerian_at_knot(ipt);
+
+      //Add the values to the sum
+      sum += integrand_val*w*J;
+    }
+   //return the sum
+   return sum;
+  }
   
 };
 
@@ -193,15 +295,6 @@ public:
    return d2vmdt2;
   }
 
-
-
-  virtual void assign_additional_initial_conditions()
-  {
-    throw OomphLibError(
-    "Assign initial conditions has not been implemented yet",
-    OOMPH_CURRENT_FUNCTION,
-    OOMPH_EXCEPTION_LOCATION);
-  }
 
   //Assign initial conditions of node l to be consistent with the provided value of membrane potential from
   // the cell model. For monodomain this is trivially setting the value to be that provided. However,
@@ -704,6 +797,9 @@ public:
    //Call the generic routine with the flag set to 1
    fill_in_generic_residual_contribution_BaseCellMembranePotential(
     residuals,jacobian,GeneralisedElement::Dummy_matrix,1);
+
+   
+
   }
  
 
@@ -817,6 +913,27 @@ protected:
   DShape &dpsidx,
   Shape &test, 
   DShape &dtestdx) 
+  const=0;
+
+
+  /// \short Shape/test functions and derivs w.r.t. to global coords at 
+ /// local coord. s; return  Jacobian of mapping
+ // virtual double d2shape_and_d2test_eulerian_BaseCellMembranePotential(const Vector<double> &s, 
+ //                                                   Shape &psi, 
+ //                                                   DShape &dpsidx, 
+ //                                                   Shape &test, 
+ //                                                   DShape &dtestdx) const=0;
+
+ /// \short Shape/test functions and derivs w.r.t. to global coords at 
+ /// integration point ipt; return  Jacobian of mapping
+ virtual double d2shape_and_d2test_eulerian_at_knot_BaseCellMembranePotential(
+  const unsigned &ipt, 
+  Shape &psi, 
+  DShape &dpsidx, 
+  DShape &d2psidx,
+  Shape &test, 
+  DShape &dtestdx, 
+  DShape &d2testdx) 
   const=0;
 
  /// \short Add the element's contribution to its residual vector only 
