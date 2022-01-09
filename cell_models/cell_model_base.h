@@ -99,11 +99,9 @@ namespace cellhandlenan
 												const double &t) const
 		{
 			if(StimFctPt==nullptr){
-				// oomph_info << "not stimulating" << std::endl;
 				return 0.0;
 			}
 			else{
-				// oomph_info << "Stimulating" << std::endl;
 				return (*StimFctPt)(ipt,s,x,t);
 			}
 		}
@@ -144,19 +142,14 @@ namespace cellhandlenan
 
 	// inline bool boostvectorcontainsnans(const Boost_State_Type& vect, const unsigned& n_vars)
 	// {
-	// 	double sum = 0.0;
+	// 	bool is_nan = false;
 	// 	for(unsigned i=0; i<n_vars; i++)
 	// 	{
-	// 		// if(!std::isfinite(vect[i]))
-	// 		// {
-	// 		// 	return true;
-	// 		// }
-	// 		sum += vect[i];
+	// 		//is_nan 
+	// 		is_nan = (!std::isfinite(vect[i]) || is_nan);
 	// 	}
-	// 	// return false;
-	// 	return !std::isfinite(sum);
+	// 	return is_nan;
 	// }
-
 
 	class CellModelBaseFullySegregated
 	{
@@ -532,27 +525,6 @@ namespace cellhandlenan
 																							boost_Variable_Derivatives,
 																							boost_Iion);
 
-			//HANDLE NANS/INFS
-
-			// //If a derivative is non-finite then set it to some random value
-			// for(unsigned i=0; i<Num_Cell_Vars; i++){
-			// 	// boost_Variable_Derivatives[i] = (std::isfinite(boost_Variable_Derivatives[i]) ? boost_Variable_Derivatives[i] : ((double)std::rand()/(RAND_MAX)));
-			// 	// cellhandlenan::cellhandlePossibleNan(boost_Variable_Derivatives[i]);
-			// 	if(!std::isfinite(boost_Variable_Derivatives[i]))
-			// 	{
-			// 		boost_Variable_Derivatives[i] = ((double)std::rand()/(RAND_MAX));
-			// 	}
-			// }
-			// //Do the same for the ionic current
-			// // boost_Iion = (std::isfinite(boost_Iion) ? boost_Iion : ((double)std::rand()/(RAND_MAX)));
-			// // cellhandlenan::cellhandlePossibleNan(boost_Iion);
-
-			// if(!std::isfinite(boost_Iion))
-			// {
-			// 	boost_Iion = ((double)std::rand()/(RAND_MAX));
-			// }
-
-
 			//Fill in the derivatives to be sent back to the boost solver
 			dxdt[Num_Cell_Vars] = boost_Iion;
 			for(unsigned i=0; i<Num_Cell_Vars; i++){
@@ -776,13 +748,13 @@ namespace cellhandlenan
 			// 		// 		(*this), x, T, T+DT, DT);
 
 			// 		//This selection of absolute and relative errors seems to perform more efficiently than the above
-			// 		integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-5, 1.0e-2),
-			// 				(*this), x, T, T+DT, DT);
+			// 		// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-5, 1.0e-2),
+			// 		// 		(*this), x, T, T+DT, DT);
 
 
 			// 		//Explicit euler
-			// 		// boost::numeric::odeint::euler<Boost_State_Type> Euler;
-			// 		// Euler.do_step((*this), x, T, DT);
+			// 		boost::numeric::odeint::euler<Boost_State_Type> Euler;
+			// 		Euler.do_step((*this), x, T, DT);
 
 
 			// 		//NOT WORKING YET
@@ -821,12 +793,128 @@ namespace cellhandlenan
 
 			//END BOOOOOST SOLVE
 			///////////////////////////////////////////////////////////////////////////////////
+
+
+
+			// ///////////////////////////////////////////////////////////////////////////////////
+			// //CUSTOM PADE-APPROXIMANT SOLVE			
+
+			// //Running time
+			// double T = t;
+			// //Initially attempted timestep
+			// double DT = dt;
+			// //Desired convergence
+			// static double PadeApproximantTolerance = 1e-5;
+
+			// //Heun Euler with non-finite check
+			// Boost_State_Type x_np1_1(Num_Cell_Vars+1, 0.0);
+			// Boost_State_Type x_np1_half(Num_Cell_Vars+1, 0.0);
+			// Boost_State_Type x_np1_2(Num_Cell_Vars+1, 0.0);
+
+			// Boost_State_Type K1(Num_Cell_Vars+1, 0.0);
+			// Boost_State_Type K2(Num_Cell_Vars+1, 0.0);
+
+			// //Error
+			// double tau = 0.0;
+
+			// // bool Solvexnp12withdoublestep = false;
+			// bool Solvewithheuneuler = false;
+			// //Get derivative at start point
+			// (*this)(x, K1, T);
+
+			// const double T_End = T+DT;
+			// while(T<T_End)
+			// {
+			// 	// Solvexnp12withdoublestep = false;
+			// 	Solvewithheuneuler = false;
+
+			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 	{
+			// 		//Calculate initial guess	
+			// 		// x_np1_1[i] = x[i]+DT*K1[i];
+
+			// 	// 	if(std::abs(x[i]>1e-9))
+			// 	// 	{
+			// 	// 		//Higher order - not as fast
+			// 	// 		// x_np1_1[i] += DT*DT*K1[i]*K1[i]*(0.5 + DT*K1[i]*(1.0/6.0)/x[i])/x[i];
+			// 	// 		// //Calculate second guess
+			// 	// 		// x_np1_2[i] = x_np1_1[i] + DT*DT*DT*DT*K1[i]*K1[i]*K1[i]*K1[i]*(1.0/24.0)/(x[i]*x[i]*x[i]);
+			// 	// 		// Solvexnp12withdoublestep = false;
+
+			// 	// 		//Lower order - faster than Heun Euler
+			// 	// 		x_np1_1[i] += DT*DT*K1[i]*K1[i]*0.5/x[i];
+
+			// 	// 		if(!Solvexnp12withdoublestep)
+			// 	// 		{
+			// 	// 			//Calculate second guess
+			// 	// 			x_np1_2[i] = x_np1_1[i] + DT*DT*DT*K1[i]*K1[i]*K1[i]*(1.0/6.0)/(x[i]*x[i]);
+			// 	// 		}
+			// 	// 	}
+			// 	// 	else
+			// 	// 	{
+			// 	// 		Solvexnp12withdoublestep = true;
+			// 	// 	}
+			// 	// }
+
+			// 		if( (std::abs(x[i]-DT*K1[i])>1e-9) && (std::abs(x[i]-DT*0.5*K1[i])>1e-9) )
+			// 		{
+			// 			x_np1_1[i] = x[i]*x[i]/(x[i]-DT*K1[i]);
+			// 			x_np1_half[i] = x[i]*x[i]/(x[i]-DT*0.5*K1[i]);
+			// 		}
+			// 		else
+			// 		{
+			// 			x_np1_1[i] = x[i] + DT*K1[i];
+			// 			x_np1_half[i] = x[i] + DT*0.5*K1[i];
+			// 		}
+			// 	}
+
+			// 	//Get derivative at mid point
+			// 	(*this)(x_np1_half, K2, T+0.5*DT);
+
+			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 	{
+			// 		if((std::abs(x_np1_half[i]-DT*0.5*K2[i])>1e-9))
+			// 		{
+			// 			x_np1_2[i] = x_np1_half[i]*x_np1_half[i]/(x_np1_half[i]-DT*0.5*K2[i]);
+			// 		}
+			// 		else
+			// 		{
+			// 			x_np1_2[i] = x_np1_half[i] + DT*0.5*K2[i];
+			// 		}
+			// 	}
+
+				
+
+			// 	tau = 0.0;
+			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 	{
+			// 		tau += std::fabs(x_np1_1[i] - x_np1_2[i]);
+			// 	}
+
+			// 	if(tau<PadeApproximantTolerance)
+			// 	{
+			// 		//Calculate derivative at the new end point
+			// 		if(T<T_End){(*this)(x_np1_2, K1, T+DT);}
+			// 		if(boostvectorcontainsnans(K1, Num_Cell_Vars+1))
+			// 		{
+			// 			DT*=0.5;
+			// 			continue;
+			// 		}
+			// 		T+=DT;
+			// 		x = x_np1_2;
+			// 	}
+			// 	DT = std::min(T_End-T, 0.9*DT*std::min(std::max(pow(PadeApproximantTolerance/(2.0*tau),0.5),0.3), 2.0));
+			// }
+
+			// //CUSTOM PADE-APPROXIMANT SOLVE
+			// ///////////////////////////////////////////////////////////////////////////////////
+
 			
 
 
-			///////////////////////////////////////////////////////////////////////////////////
-			//CUSTOM HEUN-EULER SOLVE			
 
+			///////////////////////////////////////////////////////////////////////////////////
+			//CUSTOM HEUN-EULER SOLVE
 			//Running time
 			double T = t;
 			//Initially attempted timestep
@@ -850,29 +938,30 @@ namespace cellhandlenan
 			const double T_End = T+DT;
 			while(T<T_End)
 			{
-				// oomph_info << T << " " << DT<< std::endl;
 				//Calculate initial guess
 				for(unsigned i=0; i<Num_Cell_Vars+1; i++)
 				{
 					x_np1_1[i] = x[i]+K1[i]*DT;
 				}
 
+				//Calculate derivative at end point
+				(*this)(x_np1_1, K2, T+DT);
+
 				//Does it contain nans?
-				if(boostvectorcontainsnans(x_np1_1, Num_Cell_Vars+1))
+				if(boostvectorcontainsnans(K2, Num_Cell_Vars+1))
 				{
 					//If it does, halve the timestep and try again
 					DT *= 0.5;
 					continue;
 				}
 
-				//Calculate derivative at end point
-				(*this)(x_np1_1, K2, T+DT);
 
 				//Calculate second guess
 				for(unsigned i=0; i<Num_Cell_Vars+1; i++)
 				{
 					x_np1_2[i] = x[i]+0.5*DT*(K1[i]+K2[i]);
 				}
+				
 
 				tau = 0.0;
 				for(unsigned i=0; i<Num_Cell_Vars+1; i++)
@@ -884,15 +973,99 @@ namespace cellhandlenan
 				{
 					T+=DT;
 					x = x_np1_2;
-					(*this)(x, K1, T);
+					K1 = K2;
+					// (*this)(x, K1, T);
 					//Calculate derivative at the new end point
-					if(T<T_End){(*this)(x, K1, T);}
+					// if(T<T_End){
+					// 	// (*this)(x, K1, T);
+					// 	K1 = K2;
+					// }
 				}
 				DT = std::min(T_End-T, 0.9*DT*std::min(std::max(pow(HeunEulerTolerance/(2.0*tau),0.5),0.3), 2.0));
 			}
-
 			//CUSTOM HEUN-EULER SOLVE
 			///////////////////////////////////////////////////////////////////////////////////
+
+
+			
+			///////////////////////////////////////////////////////////////////////////////////
+			//Mountris and Pueyo, Zhilin Qu and Alan Garfinkel
+			// static double dt_0 = 0.01;
+
+			// const double k_max = std::floor(dt/dt_0);
+
+			// const double dvdt = ((get_base_node_membrane_potential()-StateVariables.second[Num_Cell_Vars])/dt)*use_node_vm_as_initial_value + MydVmdt.second*(!use_node_vm_as_initial_value);
+			
+			// const unsigned k_0 = 1 + (dvdt>0.0)*4;
+
+			// const unsigned k=std::min(k_max, k_0+std::floor(std::abs(dvdt)));
+
+			// const double DT = dt/k;
+
+			// double T=t;
+			// Boost_State_Type K1(Num_Cell_Vars+1, 0.0);
+
+			// for(unsigned i=0;i<k;i++)
+			// {
+			// 	(*this)(x, K1, T);
+			// 	if(!boostvectorcontainsnans(K1, Num_Cell_Vars+1))
+			// 	{
+			// 		for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 		{
+			// 			x[i] += K1[i]*DT;
+			// 		}
+			// 	}
+			// 	else
+			// 	{
+			// 		throw OomphLibError("Chosen dt does not converge.",
+			// 											OOMPH_CURRENT_FUNCTION,
+			// 											OOMPH_EXCEPTION_LOCATION);
+			// 	}
+			// 	T+=DT;
+			// }
+
+
+			// double DT = dt;
+
+			// double T=t;
+			// Boost_State_Type K1(Num_Cell_Vars+1, 0.0);
+			// Boost_State_Type X(Num_Cell_Vars+1, 0.0);
+
+			// for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// {
+			// 	X[i] = x[i];
+			// }
+
+			// const double T_End = T+DT;
+			// while(T<T_End)
+			// {
+			// 	(*this)(X, K1, T);
+			// 	if(!boostvectorcontainsnans(K1, Num_Cell_Vars+1))
+			// 	{
+			// 		// oomph_info << "Success " << T << " " << DT << std::endl;
+			// 		for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 		{
+			// 			X[i] = X[i] + K1[i]*DT;
+			// 		}
+			// 		T+=DT;
+			// 	}
+			// 	else
+			// 	{
+			// 		// oomph_info << "Failed " << T << " " << DT << std::endl;
+			// 		for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 		{
+			// 			X[i] = x[i];
+			// 		}
+			// 		T=t;
+			// 		DT*=0.5;
+			// 	}
+			// }
+		
+			//
+			///////////////////////////////////////////////////////////////////////////////////
+
+
+
 
 
 			// ///////////////////////////////////////////////////////////////////////////////////
@@ -923,7 +1096,7 @@ namespace cellhandlenan
 			// const double T_End = T+DT;
 			// while(T<T_End)
 			// {
-			// 	// oomph_info << T << " " << DT<< std::endl;
+			// 	oomph_info << T << " " << DT<< std::endl;
 
 			// 	///////////////////////BEGIN K2////////////////////////////////////
 				
@@ -933,16 +1106,16 @@ namespace cellhandlenan
 			// 		tmp_vect[i] = x[i]+K1[i]*DT*0.5;
 			// 	}
 
+			// 	//Calculate K2
+			// 	(*this)(tmp_vect, K2, T+0.5*DT);
+
 			// 	//Does it contain nans?
-			// 	if(boostvectorcontainsnans(tmp_vect, Num_Cell_Vars+1))
+			// 	if(boostvectorcontainsnans(K2, Num_Cell_Vars+1))
 			// 	{
 			// 		//If it does, halve the timestep and try again
 			// 		DT *= 0.5;
 			// 		continue;
 			// 	}
-
-			// 	//Calculate K2
-			// 	(*this)(tmp_vect, K2, T+0.5*DT);
 
 			// 	///////////////////////END K2/////////////////////////////////////
 
@@ -955,16 +1128,17 @@ namespace cellhandlenan
 			// 		tmp_vect[i] = x[i]+K2[i]*DT*0.75;
 			// 	}
 
+			
+			// 	//Calculate K3
+			// 	(*this)(tmp_vect, K3, T+0.75*DT);
+
 			// 	//Does it contain nans?
-			// 	if(boostvectorcontainsnans(tmp_vect, Num_Cell_Vars+1))
+			// 	if(boostvectorcontainsnans(K3, Num_Cell_Vars+1))
 			// 	{
 			// 		//If it does, halve the timestep and try again
 			// 		DT *= 0.5;
 			// 		continue;
 			// 	}
-
-			// 	//Calculate K3
-			// 	(*this)(tmp_vect, K3, T+0.75*DT);
 
 			// 	///////////////////////END K3/////////////////////////////////////
 
@@ -977,16 +1151,18 @@ namespace cellhandlenan
 			// 		tmp_vect[i] = x[i]+DT*((2.0/9.0)*K1[i]+(1.0/3.0)*K2[i]+(4.0/9.0)*K3[i]);
 			// 	}
 
+				
+
+			// 	//Calculate K4
+			// 	(*this)(tmp_vect, K4, T+DT);
+
 			// 	//Does it contain nans?
-			// 	if(boostvectorcontainsnans(tmp_vect, Num_Cell_Vars+1))
+			// 	if(boostvectorcontainsnans(K4, Num_Cell_Vars+1))
 			// 	{
 			// 		//If it does, halve the timestep and try again
 			// 		DT *= 0.5;
 			// 		continue;
 			// 	}
-
-			// 	//Calculate K4
-			// 	(*this)(tmp_vect, K4, T+DT);
 
 			// 	///////////////////////END K4/////////////////////////////////////
 
@@ -995,7 +1171,7 @@ namespace cellhandlenan
 			// 	tau = 0.0;
 			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
 			// 	{
-			// 		tau += (2.0/9.0-7.0/24.0)*K1[i] + (1.0/3.0-1.0/4.0)*K2[i] + (4.0/9.0-1.0/3.0)*K3[i] + (0.0-1.0/8.0)*K4[i];
+			// 		tau += std::fabs((2.0/9.0-7.0/24.0)*K1[i] + (1.0/3.0-1.0/4.0)*K2[i] + (4.0/9.0-1.0/3.0)*K3[i] + (0.0-1.0/8.0)*K4[i]);
 			// 	}
 
 			// 	if(tau<HeunEulerTolerance)
@@ -1007,7 +1183,11 @@ namespace cellhandlenan
 			// 			x[i] += DT*(7.0/24.0)*K1[i] + (1.0/4.0)*K2[i] + (1.0/3.0)*K3[i] + (1.0/8.0)*K4[i];
 			// 		}
 			// 		//Calculate derivative at the new end point
-			// 		if(T<T_End){(*this)(x, K1, T);}
+			// 		if(T<T_End){
+			// 			// (*this)(x, K1, T);
+			// 			//This is just the same as K4 this step
+			// 			K1 = K4;
+			// 		}
 			// 	}
 
 			// 	DT = std::min(T_End-T, 0.9*DT*std::min(std::max(pow(HeunEulerTolerance/(2.0*tau),0.5),0.3), 2.0));
@@ -1063,29 +1243,46 @@ namespace cellhandlenan
 		//Update the membrane potential of the underlying node to be consistent with that of the cell
 		void update_underlying_node_membrane_potential()
 		{
-			#ifdef PARANOID
-			if(dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)==nullptr){
-				throw OomphLibError("No node assigned to this cell.",
-			                       	OOMPH_CURRENT_FUNCTION,
-			                       	OOMPH_EXCEPTION_LOCATION);
+			// #ifdef PARANOID
+			// if(dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)==nullptr){
+			// 	throw OomphLibError("No node assigned to this cell.",
+			//                        	OOMPH_CURRENT_FUNCTION,
+			//                        	OOMPH_EXCEPTION_LOCATION);
+			// }
+			// #endif
+			// // dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->update_nodal_membrane_potential_BaseCellMembranePotential(L, MyVm);
+			// dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->update_nodal_membrane_potential_BaseCellMembranePotential(L, StateVariables.second[Num_Cell_Vars]);
+			
+			// oomph_info << "Updating underlying node" << std::endl;
+			// oomph_info << StateVariables.second.size() << std::endl;
+			// for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// {
+			// 	oomph_info << StateVariables.second[i] << std::endl;
+			// }
+			// oomph_info << Base_Cell_Sources_Pt << std::endl;
+
+
+			if(Base_Cell_Sources_Pt!=nullptr){
+				dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->update_nodal_membrane_potential_BaseCellMembranePotential(L, StateVariables.second[Num_Cell_Vars]);
 			}
-			#endif
-			// dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->update_nodal_membrane_potential_BaseCellMembranePotential(L, MyVm);
-			dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->update_nodal_membrane_potential_BaseCellMembranePotential(L, StateVariables.second[Num_Cell_Vars]);
 		}
 
 		//Update the membrane potential of the underlying node to be consistent with that of the cell
 		void assign_underlying_node_additional_initial_conditions()
 		{
-			#ifdef PARANOID
-			if(dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)==nullptr){
-				throw OomphLibError("No node assigned to this cell.",
-			                       	OOMPH_CURRENT_FUNCTION,
-			                       	OOMPH_EXCEPTION_LOCATION);
+			// #ifdef PARANOID
+			// if(dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)==nullptr){
+			// 	throw OomphLibError("No node assigned to this cell.",
+			//                        	OOMPH_CURRENT_FUNCTION,
+			//                        	OOMPH_EXCEPTION_LOCATION);
+			// }
+			// #endif
+			// // dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->update_nodal_membrane_potential_BaseCellMembranePotential(L, MyVm);
+			// dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->assign_additional_initial_conditions(L);
+
+			if(Base_Cell_Sources_Pt!=nullptr){
+				dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->assign_additional_initial_conditions(L);
 			}
-			#endif
-			// dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->update_nodal_membrane_potential_BaseCellMembranePotential(L, MyVm);
-			dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(Base_Cell_Sources_Pt)->assign_additional_initial_conditions(L);
 		}
 
 		//Assign initial conditions or update the current values of variables
@@ -1206,6 +1403,10 @@ namespace cellhandlenan
 		{
 			// MyVm = Vm;
 			// StateVariables[Num_Cell_Vars] = Vm;
+
+			// oomph_info << "Num_Cell_Vars " << Num_Cell_Vars << std::endl;
+			// oomph_info << "StateVariables.first " << StateVariables.first.size() << std::endl;
+			// oomph_info << "StateVariables.second " << StateVariables.second.size() << std::endl;
 
 			StateVariables.first[Num_Cell_Vars] = Vm;
 			StateVariables.second[Num_Cell_Vars] = StateVariables.first[Num_Cell_Vars];
@@ -1375,6 +1576,8 @@ namespace cellhandlenan
 			Num_Other_Vars = 	Names_Of_Other_Variables.size();
 			Num_Output_Data = 	Names_Of_Output_Data.size();
 
+			// oomph_info << "Num_Cell_Vars " << Num_Cell_Vars << std::endl;
+			
 
 			//Allocate storage for the cell variables
 			// StateVariables.resize(Num_Cell_Vars+1, 0.0);
@@ -1383,8 +1586,10 @@ namespace cellhandlenan
 			StateVariables.second.resize(Num_Cell_Vars+1, 0.0);
 
 			Other_Parameters.resize(Num_Other_Params, 0.0);
-
 			Output_Data.resize(Num_Output_Data, 0.0);
+
+			// oomph_info << "StateVariables.first " << StateVariables.first.size() << std::endl;
+			// oomph_info << "StateVariables.second " << StateVariables.second.size() << std::endl;
 		}
 
 		int active_strain_index;

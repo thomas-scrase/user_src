@@ -11,7 +11,8 @@ dummy.cc
 
 # Define the headers
 headers = \
-cell_solvers_fully_segregated.h 
+cell_solvers_fully_segregated.h \
+empty_place_holder_cell.h
 
 # # Template only files. These should be included in include directory
 # # but should not be listed in combined header file
