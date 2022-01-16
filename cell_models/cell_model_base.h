@@ -127,6 +127,13 @@ namespace cellhandlenan
 	typedef boost::numeric::odeint::runge_kutta_fehlberg78< Boost_State_Type > controlled_error_stepper_type;
 	typedef boost::numeric::odeint::rosenbrock4< Boost_State_Type > implicit_controlled_error_stepper_type;
 
+// typedef Vector<double> Boost_State_Type;
+// typedef DenseMatrix<double> boost_matrix_type;
+
+// // typedef boost::numeric::odeint::runge_kutta_cash_karp54< Boost_State_Type > controlled_error_stepper_type;
+// 	typedef boost::numeric::odeint::runge_kutta_fehlberg78< Boost_State_Type > controlled_error_stepper_type;
+// 	typedef boost::numeric::odeint::rosenbrock4< Boost_State_Type > implicit_controlled_error_stepper_type;
+
 
 	inline bool boostvectorcontainsnans(const Boost_State_Type& vect, const unsigned& n_vars)
 	{
@@ -151,10 +158,18 @@ namespace cellhandlenan
 	// 	return is_nan;
 	// }
 
+	namespace cellmodeldefaultvalues
+	{
+		static double Target_Solve_Error_Default = 1e-5;
+	}
+
 	class CellModelBaseFullySegregated
 	{
 	public:
-		CellModelBaseFullySegregated() : Non_this_pointer(this), active_strain_index(-1), /*Integral_Iion(0.0)*/Integral_Iion({0.0,0.0}), /*MydVmdt(0.0)*/MydVmdt({0.0,0.0}), Base_Cell_Sources_Pt(0), Base_Node_Pt(0)
+		CellModelBaseFullySegregated() : Non_this_pointer(this), active_strain_index(-1), /*Integral_Iion(0.0)*//*Integral_Iion({0.0,0.0}),*/ /*MydVmdt(0.0)*/MydVmdt({0.0,0.0}), Base_Cell_Sources_Pt(0), Base_Node_Pt(0), Target_Solve_Error(cellmodeldefaultvalues::Target_Solve_Error_Default),
+																		SingleCellUseBoostSolve(false),//by default use the Heun Euler implementation
+																		Last_Used_Dt(1e9) //Last value of dt used
+																		// BoostSolverMethod(0) //by default use RKF
 																		// , BOOST_FD_STEP(1e-12)
 		{
 			//Resize the variable names vectors to zero
@@ -239,7 +254,8 @@ namespace cellhandlenan
 		//return the last value we solved up to.
 		double get_time() const
 		{
-			return MyLastT;
+			// return MyLastT;
+			return 0.0;
 		}
 
 		double get_predicted_vm() const
@@ -265,8 +281,12 @@ namespace cellhandlenan
 
 		double get_Integral_Iion() const
 		{
-			// return Integral_Iion;
-			return Integral_Iion.second;
+		// 	// return Integral_Iion;
+		// 	return Integral_Iion.second;
+			// return 0.0;
+			throw OomphLibError("Integral Iion has been removed.",
+			                       	OOMPH_CURRENT_FUNCTION,
+			                       	OOMPH_EXCEPTION_LOCATION);
 		}
 
 
@@ -357,9 +377,6 @@ namespace cellhandlenan
 			}
 		}
 
-
-
-
 		//The names given to the cell variables, we use this because it's more user friendly,
 		// it means a user does not need to also provide the number of cell variables, and they
 		// can just call the variables by name rather than worrying about index
@@ -429,7 +446,9 @@ namespace cellhandlenan
 			Base_Node_Index_of_Vm = Index_of_Vm;
 
 			Ipt = ipt;
+			// S.resize(s.size());
 			S = s;
+			// X.resize(x.size());
 			X = x;
 			L = l;
 		}
@@ -501,6 +520,33 @@ namespace cellhandlenan
 		}
 
 
+		void set_target_solver_error(const double &new_target_error)
+		{
+			Target_Solve_Error = new_target_error;
+		}
+
+		void set_cell_use_boost_solver()
+		{
+			SingleCellUseBoostSolve = true;
+		}
+
+		void set_cell_not_use_boost_solver()
+		{
+			SingleCellUseBoostSolve = false;
+		}
+
+		// void set_boost_solver_method(const unsigned &method)
+		// {
+		// 	switch(method){
+		// 		case 0://RKF
+		// 					BoostSolverMethod = method
+		// 		case 1://Explicit Euler
+		// 					BoostSolverMethod = method
+		// 		default:
+		// 					throw OomphLibError("That is not a valid boost solver method",
+		// 												OOMPH_CURRENT_FUNCTION,
+		// 												OOMPH_EXCEPTION_LOCATION);
+		// }
 
 		//CALCULATE DERIVATIVES WITHOUT JACOBIAN
 		//We need to check for nans/infs because boost does not do this by default for explicit timestepping methods
@@ -643,7 +689,7 @@ namespace cellhandlenan
 
 		void reset_copy_variables_to_IC_values()
 		{
-			Integral_Iion.second = Integral_Iion.first;
+			// Integral_Iion.second = Integral_Iion.first;
 
 			MydVmdt.second = MydVmdt.first;
 
@@ -655,7 +701,7 @@ namespace cellhandlenan
 
 		void accept_copy_variables_as_IC_values()
 		{
-			Integral_Iion.first = Integral_Iion.second;
+			// Integral_Iion.first = Integral_Iion.second;
 
 			MydVmdt.first = MydVmdt.second;
 
@@ -664,8 +710,7 @@ namespace cellhandlenan
 				StateVariables.first[i] = StateVariables.second[i];
 			}
 		}
-		
-
+	
 		//Take a timestep using boost solver. pass the initial time and total duration of the solve
 		// the boolean use_node_vm_as_initial_value indicates whether or not the cell should use it's
 		// internally stored value of vm or the value stored in the underlying oomph-lib node
@@ -707,108 +752,112 @@ namespace cellhandlenan
 			}
 			#endif
 
-
+			// if(SingleCellUseBoostSolve)
+			// {
 			///////////////////////////////////////////////////////////////////////////////////
 			//BOOOOOST SOLVE
-			
-			// double N_solve = 0;
-			// do
-			// {
-			// 	N_solve++;
-
-			// 	double T = t;
-
-			// 	const unsigned N = pow(2, N_solve-1);
-			// 	double DT = dt/(double)N;
-
-			// 	//Set the value of DT stored in the cell model, used when solving equations with rush-larsen
-			// 	dt_rushlarsen = DT;
-
-			// 	//Fill in membrane potential
-			// 	if(use_node_vm_as_initial_value)
-			// 	{
-			// 		x[Num_Cell_Vars] = get_base_node_membrane_potential();
-			// 	}
-			// 	else
-			// 	{
-			// 		x[Num_Cell_Vars] = StateVariables.second[Num_Cell_Vars];
-			// 	}
-
-			// 	//Fill in cell variables
-			// 	for(unsigned i=0; i<Num_Cell_Vars; i++)
-			// 	{
-			// 		x[i] = StateVariables.second[i];
-			// 	}
 
 
-			// 	for(double k=0; k<N; k++)
-			// 	{
-			// 		//Controlled explicit method
-			// 		// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-10, 1.0e-10),
-			// 		// 		(*this), x, T, T+DT, DT);
+				// double N_solve = 0;
+				// do
+				// {
+				// 	N_solve++;
 
-			// 		//This selection of absolute and relative errors seems to perform more efficiently than the above
-			// 		// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-5, 1.0e-2),
-			// 		// 		(*this), x, T, T+DT, DT);
+				// 	double T = t;
+
+				// 	const unsigned N = pow(2, N_solve-1);
+				// 	double DT = dt/(double)N;
+
+				// 	//Set the value of DT stored in the cell model, used when solving equations with rush-larsen
+				// 	dt_rushlarsen = DT;
+
+				// 	//Fill in membrane potential
+				// 	if(use_node_vm_as_initial_value)
+				// 	{
+				// 		x[Num_Cell_Vars] = get_base_node_membrane_potential();
+				// 	}
+				// 	else
+				// 	{
+				// 		x[Num_Cell_Vars] = StateVariables.second[Num_Cell_Vars];
+				// 	}
+
+				// 	//Fill in cell variables
+				// 	for(unsigned i=0; i<Num_Cell_Vars; i++)
+				// 	{
+				// 		x[i] = StateVariables.second[i];
+				// 	}
 
 
-			// 		//Explicit euler
-			// 		boost::numeric::odeint::euler<Boost_State_Type> Euler;
-			// 		Euler.do_step((*this), x, T, DT);
+				// 	for(double k=0; k<N; k++)
+				// 	{
+				// 		//Controlled explicit method
+				// 		// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-10, 1.0e-10),
+				// 		// 		(*this), x, T, T+DT, DT);
+
+				// 		//This selection of absolute and relative errors seems to perform more efficiently than the above
+				// 		integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(Target_Solve_Error, Target_Solve_Error),
+				// 				(*this), x, T, T+DT, DT);
 
 
-			// 		//NOT WORKING YET
+				// 		//Explicit euler
+				// 		// boost::numeric::odeint::euler<Boost_State_Type> Euler;
+				// 		// Euler.do_step((*this), x, T, DT);
 
-			// 		//Controlled implicit method
-			// 		// boost::numeric::odeint::rosenbrock4_controller<boost::numeric::odeint::rosenbrock4<double>> stepper;
-			// 		// integrate_adaptive(stepper, std::make_pair((*this), (*this)), x, T, T+DT, DT);
 
-			// 		//Implicit Euler
-			// 		// boost::numeric::odeint::implicit_euler<double> stepper;
-			// 		// stepper.do_step(std::make_pair((*this), (*this)), x, T, DT);
+				// 		//NOT WORKING YET
 
-			// 		T+=DT;
-			// 	}
+				// 		//Controlled implicit method
+				// 		// boost::numeric::odeint::rosenbrock4_controller<boost::numeric::odeint::rosenbrock4<double>> stepper;
+				// 		// integrate_adaptive(stepper, std::make_pair((*this), (*this)), x, T, T+DT, DT);
+
+				// 		//Implicit Euler
+				// 		// boost::numeric::odeint::implicit_euler<double> stepper;
+				// 		// stepper.do_step(std::make_pair((*this), (*this)), x, T, DT);
+
+				// 		T+=DT;
+				// 	}
+
+				// }
+				// while(boostvectorcontainsnans(x, Num_Cell_Vars+1));
+
+
+
+
+				// // Explicit method
+				// boost::numeric::odeint::bulirsch_stoer< Boost_State_Type > stepper( 1E-8 , 0.0 , 0.0 , 0.0 );
+				// integrate_adaptive(stepper, (*this), x, t, t+dt, dt);
+
+				// // Explicit euler method
+				// boost::numeric::odeint::euler<Boost_State_Type> Euler;
+				// Euler.do_step((*this), x, t, dt);
+
+				// // Controlled Implicit method
+				// boost::numeric::odeint::rosenbrock4_controller<boost::numeric::odeint::rosenbrock4<double>> stepper;
+				// integrate_adaptive(stepper, std::make_pair((*this), (*this)), x, t, t+dt, dt);
+
+				// // Implicit euler method
+				// boost::numeric::odeint::implicit_euler<double> stepper;
+				// stepper.do_step(std::make_pair((*this), (*this)), x, t, dt);
 			// }
-			// while(boostvectorcontainsnans(x, Num_Cell_Vars+1));
 
 
-			//Explicit method
-			// boost::numeric::odeint::bulirsch_stoer< Boost_State_Type > stepper( 1E-8 , 0.0 , 0.0 , 0.0 );
-			// integrate_adaptive(stepper, (*this), x, t, t+dt, dt);
+			// END BOOOOOST SOLVE
+			/////////////////////////////////////////////////////////////////////////////////
 
-			//Explicit euler method
-			// boost::numeric::odeint::euler<Boost_State_Type> Euler;
-			// Euler.do_step((*this), x, t, dt);
+			// else
+			// {
 
-			//Controlled Implicit method
-			// boost::numeric::odeint::rosenbrock4_controller<boost::numeric::odeint::rosenbrock4<double>> stepper;
-			// integrate_adaptive(stepper, std::make_pair((*this), (*this)), x, t, t+dt, dt);
-
-			//Implicit euler method
-			// boost::numeric::odeint::implicit_euler<double> stepper;
-			// stepper.do_step(std::make_pair((*this), (*this)), x, t, dt);
-
-
-
-			//END BOOOOOST SOLVE
-			///////////////////////////////////////////////////////////////////////////////////
-
-
-
-			// ///////////////////////////////////////////////////////////////////////////////////
-			// //CUSTOM PADE-APPROXIMANT SOLVE			
-
+			// // ///////////////////////////////////////////////////////////////////////////////////
+			// //CUSTOM HEUN-EULER SOLVE
 			// //Running time
 			// double T = t;
 			// //Initially attempted timestep
 			// double DT = dt;
 			// //Desired convergence
-			// static double PadeApproximantTolerance = 1e-5;
+			// // static double HeunEulerTolerance = 1e-5;
 
 			// //Heun Euler with non-finite check
 			// Boost_State_Type x_np1_1(Num_Cell_Vars+1, 0.0);
-			// Boost_State_Type x_np1_half(Num_Cell_Vars+1, 0.0);
 			// Boost_State_Type x_np1_2(Num_Cell_Vars+1, 0.0);
 
 			// Boost_State_Type K1(Num_Cell_Vars+1, 0.0);
@@ -817,72 +866,35 @@ namespace cellhandlenan
 			// //Error
 			// double tau = 0.0;
 
-			// // bool Solvexnp12withdoublestep = false;
-			// bool Solvewithheuneuler = false;
 			// //Get derivative at start point
 			// (*this)(x, K1, T);
 
 			// const double T_End = T+DT;
 			// while(T<T_End)
 			// {
-			// 	// Solvexnp12withdoublestep = false;
-			// 	Solvewithheuneuler = false;
-
+			// 	//Calculate initial guess
 			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
 			// 	{
-			// 		//Calculate initial guess	
-			// 		// x_np1_1[i] = x[i]+DT*K1[i];
-
-			// 	// 	if(std::abs(x[i]>1e-9))
-			// 	// 	{
-			// 	// 		//Higher order - not as fast
-			// 	// 		// x_np1_1[i] += DT*DT*K1[i]*K1[i]*(0.5 + DT*K1[i]*(1.0/6.0)/x[i])/x[i];
-			// 	// 		// //Calculate second guess
-			// 	// 		// x_np1_2[i] = x_np1_1[i] + DT*DT*DT*DT*K1[i]*K1[i]*K1[i]*K1[i]*(1.0/24.0)/(x[i]*x[i]*x[i]);
-			// 	// 		// Solvexnp12withdoublestep = false;
-
-			// 	// 		//Lower order - faster than Heun Euler
-			// 	// 		x_np1_1[i] += DT*DT*K1[i]*K1[i]*0.5/x[i];
-
-			// 	// 		if(!Solvexnp12withdoublestep)
-			// 	// 		{
-			// 	// 			//Calculate second guess
-			// 	// 			x_np1_2[i] = x_np1_1[i] + DT*DT*DT*K1[i]*K1[i]*K1[i]*(1.0/6.0)/(x[i]*x[i]);
-			// 	// 		}
-			// 	// 	}
-			// 	// 	else
-			// 	// 	{
-			// 	// 		Solvexnp12withdoublestep = true;
-			// 	// 	}
-			// 	// }
-
-			// 		if( (std::abs(x[i]-DT*K1[i])>1e-9) && (std::abs(x[i]-DT*0.5*K1[i])>1e-9) )
-			// 		{
-			// 			x_np1_1[i] = x[i]*x[i]/(x[i]-DT*K1[i]);
-			// 			x_np1_half[i] = x[i]*x[i]/(x[i]-DT*0.5*K1[i]);
-			// 		}
-			// 		else
-			// 		{
-			// 			x_np1_1[i] = x[i] + DT*K1[i];
-			// 			x_np1_half[i] = x[i] + DT*0.5*K1[i];
-			// 		}
+			// 		x_np1_1[i] = x[i]+K1[i]*DT;
 			// 	}
 
-			// 	//Get derivative at mid point
-			// 	(*this)(x_np1_half, K2, T+0.5*DT);
+			// 	//Calculate derivative at end point
+			// 	(*this)(x_np1_1, K2, T+DT);
 
+			// 	//Does it contain nans?
+			// 	if(boostvectorcontainsnans(K2, Num_Cell_Vars+1))
+			// 	{
+			// 		//If it does, halve the timestep and try again
+			// 		DT *= 0.5;
+			// 		continue;
+			// 	}
+
+
+			// 	//Calculate second guess
 			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
 			// 	{
-			// 		if((std::abs(x_np1_half[i]-DT*0.5*K2[i])>1e-9))
-			// 		{
-			// 			x_np1_2[i] = x_np1_half[i]*x_np1_half[i]/(x_np1_half[i]-DT*0.5*K2[i]);
-			// 		}
-			// 		else
-			// 		{
-			// 			x_np1_2[i] = x_np1_half[i] + DT*0.5*K2[i];
-			// 		}
+			// 		x_np1_2[i] = x[i]+0.5*DT*(K1[i]+K2[i]);
 			// 	}
-
 				
 
 			// 	tau = 0.0;
@@ -891,36 +903,27 @@ namespace cellhandlenan
 			// 		tau += std::fabs(x_np1_1[i] - x_np1_2[i]);
 			// 	}
 
-			// 	if(tau<PadeApproximantTolerance)
+			// 	if(tau<Target_Solve_Error)
 			// 	{
-			// 		//Calculate derivative at the new end point
-			// 		if(T<T_End){(*this)(x_np1_2, K1, T+DT);}
-			// 		if(boostvectorcontainsnans(K1, Num_Cell_Vars+1))
-			// 		{
-			// 			DT*=0.5;
-			// 			continue;
-			// 		}
 			// 		T+=DT;
 			// 		x = x_np1_2;
+			// 		K1 = K2;
 			// 	}
-			// 	DT = std::min(T_End-T, 0.9*DT*std::min(std::max(pow(PadeApproximantTolerance/(2.0*tau),0.5),0.3), 2.0));
+			// 	DT = std::min(T_End-T, 0.9*DT*std::min(std::max(pow(Target_Solve_Error/(2.0*tau),0.5),0.3), 2.0));
 			// }
-
-			// //CUSTOM PADE-APPROXIMANT SOLVE
-			// ///////////////////////////////////////////////////////////////////////////////////
-
-			
-
+			// //CUSTOM HEUN-EULER SOLVE
+			// // ///////////////////////////////////////////////////////////////////////////////////
 
 
 			///////////////////////////////////////////////////////////////////////////////////
-			//CUSTOM HEUN-EULER SOLVE
+			//CUSTOM HEUN-EULER SOLVE WITH BOOST ERROR MEASURE
 			//Running time
 			double T = t;
 			//Initially attempted timestep
-			double DT = dt;
+			// double DT = dt;
+			double DT = std::min(dt, Last_Used_Dt);
 			//Desired convergence
-			static double HeunEulerTolerance = 1e-5;
+			// static double HeunEulerTolerance = 1e-5;
 
 			//Heun Euler with non-finite check
 			Boost_State_Type x_np1_1(Num_Cell_Vars+1, 0.0);
@@ -931,11 +934,12 @@ namespace cellhandlenan
 
 			//Error
 			double tau = 0.0;
+			double sk = 0.0;
 
 			//Get derivative at start point
 			(*this)(x, K1, T);
 
-			const double T_End = T+DT;
+			const double T_End = T+dt;
 			while(T<T_End)
 			{
 				//Calculate initial guess
@@ -964,43 +968,232 @@ namespace cellhandlenan
 				
 
 				tau = 0.0;
+				sk = 0.0;
 				for(unsigned i=0; i<Num_Cell_Vars+1; i++)
 				{
-					tau += std::fabs(x_np1_1[i] - x_np1_2[i]);
+					// sk = Target_Solve_Error + Target_Solve_Error * std::max(std::abs(x_np1_2[i]), std::abs(x_np1_1[i]));
+					sk = 1.0 + 1.0 * std::max(std::abs(x_np1_2[i]), std::abs(x_np1_1[i]));
+					tau += (x_np1_1[i] - x_np1_2[i])*(x_np1_1[i] - x_np1_2[i]) / sk / sk;
+					// tau += std::fabs(x_np1_1[i] - x_np1_2[i]);
 				}
+				tau = sqrt(tau/(Num_Cell_Vars+1.0));
 
-				if(tau<HeunEulerTolerance)
+				if(tau<Target_Solve_Error)
 				{
 					T+=DT;
 					x = x_np1_2;
 					K1 = K2;
-					// (*this)(x, K1, T);
-					//Calculate derivative at the new end point
-					// if(T<T_End){
-					// 	// (*this)(x, K1, T);
-					// 	K1 = K2;
-					// }
 				}
-				DT = std::min(T_End-T, 0.9*DT*std::min(std::max(pow(HeunEulerTolerance/(2.0*tau),0.5),0.3), 2.0));
+				if(T<T_End)
+				{
+					DT = std::min(T_End-T, 0.9*DT*std::min(std::max(pow(Target_Solve_Error/(2.0*tau),0.5),0.3), 2.0));
+				}
 			}
+			
+			Last_Used_Dt = DT;
 			//CUSTOM HEUN-EULER SOLVE
 			///////////////////////////////////////////////////////////////////////////////////
 
 
+
+
+
+			///////////////////////////////////////////////////////////////////////////////////
+			// //Toms version of Mountris and Pueyo
+			// Boost_State_Type K1(Num_Cell_Vars+1, 0.0);
+			// Boost_State_Type K2(Num_Cell_Vars+1, 0.0);
+			// (*this)(x, K1, t);
+			// Boost_State_Type X1(Num_Cell_Vars+1, 0.0);
+
+			// static double QG_FD = 1e-3;
+
+			// for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// {
+			// 	X1[i] = x[i] + K1[i]*QG_FD;
+			// }
+
+			// (*this)(X1, K2, t+QG_FD);
+
+			// double max_err = 0.0;
+			// for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// {
+			// 	max_err = std::max(max_err, std::abs(K2[i]-K1[i]));
+			// }
+
+			// double DT = std::min(2.0*Target_Solve_Error/max_err, dt);
+
+			// // unsigned K = unsigned(dt/DT);
+			// // oomph_info << DT << " " << K << " " << dt_final << std::endl;
+			// // oomph_info << DT << " " << K << std::endl;
+
+			// double T=t;
+
+			// // for(unsigned i=0;i<K;i++)
+			// while(T<t+dt)
+			// {
+			// 	DT = std::min(DT, t+dt-T);
+			// 	if(DT<0.0)
+			// 	{
+			// 		throw OomphLibError("Why is DT negative??",
+			// 											OOMPH_CURRENT_FUNCTION,
+			// 											OOMPH_EXCEPTION_LOCATION);
+			// 	}
+			// 	if(T>=t+dt)
+			// 	{
+			// 		break;
+			// 	}
+
+			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 	{
+			// 		X1[i] = x[i] + K1[i]*DT;
+			// 	}
+
+			// 	//Calculate the derivative at the newly calculated point
+			// 	(*this)(x, K2, T);
+
+			// 	//If that derivative contains no nans...
+			// 	if(!boostvectorcontainsnans(K2, Num_Cell_Vars+1))
+			// 	{
+			// 		//Accept it, advance time and the solution
+			// 		T+=DT;
+			// 		x=X1;
+			// 		K1=K2;
+			// 	}
+			// 	else
+			// 	{
+			// 		//Re-calculate the time-step by getting a new measure of the error
+			// 		for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 		{
+			// 			X1[i] = x[i] + K1[i]*QG_FD;
+			// 		}
+			// 		(*this)(X1, K2, T+QG_FD);
+			// 		max_err = 0.0;
+			// 		for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 		{
+			// 			max_err = std::max(max_err, std::abs(K2[i]-K1[i]));
+			// 		}
+			// 		DT = std::min(2.0*Target_Solve_Error/max_err, t+dt-T);
+
+			// 		if(DT<1e-12)
+			// 		{
+			// 			throw OomphLibError("DT of (almost) zero was requested??",
+			// 												OOMPH_CURRENT_FUNCTION,
+			// 												OOMPH_EXCEPTION_LOCATION);
+			// 		}
+
+			// 		// K = unsigned((t+dt-T)/DT);
+
+			// 		// oomph_info << "Recalculating DT (NaNs) " << T << " " << DT << " " << K << std::endl;
+			// 	}
+			// }
+
+
+			//Toms version of Mountris and Pueyo with dynamically changing dt
+			// Boost_State_Type K1(Num_Cell_Vars+1, 0.0);
+			// Boost_State_Type K2(Num_Cell_Vars+1, 0.0);
+			// (*this)(x, K1, t);
+			// Boost_State_Type X1(Num_Cell_Vars+1, 0.0);
+
+			// static double QG_FD = 1e-3;
+
+			// for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// {
+			// 	X1[i] = x[i] + K1[i]*QG_FD;
+			// }
+
+			// (*this)(X1, K2, t+QG_FD);
+
+			// double max_err = 0.0;
+			// for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// {
+			// 	max_err = std::max(max_err, std::abs(K2[i]-K1[i]));
+			// }
+
+			// double DT = std::min(2.0*Target_Solve_Error/max_err, dt);
+			// // double DT = std::min(dt, 0.9*dt*std::min(std::max(pow(Target_Solve_Error/(2.0*max_err),0.5),0.3), 2.0));
+
+			// // unsigned K = unsigned(dt/DT);
+			// // oomph_info << DT << " " << K << " " << dt_final << std::endl;
+			// // oomph_info << DT << " " << K << std::endl;
+
+			// double T=t;
+
+			// // for(unsigned i=0;i<K;i++)
+			// while(T<t+dt)
+			// {
+			// 	DT = std::min(DT, t+dt-T);
+			// 	if(DT<0.0)
+			// 	{
+			// 		throw OomphLibError("Why is DT negative??",
+			// 											OOMPH_CURRENT_FUNCTION,
+			// 											OOMPH_EXCEPTION_LOCATION);
+			// 	}
+			// 	if(T>=t+dt)
+			// 	{
+			// 		break;
+			// 	}
+
+			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 	{
+			// 		X1[i] = x[i] + K1[i]*DT;
+			// 	}
+
+			// 	//Calculate the derivative at the newly calculated point
+			// 	(*this)(x, K2, T);
+
+			// 	//If that derivative contains no nans...
+			// 	if(!boostvectorcontainsnans(K2, Num_Cell_Vars+1))
+			// 	{
+			// 		//Advance time and the solution
+
+			// 		T+=DT;
+
+			// 		x=X1;
+
+			// 		//The error is proportional to the second derivative of x, dynamically alter DT in response
+			// 		max_err = 0.0;
+			// 		for(unsigned i=0; i<Num_Cell_Vars+1; i++)
+			// 		{
+			// 			max_err = std::max(max_err, std::abs(K2[i]-K1[i]));
+			// 		}
+			// 		DT = std::min(2.0*Target_Solve_Error/max_err, t+dt-T);
+			// 			// DT = std::min(t+dt-T, 0.9*DT*std::min(std::max(pow(Target_Solve_Error/(2.0*max_err),0.5),0.3), 2.0));
+
+			// 		//Accept the derivative at this point
+			// 		K1=K2;
+			// 	}
+			// 	else
+			// 	{
+			// 		DT*=0.5;
+
+			// 		if(DT<1e-12)
+			// 		{
+			// 			throw OomphLibError("DT of (almost) zero was requested??",
+			// 												OOMPH_CURRENT_FUNCTION,
+			// 												OOMPH_EXCEPTION_LOCATION);
+			// 		}
+
+			// 		// K = unsigned((t+dt-T)/DT);
+			// 		// oomph_info << "Recalculating DT (NaNs) " << T << " " << DT << " " << K << std::endl;
+			// 	}
+			// }
+			///////////////////////////////////////////////////////////////////////////////////
 			
 			///////////////////////////////////////////////////////////////////////////////////
 			//Mountris and Pueyo, Zhilin Qu and Alan Garfinkel
-			// static double dt_0 = 0.01;
+			// static double dt_0 = 0.001;
 
-			// const double k_max = std::floor(dt/dt_0);
+			// const int k_max = std::floor(dt/dt_0);
 
 			// const double dvdt = ((get_base_node_membrane_potential()-StateVariables.second[Num_Cell_Vars])/dt)*use_node_vm_as_initial_value + MydVmdt.second*(!use_node_vm_as_initial_value);
 			
-			// const unsigned k_0 = 1 + (dvdt>0.0)*4;
+			// // const unsigned k_0 = 1 + (dvdt>0.0)*4;
 
-			// const unsigned k=std::min(k_max, k_0+std::floor(std::abs(dvdt)));
+			// // const unsigned k=std::min(k_max, k_0+std::floor(std::abs(dvdt)));
 
-			// const double DT = dt/k;
+			// const unsigned k = std::min(std::max(1, (int)std::floor(std::abs(dvdt))), k_max);
+
+			// double DT = dt/k;
 
 			// double T=t;
 			// Boost_State_Type K1(Num_Cell_Vars+1, 0.0);
@@ -1066,146 +1259,14 @@ namespace cellhandlenan
 
 
 
-
-
-			// ///////////////////////////////////////////////////////////////////////////////////
-			// //CUSTOM Bogacki-Shampine SOLVE			
-
-			// //Running time
-			// double T = t;
-			// //Initially attempted timestep
-			// double DT = dt;
-			// //Desired convergence
-			// static double HeunEulerTolerance = 1e-5;
-
-			// //Bogacki-Shampine with non-finite check
-
-			// Boost_State_Type tmp_vect(Num_Cell_Vars+1, 0.0);
-
-			// Boost_State_Type K1(Num_Cell_Vars+1, 0.0);
-			// Boost_State_Type K2(Num_Cell_Vars+1, 0.0);
-			// Boost_State_Type K3(Num_Cell_Vars+1, 0.0);
-			// Boost_State_Type K4(Num_Cell_Vars+1, 0.0);
-
-			// //Error
-			// double tau = 0.0;
-
-			// //Get derivative at start point
-			// (*this)(x, K1, T);
-
-			// const double T_End = T+DT;
-			// while(T<T_End)
-			// {
-			// 	oomph_info << T << " " << DT<< std::endl;
-
-			// 	///////////////////////BEGIN K2////////////////////////////////////
-				
-			// 	//Calculate fractional step
-			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
-			// 	{
-			// 		tmp_vect[i] = x[i]+K1[i]*DT*0.5;
-			// 	}
-
-			// 	//Calculate K2
-			// 	(*this)(tmp_vect, K2, T+0.5*DT);
-
-			// 	//Does it contain nans?
-			// 	if(boostvectorcontainsnans(K2, Num_Cell_Vars+1))
-			// 	{
-			// 		//If it does, halve the timestep and try again
-			// 		DT *= 0.5;
-			// 		continue;
-			// 	}
-
-			// 	///////////////////////END K2/////////////////////////////////////
-
-				
-			// 	///////////////////////BEGIN K3///////////////////////////////////
-				
-			// 	//Calculate fractional step
-			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
-			// 	{
-			// 		tmp_vect[i] = x[i]+K2[i]*DT*0.75;
-			// 	}
-
-			
-			// 	//Calculate K3
-			// 	(*this)(tmp_vect, K3, T+0.75*DT);
-
-			// 	//Does it contain nans?
-			// 	if(boostvectorcontainsnans(K3, Num_Cell_Vars+1))
-			// 	{
-			// 		//If it does, halve the timestep and try again
-			// 		DT *= 0.5;
-			// 		continue;
-			// 	}
-
-			// 	///////////////////////END K3/////////////////////////////////////
-
-				
-			// 	///////////////////////BEGIN K4///////////////////////////////////
-				
-			// 	//Calculate fractional step
-			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
-			// 	{
-			// 		tmp_vect[i] = x[i]+DT*((2.0/9.0)*K1[i]+(1.0/3.0)*K2[i]+(4.0/9.0)*K3[i]);
-			// 	}
-
-				
-
-			// 	//Calculate K4
-			// 	(*this)(tmp_vect, K4, T+DT);
-
-			// 	//Does it contain nans?
-			// 	if(boostvectorcontainsnans(K4, Num_Cell_Vars+1))
-			// 	{
-			// 		//If it does, halve the timestep and try again
-			// 		DT *= 0.5;
-			// 		continue;
-			// 	}
-
-			// 	///////////////////////END K4/////////////////////////////////////
-
-
-			// 	//Calculate error
-			// 	tau = 0.0;
-			// 	for(unsigned i=0; i<Num_Cell_Vars+1; i++)
-			// 	{
-			// 		tau += std::fabs((2.0/9.0-7.0/24.0)*K1[i] + (1.0/3.0-1.0/4.0)*K2[i] + (4.0/9.0-1.0/3.0)*K3[i] + (0.0-1.0/8.0)*K4[i]);
-			// 	}
-
-			// 	if(tau<HeunEulerTolerance)
-			// 	{
-			// 		T+=DT;
-					
-			// 		for(unsigned i=0; i<Num_Cell_Vars+1; i++)
-			// 		{
-			// 			x[i] += DT*(7.0/24.0)*K1[i] + (1.0/4.0)*K2[i] + (1.0/3.0)*K3[i] + (1.0/8.0)*K4[i];
-			// 		}
-			// 		//Calculate derivative at the new end point
-			// 		if(T<T_End){
-			// 			// (*this)(x, K1, T);
-			// 			//This is just the same as K4 this step
-			// 			K1 = K4;
-			// 		}
-			// 	}
-
-			// 	DT = std::min(T_End-T, 0.9*DT*std::min(std::max(pow(HeunEulerTolerance/(2.0*tau),0.5),0.3), 2.0));
-			// }
-
-			// //CUSTOM Bogacki-Shampine SOLVE
-			// ///////////////////////////////////////////////////////////////////////////////////
-
-
-
-
+			// }//end use custom solver
 
 
 			//Calculate the integral of membrane current by the fundamental theorem of calculus
-			Integral_Iion.second = (x[Num_Cell_Vars] - StateVariables.second[Num_Cell_Vars]);
+			// Integral_Iion.second = (x[Num_Cell_Vars] - StateVariables.second[Num_Cell_Vars]);
 
 			//Calculate the cells approximation of the derivative of Vm
-			MydVmdt.second = (x[Num_Cell_Vars] - StateVariables.second[Num_Cell_Vars])/dt;
+			// MydVmdt.second = (x[Num_Cell_Vars] - StateVariables.second[Num_Cell_Vars])/dt;
 
 			StateVariables.second[Num_Cell_Vars] = x[Num_Cell_Vars];
 			for(unsigned i=0; i<Num_Cell_Vars; i++){
@@ -1214,7 +1275,7 @@ namespace cellhandlenan
 			
 
 			//Update the most recent value of time we have solved up to
-			MyLastT = (t+dt);
+			// MyLastT = (t+dt);
 		}
 
 
@@ -1296,8 +1357,8 @@ namespace cellhandlenan
 			//Assign initial conditions from the cell model
 
 			// Integral_Iion = 0.0;
-			Integral_Iion.first = 0.0;
-			Integral_Iion.second = 0.0;
+			// Integral_Iion.first = 0.0;
+			// Integral_Iion.second = 0.0;
 
 			
 			// //Cell variables
@@ -1344,8 +1405,8 @@ namespace cellhandlenan
 
 			//Update the integral of iion
 			// Integral_Iion = (vm - StateVariables.first[Num_Cell_Vars]);
-			Integral_Iion.first = (vm - StateVariables.first[Num_Cell_Vars]);
-			Integral_Iion.second = Integral_Iion.first;
+			// Integral_Iion.first = (vm - StateVariables.first[Num_Cell_Vars]);
+			// Integral_Iion.second = Integral_Iion.first;
 
 			//Membrane potential
 			StateVariables.first[Num_Cell_Vars] = vm;
@@ -1370,8 +1431,8 @@ namespace cellhandlenan
 
 			//Update the integral of iion
 			// Integral_Iion = 0.0;
-			Integral_Iion.first = 0.0;
-			Integral_Iion.second = 0.0;
+			// Integral_Iion.first = 0.0;
+			// Integral_Iion.second = 0.0;
 
 			// //Membrane potential
 			// StateVariables[Num_Cell_Vars] = vm;
@@ -1446,23 +1507,26 @@ namespace cellhandlenan
 
 		void save_state_to_vector(Vector<double>& state)
 		{
-			state.resize(Num_Cell_Vars+1+1+1+1);
+			// state.resize(Num_Cell_Vars+1+1+1+1);
+			state.resize(Num_Cell_Vars+1+1);
 			for(unsigned i=0; i<Num_Cell_Vars+1; i++){
 				// state[i] = StateVariables[i];
 				state[i] = StateVariables.second[i];
 			}
 			// state[Num_Cell_Vars+1] = Integral_Iion;
-			state[Num_Cell_Vars+1] = Integral_Iion.second;
+			// state[Num_Cell_Vars+1] = Integral_Iion.second;
 
-			state[Num_Cell_Vars+2] = MyLastT;
+			// state[Num_Cell_Vars+2] = MyLastT;
 
 			// state[Num_Cell_Vars+3] = MydVmdt;
-			state[Num_Cell_Vars+3] = MydVmdt.second;
+			// state[Num_Cell_Vars+3] = MydVmdt.second;
+			state[Num_Cell_Vars+1] = MydVmdt.second;
 		}
 
 		void save_state_to_vector(Vector<double>& state, const bool &use_node_vm)
 		{
-			state.resize(Num_Cell_Vars+1+1+1+1);
+			// state.resize(Num_Cell_Vars+1+1+1+1);
+			state.resize(Num_Cell_Vars+1+1);
 			for(unsigned i=0; i<Num_Cell_Vars+1; i++){
 				// state[i] = StateVariables[i];
 				state[i] = StateVariables.second[i];
@@ -1473,12 +1537,13 @@ namespace cellhandlenan
 			}
 
 			// state[Num_Cell_Vars+1] = Integral_Iion;
-			state[Num_Cell_Vars+1] = Integral_Iion.second;
+			// state[Num_Cell_Vars+1] = Integral_Iion.second;
 
-			state[Num_Cell_Vars+2] = MyLastT;
+			// state[Num_Cell_Vars+2] = MyLastT;
 
 			// state[Num_Cell_Vars+3] = MydVmdt;
-			state[Num_Cell_Vars+3] = MydVmdt.second;
+			// state[Num_Cell_Vars+3] = MydVmdt.second;
+			state[Num_Cell_Vars+1] = MydVmdt.second;
 		}
 
 		void restore_state_from_vector(Vector<double>& state, const bool& also_set_nodal_value = false)
@@ -1498,31 +1563,34 @@ namespace cellhandlenan
 			// Integral_Iion = state[Num_Cell_Vars+1];
 			// Integral_Iion.first = state[Num_Cell_Vars+1];
 			// Integral_Iion.second = Integral_Iion.first;
-			Integral_Iion.second = state[Num_Cell_Vars+1];
+			// Integral_Iion.second = state[Num_Cell_Vars+1];
 
-			MyLastT = state[Num_Cell_Vars+2];
+			// MyLastT = state[Num_Cell_Vars+2];
 
 			// MydVmdt = state[Num_Cell_Vars+3];
 			// MydVmdt.first = state[Num_Cell_Vars+3];
 			// MydVmdt.second = MydVmdt.first;
-			MydVmdt.second = state[Num_Cell_Vars+3];
+			// MydVmdt.second = state[Num_Cell_Vars+3];
+			MydVmdt.second = state[Num_Cell_Vars+1];
 		}
 
 		//Same as above with std vectors
 		void save_state_to_vector(std::vector<double>& state)
 		{
-			state.resize(Num_Cell_Vars+1+1+1+1);
+			// state.resize(Num_Cell_Vars+1+1+1+1);
+			state.resize(Num_Cell_Vars+1+1);
 			for(unsigned i=0; i<Num_Cell_Vars+1; i++){
 				// state[i] = StateVariables[i];
 				state[i] = StateVariables.second[i];
 			}
 			// state[Num_Cell_Vars+1] = Integral_Iion;
-			state[Num_Cell_Vars+1] = Integral_Iion.second;
+			// state[Num_Cell_Vars+1] = Integral_Iion.second;
 
-			state[Num_Cell_Vars+2] = MyLastT;
+			// state[Num_Cell_Vars+2] = MyLastT;
 
 			// state[Num_Cell_Vars+3] = MydVmdt;
-			state[Num_Cell_Vars+3] = MydVmdt.second;
+			// state[Num_Cell_Vars+3] = MydVmdt.second;
+			state[Num_Cell_Vars+1] = MydVmdt.second;
 		}
 
 
@@ -1542,15 +1610,16 @@ namespace cellhandlenan
 			// Integral_Iion = state[Num_Cell_Vars+1];
 			// Integral_Iion.first = state[Num_Cell_Vars+1];
 			// Integral_Iion.second = Integral_Iion.first;
-			Integral_Iion.second = state[Num_Cell_Vars+1];
+			// Integral_Iion.second = state[Num_Cell_Vars+1];
 			// Integral_Iion.second = Integral_Iion.first;
 
-			MyLastT = state[Num_Cell_Vars+2];
+			// MyLastT = state[Num_Cell_Vars+2];
 
 			// MydVmdt = state[Num_Cell_Vars+3];
 			// MydVmdt.first = state[Num_Cell_Vars+3];
 			// MydVmdt.second = MydVmdt.first;
-			MydVmdt.second = state[Num_Cell_Vars+3];
+			// MydVmdt.second = state[Num_Cell_Vars+3];
+			MydVmdt.second = state[Num_Cell_Vars+1];
 		}
 
 	protected:
@@ -1598,10 +1667,19 @@ namespace cellhandlenan
 
 	private:
 
+		double Last_Used_Dt;
+
+		bool SingleCellUseBoostSolve;
+
+		// unsigned BoostSolverMethod;
+
+
+		double Target_Solve_Error;
+
 		CellModelBaseFullySegregated* Non_this_pointer;
 
 		//The value of time we have most recently solved up to
-		double MyLastT;
+		// double MyLastT;
 
 		//The value this cell believes the membrane potential to be, since we are using segregated solvers this is a
 		//	prediction given by solving the cell equations full decoupled from the diffusion
@@ -1614,7 +1692,7 @@ namespace cellhandlenan
 		// Boost_State_Type StateVariables;
 
 
-		std::pair<double,double> Integral_Iion;
+		// std::pair<double,double> Integral_Iion;
 
 		std::pair<double,double> MydVmdt;
 

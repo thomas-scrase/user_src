@@ -938,11 +938,13 @@ protected:
 		//iterate through the cells other than the first, that one starts at 0
 		for(unsigned c=1; c<NumCells; c++){
 			//The index at which this cells data is stored
-			Starting_Index_For_Data_Of_Cell[c] = ( Starting_Index_For_Data_Of_Cell[c-1] + (Cells_pt[c-1]->get_Num_Cell_Vars() + 1 + 1 + 1 + 1) );
+			// Starting_Index_For_Data_Of_Cell[c] = ( Starting_Index_For_Data_Of_Cell[c-1] + (Cells_pt[c-1]->get_Num_Cell_Vars() + 1 + 1 + 1 + 1) );
+			Starting_Index_For_Data_Of_Cell[c] = ( Starting_Index_For_Data_Of_Cell[c-1] + (Cells_pt[c-1]->get_Num_Cell_Vars() + 1 + 1) );
 		}
 
 		//The total number of data associated with the cells
-		Total_cell_data = ( Starting_Index_For_Data_Of_Cell[NumCells-1] + (Cells_pt[NumCells-1]->get_Num_Cell_Vars() + 1 + 1 + 1 + 1) );
+		// Total_cell_data = ( Starting_Index_For_Data_Of_Cell[NumCells-1] + (Cells_pt[NumCells-1]->get_Num_Cell_Vars() + 1 + 1 + 1 + 1) );
+		Total_cell_data = ( Starting_Index_For_Data_Of_Cell[NumCells-1] + (Cells_pt[NumCells-1]->get_Num_Cell_Vars() + 1 + 1) );
 	}
 	#endif
 
@@ -1257,6 +1259,7 @@ public:
 	void store_all_cell_data_from_mesh_in_vector(Vector<double> &Cell_Data, const bool &use_node_vm)
 	{
 		//Resize the storage vector
+		// oomph_info << Total_cell_data << std::endl;
 		Cell_Data.resize(Total_cell_data, 0.0);
 
 		//Loop over the cells

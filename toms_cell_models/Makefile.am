@@ -7,7 +7,8 @@ TNNP06.cc \
 OHaraRudy.cc \
 TNNP06_Force_Without_ISAC.cc \
 OHaraRudy_TestForce.cc \
-OHaraRudy_RushLarsen.cc
+OHaraRudy_RushLarsen.cc \
+TNNP06_RushLarsen.cc
 
 
 # Define the headers
@@ -16,7 +17,8 @@ TNNP06.h \
 OHaraRudy.h \
 TNNP06_Force_Without_ISAC.h \
 OHaraRudy_TestForce.h \
-OHaraRudy_RushLarsen.h
+OHaraRudy_RushLarsen.h \
+TNNP06_RushLarsen.h
 
 # Define name of library
 libname = toms_cell_models
