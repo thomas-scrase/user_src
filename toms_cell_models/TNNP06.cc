@@ -5,6 +5,7 @@ namespace oomph{
 
 TNNP06::TNNP06()
 {
+	Cell_Model_Name = "TNNP06";
 	Tent_R = 8314.472;
 	Tent_F = 96485.3415;
 	Tent_T = 310.0;

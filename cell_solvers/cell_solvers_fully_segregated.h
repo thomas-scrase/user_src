@@ -147,6 +147,53 @@ public:
 	}
 
 
+	double interpolated_cell_variable(const unsigned& i, const Vector<double> s) const
+	{
+		//The thing we are outputting
+		double out = 0.0;
+
+		//Get the interpolation weights at the point s
+		const unsigned n_node = this->nnode();
+		Shape psi(n_node);
+		shape(s,psi);
+
+		Vector<double> interp_weights(n_node, 0.0);
+		double interp_weights_magnitude = 0.0;
+		bool all_are_zero = true;
+		Vector<unsigned> interpolated_nodes;
+		//Determine which nodes are associated with cells of the correct model type
+		for(unsigned l=0; l<n_node; l++)
+		{
+			//If the cell associated with the node is the same type as what we are outputting
+			if(get_cell_at_node_pt(l)->get_cell_model_name() == paraview_output_type)
+			{
+				//Set that weight
+				interp_weights[l] = psi[l];
+				all_are_zero = false;
+				interpolated_nodes.push_back(l);
+				interp_weights_magnitude += psi[l]*psi[l];
+			}
+		}
+		//If all are incorrect then return nan
+		if(all_are_zero){return std::nanf("");}
+
+		//Normalise the vector
+		interp_weights_magnitude = std::sqrt(interp_weights_magnitude);
+		for(unsigned l=0; l<n_node; l++)
+		{
+			interp_weights[l] /= interp_weights_magnitude;
+		}
+
+		//Finally, interpolate the cell variable
+		for(const unsigned l : interpolated_nodes)
+		{
+			out += get_cell_at_node_pt(l)->get_cell_variable(i)*interp_weights[l];
+		}
+
+		return out;
+	}
+
+
 	//get the integration point associated with node n
 	inline unsigned ipt_at_node(const unsigned &n) const
 			{return ipt_not_at_nodes + n;}
@@ -352,10 +399,15 @@ public:
 
 
 
+public:
+
+	
+
 
 	unsigned nscalar_paraview() const
 	{
-		return 1;
+		return this->paraview_nscalar;
+
 	}
 
 	void scalar_value_paraview(std::ofstream& file_out,
@@ -365,10 +417,10 @@ public:
 		//Vector of local coordinates
 		Vector<double> s(this->dim());
 
-		const unsigned n_node = this->nnode();
+		// const unsigned n_node = this->nnode();
 		// const unsigned vm_index = this->vm_index_BaseCellMembranePotential();
-		Shape psi(n_node);
-		DShape dpsidx(n_node,this->dim());
+		// Shape psi(n_node);
+		// DShape dpsidx(n_node,this->dim());
 
 		// Loop over plot points
 		unsigned num_plot_points=this->nplot_points_paraview(nplot);
@@ -376,15 +428,14 @@ public:
 			// Get local coordinates of plot point
 			this->get_s_plot(iplot,nplot,s);
 
-			if(i==0){
+			if(i==0)
+			{
 				file_out << this->interpolated_vm_BaseCellMembranePotential(s) << std::endl;
 			}
-
-			// Vector<double> out(2, 0.0);
-			// get_interpolated_general_output_from_cell_model(s, out);
-			// if( i==1 || i==2 ){
-			// 	return out[i-1];
-			// }
+			else
+			{
+				file_out << this->interpolated_cell_variable(i-1, s) << std::endl; //we want the i-1th cell variable because i=1 corresponds to the first cell variable
+			}
 		}
 	}
 
@@ -394,16 +445,19 @@ public:
 									FiniteElement::SteadyExactSolutionFctPt
 									exact_soln_pt) const
 	{
-		scalar_value_paraview(file_out,i,nplot);
+		scalar_value_paraview(file_out, i, nplot);
 	}
 
 	std::string scalar_name_paraview(const unsigned& i) const
 	{
-		return "Transmembrane potential";
-		// switch(i)
-		// case(0) : return "Transmembrane potential";
-		// case(1) : return "ActStrain";
-		// case(2) : return "CellType";
+		if(i==0) //0 is always transmembrane potential
+		{
+			return "Transmembrane potential";
+		}
+		else//Otherwise grab it from the vector stored in the cell mesh, we do it this way because elements which do not contain a certain cell model type will not know what name to provide and will cause an error.
+		{
+			return this->Variable_Names_BroadCast_From_Cell_Mesh[i-1];
+		}
 	}
 
 
@@ -905,6 +959,31 @@ protected:
 																				elem_pt->vm_index_BaseCellMembranePotential(),
 																				ipt, s, x, node_ind);
 
+							//It was successfully passed to a node, so we (as a mesh) need to check if it is a new cell model type we need to keep track of
+							bool cell_model_type_is_new = true;
+							if(Identified_Cell_Model_Types_And_Data.size()==0) //if this is the first cell added then it will always be a new type
+							{
+
+							}
+							else
+							{
+								for(auto data : Identified_Cell_Model_Types_And_Data)
+								{
+									if(Cells_pt[cell_ind]->get_cell_model_name() == std::get<0>(data))
+									{
+										cell_model_type_is_new = false;
+									}
+								}
+							}
+							if(cell_model_type_is_new)//add it as a new cell model type
+							{
+								std::string model_name = Cells_pt[cell_ind]->get_cell_model_name();
+								std::vector<std::string> vars_names = Cells_pt[cell_ind]->names_of_cell_variables();
+								unsigned num_vars = (vars_names.size()+1); //+1 to account for membrane potential
+
+								Identified_Cell_Model_Types_And_Data.push_back(std::make_tuple(model_name, vars_names, num_vars));
+							}
+
 							passed_to_cell = true;
 						}
 			#ifdef OOMPH_HAS_MPI
@@ -988,6 +1067,11 @@ private:
 	Vector<unsigned long> Starting_Index_For_Data_Of_Cell;
 	unsigned long Total_cell_data;
 	#endif
+
+
+	//Data of cell model types in this mesh, model name, variable names, num variables
+	Vector<std::tuple<std::string, std::vector<std::string>, unsigned>> Identified_Cell_Model_Types_And_Data;
+
 
 
 
@@ -1076,6 +1160,40 @@ public:
 	// }
 	// #endif
 
+
+	Vector<std::pair<std::string, std::string>> output_paraview_per_cell_type(const std::string& output_dir, const std::string& outfile_root_name, const unsigned& num_output, const unsigned& nplot) const
+	{
+		Vector<std::pair<std::string, std::string>> cell_model_vtk_name_pairs;
+		//Loop over the cell models identified in the mesh and output a file for each, we skip Empty_Cell because it is empty
+		for(std::tuple<std::string, std::vector<std::string>, unsigned> cell_model_data : Identified_Cell_Model_Types_And_Data)
+		{
+			//Inform the elements in the mesh what cell model we are saving to file, this determines nscalar_paraview and scalar_name_paraview
+			//Loop over the elements
+			const unsigned n_elements = this->nelement();
+			for(unsigned e=0; e<n_elements; e++)
+			{
+				ConductingCellFunctionsBase* elem_pt = dynamic_cast<ConductingCellFunctionsBase*>(this->element_pt(e));
+				elem_pt->set_paraview_output_type(std::get<0>(cell_model_data));
+				elem_pt->set_variable_names_broadcast_from_cell_mesh(std::get<1>(cell_model_data));
+				elem_pt->set_paraview_nscalar(std::get<2>(cell_model_data));
+			}
+			//Create an output file with the correct name and directory: output_dir/outfile_root_name_(cell_model)_num_output.vtk
+			std::string out_file_name = outfile_root_name + "_" + std::get<0>(cell_model_data) + "_" + std::to_string(num_output) + ".vtu";
+			std::string out_file_full_path = output_dir + "/" + out_file_name;
+			std::ofstream out_file;
+			out_file.open(out_file_full_path);
+
+			//Perform the usual paraview output
+			this->output_paraview(out_file, nplot);
+			out_file.close();
+			
+			cell_model_vtk_name_pairs.push_back(std::make_pair(std::get<0>(cell_model_data), out_file_name));
+		}
+
+		//return pairs of (cell_model, output_file_name) so that pvd files can be suitably updated
+		return cell_model_vtk_name_pairs;
+	}
+	
 
 	//Access to the ith cell
 	CellModelBaseFullySegregated* cell_pt(const unsigned& i){
@@ -1314,6 +1432,7 @@ public:
 			for(unsigned c=0; c<NumCells; c++){
 				// oomph_info << "Cell " << c << std::endl;
 				//Take a timestep
+				// oomph_info << "Solving cell " << c << std::endl;
 				Cells_pt[c]->TakeTimestep(problem_pt->time_pt()->time(), dt, use_node_vm_as_initial_value);
 				if(update_underlying_node_value_post_solve)
 				{
@@ -1327,6 +1446,34 @@ public:
 		}
 		else
 		{
+		#ifdef PARANOID
+			//Solve in serial first to check against the mpi version
+			Vector<double> Serial_Cell_Data(Total_cell_data, 0.0);
+
+			Vector<double> restore_single_cell_data;
+			//Loop over all of the cells in the mesh
+			for(unsigned c=0; c<NumCells; c++)
+			{
+				Cells_pt[c]->save_state_to_vector(restore_single_cell_data);
+				//Take a timestep
+				Cells_pt[c]->TakeTimestep(problem_pt->time_pt()->time(), dt, use_node_vm_as_initial_value);
+				// if(update_underlying_node_value_post_solve)
+				// {
+				// 	Cells_pt[c]->update_underlying_node_membrane_potential();
+				// }
+
+				Vector<double> single_cell_data;
+				Cells_pt[c]->save_state_to_vector(single_cell_data);
+				for(unsigned i=Starting_Index_For_Data_Of_Cell[c]; i<((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data); i++)
+				{
+					Serial_Cell_Data[i] = single_cell_data[i-Starting_Index_For_Data_Of_Cell[c]];
+				}
+
+				Cells_pt[c]->restore_state_from_vector(restore_single_cell_data);
+			}
+		#endif
+
+
 			//If we are compiled with parallel and we have more than one processor then run in parallel
 			oomph_info << "Performing a parallel timestep for all cells in a mesh" << std::endl;
 			const double t_start = TimingHelpers::timer();
@@ -1336,8 +1483,15 @@ public:
 			//Set up the vector of combined data across all processors
 			Vector<double> Combined_Cell_Data(Total_cell_data, 0.0);
 
+		#ifdef PARANOID
 			Vector<unsigned> Local_cell_is_computed(NumCells, 0);
 			Vector<unsigned> Combined_cell_is_computed(NumCells, 0);
+
+			Vector<unsigned> Local_dof_is_computed(Total_cell_data, 0);
+			Vector<unsigned> Combined_dof_is_computed(Total_cell_data, 0);
+
+
+		#endif
 
 			//Loop over the cells
 			for(unsigned c=0; c<NumCells; c++)
@@ -1345,7 +1499,10 @@ public:
 				//If it is one we are to compute then compute it
 				if(c%problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()) continue;
 				// oomph_info << "Cell " << c << std::endl;
+			#ifdef PARANOID
 				Local_cell_is_computed[c]++;
+			#endif
+				// oomph_info << "Solving cell " << c << std::endl;
 				Cells_pt[c]->TakeTimestep(problem_pt->time_pt()->time(), dt, use_node_vm_as_initial_value);
 				//Save the solution to the local vector
 				Vector<double> single_cell_data;
@@ -1353,6 +1510,9 @@ public:
 				for(unsigned i=Starting_Index_For_Data_Of_Cell[c]; i<((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data); i++)
 				{
 					Local_Cell_Data[i] = single_cell_data[i-Starting_Index_For_Data_Of_Cell[c]];
+				#ifdef PARANOID
+					Local_dof_is_computed[i]++;
+				#endif
 				}
 			}
 
@@ -1363,7 +1523,38 @@ public:
 			MPI_Allreduce(Local_Cell_Data.data(), Combined_Cell_Data.data(), Total_cell_data, MPI_DOUBLE, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
 
 
+		#ifdef PARANOID
 			MPI_Allreduce(Local_cell_is_computed.data(), Combined_cell_is_computed.data(), NumCells, MPI_UNSIGNED, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
+
+			MPI_Allreduce(Local_dof_is_computed.data(), Combined_dof_is_computed.data(), Total_cell_data, MPI_UNSIGNED, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
+
+			double diff = 0.0;
+			//Compare the serial solution to the mpi solution
+			for(unsigned i=0; i<Total_cell_data; i++)
+			{
+				diff = std::max(diff, std::fabs(Serial_Cell_Data[i] - Combined_Cell_Data[i])/std::max(Serial_Cell_Data[i], Combined_Cell_Data[i]));
+			}
+			oomph_info << "Difference in serial and mpi solution: " << diff << std::endl;
+			if(diff>1e-12)
+			{
+				for(unsigned i=0; i<Total_cell_data; i++)
+				{
+					if(std::fabs(Serial_Cell_Data[i] - Combined_Cell_Data[i])/std::max(Serial_Cell_Data[i], Combined_Cell_Data[i])>1e-9)
+					{
+						oomph_info << Serial_Cell_Data[i] << " " << Combined_Cell_Data[i] << " " << std::fabs(Serial_Cell_Data[i] - Combined_Cell_Data[i])/std::max(Serial_Cell_Data[i], Combined_Cell_Data[i]) << " " << Combined_dof_is_computed[i] << std::endl;
+					}
+				}
+
+				for(unsigned c=0; c<NumCells; c++)
+				{
+					oomph_info << Combined_cell_is_computed[c] << std::endl;
+				}	
+
+				throw OomphLibError("MPI and serial do not match",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+			}
+		#endif
 
 
 			const double t_end_reduce = TimingHelpers::timer();
@@ -1372,6 +1563,7 @@ public:
 			//Loop over the cells
 			for(unsigned c=0; c<NumCells; c++)
 			{
+			#ifdef PARANOID
 				if(Combined_cell_is_computed[c]!=1)
 				{
 					std::ostringstream error_message;
@@ -1380,6 +1572,7 @@ public:
 										OOMPH_CURRENT_FUNCTION,
 										OOMPH_EXCEPTION_LOCATION);
 				}
+			#endif
 				//Update the cell from the combined data vector
 				std::vector<double>::const_iterator first = Combined_Cell_Data.begin() + Starting_Index_For_Data_Of_Cell[c];
 				std::vector<double>::const_iterator last = Combined_Cell_Data.begin() + ((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data);

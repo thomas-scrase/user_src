@@ -66,14 +66,14 @@ namespace oomph
 			}
 
 
-			if(abs(A_endo - A_epi)<1e-12){
+			if(std::fabs(A_endo - A_epi)<1e-12){
 				throw OomphLibError(
 					"TruncatedEllipseDomain A_endo is equal to A_epi",
 					OOMPH_CURRENT_FUNCTION,
 					OOMPH_EXCEPTION_LOCATION);
 			}
 
-			if(abs(B_endo - B_epi)<1e-12){
+			if(std::fabs(B_endo - B_epi)<1e-12){
 				throw OomphLibError(
 					"TruncatedEllipseDomain B_endo is equal to B_epi",
 					OOMPH_CURRENT_FUNCTION,

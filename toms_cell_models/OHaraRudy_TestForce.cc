@@ -56,6 +56,7 @@ namespace oomph{
 
 OHaraRudyTestForce::OHaraRudyTestForce()
 {
+	Cell_Model_Name = "OHaraRudyTestForce";
 	//The active strain is the first (and only) other variable the model generates
 	active_strain_index = 0;
 
@@ -370,13 +371,13 @@ void OHaraRudyTestForce::Calculate_Derivatives(const Boost_State_Type &Variables
 	// nca=anca*k2n/km2n-(anca*k2n/km2n-nca)*exp(-km2n*dt);
 	//These are undefined for vffrt = vfrt = v = 0 so we need to be careful, use L'Hopital
 	double PhiCaL;
-	if(abs(v)<1e-9){PhiCaL = 2*F*(cass-0.341*cao);}
+	if(std::fabs(v)<1e-9){PhiCaL = 2*F*(cass-0.341*cao);}
 	else{PhiCaL=4.0*vffrt*(cass*exp(2.0*vfrt)-0.341*cao)/(exp(2.0*vfrt)-1.0);}
 	double PhiCaNa;
-	if(abs(v)<1e-9){PhiCaNa = 0.75*F*(nass - nao);}
+	if(std::fabs(v)<1e-9){PhiCaNa = 0.75*F*(nass - nao);}
 	else{PhiCaNa=0.75*vffrt*(nass*exp(vfrt)-nao)/(exp(vfrt)-1.0);}
 	double PhiCaK;
-	if(abs(v)<1e-9){PhiCaK = 0.75*F*(kss-ko);}
+	if(std::fabs(v)<1e-9){PhiCaK = 0.75*F*(kss-ko);}
 	else{PhiCaK=0.75*vffrt*(kss*exp(vfrt)-ko)/(exp(vfrt)-1.0);}
 	double zca=2.0;
 	double PCa=0.0001;
@@ -612,10 +613,10 @@ void OHaraRudyTestForce::Calculate_Derivatives(const Boost_State_Type &Variables
 
 	double PNab=3.75e-10;
 	//These are undefined for vffrt = vfrt = v = 0
-	if(abs(v)<1e-9){INab = PNab*F*(nai-nao);}
+	if(std::fabs(v)<1e-9){INab = PNab*F*(nai-nao);}
 	else{INab=PNab*vffrt*(nai*exp(vfrt)-nao)/(exp(vfrt)-1.0);}
 	double PCab=2.5e-8;
-	if(abs(v)<1e-9){ICab = 2.0*PCab*F*(cai - 0.341*cao);}
+	if(std::fabs(v)<1e-9){ICab = 2.0*PCab*F*(cai - 0.341*cao);}
 	else{ICab=PCab*4.0*vffrt*(cai*exp(2.0*vfrt)-0.341*cao)/(exp(2.0*vfrt)-1.0);}
 
 	double GpCa=0.0005;

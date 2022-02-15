@@ -53,14 +53,15 @@ namespace cellhandlenan
 // 	//Should each cell check for non-finite during solve
 // 	bool Check_For_Non_Finite_Values_After_Each_Cell_Solve = true;
 // }
-
-
+	
+	static std::string  DEFAULT_PARAVIEW_OUTPUT_TYPE_MARKER = "Membrane Potential Only";
+	static unsigned 	DEFAULT_PARAVIEW_OUTPUT_TYPE_NSCALAR = 1;
 
 	class ConductingCellFunctionsBase
 	{
 	public:
 
-		ConductingCellFunctionsBase() : StimFctPt(0)
+		ConductingCellFunctionsBase() : StimFctPt(0), paraview_output_type(DEFAULT_PARAVIEW_OUTPUT_TYPE_MARKER), paraview_nscalar(DEFAULT_PARAVIEW_OUTPUT_TYPE_NSCALAR)
 		{}
 
 		~ConductingCellFunctionsBase(){}
@@ -117,6 +118,43 @@ namespace cellhandlenan
 			return StimFctPt;
 		}
 
+		void set_paraview_output_type(const std::string& new_output_type)
+		{
+			paraview_output_type = new_output_type;
+		}
+
+		void default_paraview_output_type()
+		{
+			paraview_output_type = DEFAULT_PARAVIEW_OUTPUT_TYPE_MARKER;
+		}
+
+
+		void set_paraview_nscalar(const unsigned& new_paraview_nscalar)
+		{
+			paraview_nscalar = new_paraview_nscalar;
+		}
+
+		void default_paraview_nscalar()
+		{
+			paraview_nscalar = DEFAULT_PARAVIEW_OUTPUT_TYPE_NSCALAR;
+		}
+
+
+		void set_variable_names_broadcast_from_cell_mesh(std::vector<std::string>& new_names)
+		{
+			Variable_Names_BroadCast_From_Cell_Mesh = new_names;
+		}
+
+	protected:
+		//Indicates what kind of outputting to do.
+		//If this is set to DEFAULT_PARAVIEW_OUTPUT_TYPE_MARKER,
+		// then only membrane potential is output.
+		//Otherwise, it is assumed that the marker is the cell type for which data is being output
+		// and interpolate_cell_variable(const unsigned& i) is called.
+		std::string paraview_output_type;
+		unsigned paraview_nscalar;
+		std::vector<std::string> Variable_Names_BroadCast_From_Cell_Mesh;
+
 
 	};
 
@@ -158,8 +196,23 @@ namespace cellhandlenan
 	// 	return is_nan;
 	// }
 
+	// inline bool boostvectorcontainsnans(const Boost_State_Type& vect, const unsigned& n_vars)
+	// {
+	// 	double sum_val = 0.0;
+	// 	for(unsigned i=0; i<n_vars; i++)
+	// 	{
+	// 		//is_nan 
+	// 		sum_val+=vect[i];
+	// 	}
+	// 	return !std::isfinite(sum_val);
+	// }
+
+
 	namespace cellmodeldefaultvalues
 	{
+		static std::string DEFAULT_CELL_MODEL_NAME = "NONAME";
+
+
 		static double Target_Solve_Error_Default = 1e-5;
 	}
 
@@ -168,7 +221,8 @@ namespace cellhandlenan
 	public:
 		CellModelBaseFullySegregated() : Non_this_pointer(this), active_strain_index(-1), /*Integral_Iion(0.0)*//*Integral_Iion({0.0,0.0}),*/ /*MydVmdt(0.0)*/MydVmdt({0.0,0.0}), Base_Cell_Sources_Pt(0), Base_Node_Pt(0), Target_Solve_Error(cellmodeldefaultvalues::Target_Solve_Error_Default),
 																		SingleCellUseBoostSolve(false),//by default use the Heun Euler implementation
-																		Last_Used_Dt(1e9) //Last value of dt used
+																		Last_Used_Dt(1e9), //Last value of dt used
+																		Cell_Model_Name(cellmodeldefaultvalues::DEFAULT_CELL_MODEL_NAME)
 																		// BoostSolverMethod(0) //by default use RKF
 																		// , BOOST_FD_STEP(1e-12)
 		{
@@ -314,6 +368,11 @@ namespace cellhandlenan
 			Cell_Type = cell_type;
 		}
 
+		unsigned get_cell_type()
+		{
+			return Cell_Type;
+		}
+
 		void set_other_data(const unsigned &var, const double &value){
 			Other_Parameters[var] = value;
 		}
@@ -364,6 +423,10 @@ namespace cellhandlenan
 		}
 
 
+		const std::string get_cell_model_name()
+		{
+			return Cell_Model_Name;
+		}
 
 		const void output_names_of_cell_variables(std::ostream &outfile){
 			for(unsigned i=0; i<Num_Cell_Vars; i++){
@@ -762,7 +825,8 @@ namespace cellhandlenan
 				// do
 				// {
 				// 	N_solve++;
-
+				// 	// oomph_info << "Attempt " << N_solve << std::endl;
+					
 				// 	double T = t;
 
 				// 	const unsigned N = pow(2, N_solve-1);
@@ -795,13 +859,14 @@ namespace cellhandlenan
 				// 		// 		(*this), x, T, T+DT, DT);
 
 				// 		//This selection of absolute and relative errors seems to perform more efficiently than the above
-				// 		integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(Target_Solve_Error, Target_Solve_Error),
-				// 				(*this), x, T, T+DT, DT);
+				// 		// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(Target_Solve_Error, Target_Solve_Error),
+				// 		// 		(*this), x, T, T+DT, DT);
 
+				// 		// oomph_info << T << " " << T+DT << " " << DT << std::endl;
 
 				// 		//Explicit euler
-				// 		// boost::numeric::odeint::euler<Boost_State_Type> Euler;
-				// 		// Euler.do_step((*this), x, T, DT);
+				// 		boost::numeric::odeint::euler<Boost_State_Type> Euler;
+				// 		Euler.do_step((*this), x, T, DT);
 
 
 				// 		//NOT WORKING YET
@@ -822,22 +887,91 @@ namespace cellhandlenan
 
 
 
+				// //FERL, max time-step 0.01ms
+				// double N_solve = 1;
+				// if(dt>0.01)
+				// {
+				// 	N_solve = std::ceil(dt/0.01);
+				// }
+				// do
+				// {					
+				// 	double T = t;
 
-				// // Explicit method
-				// boost::numeric::odeint::bulirsch_stoer< Boost_State_Type > stepper( 1E-8 , 0.0 , 0.0 , 0.0 );
-				// integrate_adaptive(stepper, (*this), x, t, t+dt, dt);
+				// 	// const unsigned N_solve = pow(2, N_solve-1);
+				// 	double DT = dt/(double)N_solve;
 
-				// // Explicit euler method
-				// boost::numeric::odeint::euler<Boost_State_Type> Euler;
-				// Euler.do_step((*this), x, t, dt);
+				// 	//Set the value of DT stored in the cell model, used when solving equations with rush-larsen
+				// 	dt_rushlarsen = DT;
 
-				// // Controlled Implicit method
-				// boost::numeric::odeint::rosenbrock4_controller<boost::numeric::odeint::rosenbrock4<double>> stepper;
-				// integrate_adaptive(stepper, std::make_pair((*this), (*this)), x, t, t+dt, dt);
+				// 	//Fill in membrane potential
+				// 	if(use_node_vm_as_initial_value)
+				// 	{
+				// 		x[Num_Cell_Vars] = get_base_node_membrane_potential();
+				// 	}
+				// 	else
+				// 	{
+				// 		x[Num_Cell_Vars] = StateVariables.second[Num_Cell_Vars];
+				// 	}
 
-				// // Implicit euler method
-				// boost::numeric::odeint::implicit_euler<double> stepper;
-				// stepper.do_step(std::make_pair((*this), (*this)), x, t, dt);
+				// 	//Fill in cell variables
+				// 	for(unsigned i=0; i<Num_Cell_Vars; i++)
+				// 	{
+				// 		x[i] = StateVariables.second[i];
+				// 	}
+
+
+				// 	for(double k=0; k<N_solve; k++)
+				// 	{
+				// 		//Controlled explicit method
+				// 		// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(1.0e-10, 1.0e-10),
+				// 		// 		(*this), x, T, T+DT, DT);
+
+				// 		//This selection of absolute and relative errors seems to perform more efficiently than the above
+				// 		// integrate_adaptive( boost::numeric::odeint::make_controlled<controlled_error_stepper_type>(Target_Solve_Error, Target_Solve_Error),
+				// 		// 		(*this), x, T, T+DT, DT);
+
+				// 		// oomph_info << T << " " << T+DT << " " << DT << std::endl;
+						
+				// 		//Explicit euler
+				// 		boost::numeric::odeint::euler<Boost_State_Type> Euler;
+				// 		Euler.do_step((*this), x, T, DT);
+
+
+				// 		//NOT WORKING YET
+
+				// 		//Controlled implicit method
+				// 		// boost::numeric::odeint::rosenbrock4_controller<boost::numeric::odeint::rosenbrock4<double>> stepper;
+				// 		// integrate_adaptive(stepper, std::make_pair((*this), (*this)), x, T, T+DT, DT);
+
+				// 		//Implicit Euler
+				// 		// boost::numeric::odeint::implicit_euler<double> stepper;
+				// 		// stepper.do_step(std::make_pair((*this), (*this)), x, T, DT);
+
+				// 		T+=DT;
+				// 	}
+
+				// 	N_solve*=2.0;
+				// }
+				// while(boostvectorcontainsnans(x, Num_Cell_Vars+1));
+
+
+
+
+			// 	// Explicit method
+			// 	boost::numeric::odeint::bulirsch_stoer< Boost_State_Type > stepper( 1E-8 , 0.0 , 0.0 , 0.0 );
+			// 	integrate_adaptive(stepper, (*this), x, t, t+dt, dt);
+
+			// 	// Explicit euler method
+			// 	boost::numeric::odeint::euler<Boost_State_Type> Euler;
+			// 	Euler.do_step((*this), x, t, dt);
+
+			// 	// Controlled Implicit method
+			// 	boost::numeric::odeint::rosenbrock4_controller<boost::numeric::odeint::rosenbrock4<double>> stepper;
+			// 	integrate_adaptive(stepper, std::make_pair((*this), (*this)), x, t, t+dt, dt);
+
+			// 	// Implicit euler method
+			// 	boost::numeric::odeint::implicit_euler<double> stepper;
+			// 	stepper.do_step(std::make_pair((*this), (*this)), x, t, dt);
 			// }
 
 
@@ -916,7 +1050,7 @@ namespace cellhandlenan
 
 
 			///////////////////////////////////////////////////////////////////////////////////
-			//CUSTOM HEUN-EULER SOLVE WITH BOOST ERROR MEASURE
+			// //CUSTOM HEUN-EULER SOLVE WITH BOOST ERROR MEASURE
 			//Running time
 			double T = t;
 			//Initially attempted timestep
@@ -940,8 +1074,17 @@ namespace cellhandlenan
 			(*this)(x, K1, T);
 
 			const double T_End = T+dt;
+
+			// oomph_info << "(" << T << ", " << T_End << "): initial dt: " << DT << std::endl;
+			unsigned solve_counter = 0;
+			unsigned nan_counter = 0;
+			unsigned converged_counter = 0;
+			unsigned diverged_counter = 0;
+
+
 			while(T<T_End)
 			{
+				solve_counter++;
 				//Calculate initial guess
 				for(unsigned i=0; i<Num_Cell_Vars+1; i++)
 				{
@@ -954,7 +1097,10 @@ namespace cellhandlenan
 				//Does it contain nans?
 				if(boostvectorcontainsnans(K2, Num_Cell_Vars+1))
 				{
+					// oomph_info << "\t(" << T << ", " << (T+DT) << ") Produced Nans." << std::endl;
 					//If it does, halve the timestep and try again
+					nan_counter++;
+
 					DT *= 0.5;
 					continue;
 				}
@@ -972,7 +1118,7 @@ namespace cellhandlenan
 				for(unsigned i=0; i<Num_Cell_Vars+1; i++)
 				{
 					// sk = Target_Solve_Error + Target_Solve_Error * std::max(std::abs(x_np1_2[i]), std::abs(x_np1_1[i]));
-					sk = 1.0 + 1.0 * std::max(std::abs(x_np1_2[i]), std::abs(x_np1_1[i]));
+					sk = 1.0 + 1.0 * std::max(std::fabs(x_np1_2[i]), std::fabs(x_np1_1[i]));
 					tau += (x_np1_1[i] - x_np1_2[i])*(x_np1_1[i] - x_np1_2[i]) / sk / sk;
 					// tau += std::fabs(x_np1_1[i] - x_np1_2[i]);
 				}
@@ -980,16 +1126,23 @@ namespace cellhandlenan
 
 				if(tau<Target_Solve_Error)
 				{
+					// oomph_info << T << " " << T+DT << " " << DT << std::endl;
 					T+=DT;
 					x = x_np1_2;
 					K1 = K2;
+					converged_counter++;
+				}
+				else
+				{
+					// oomph_info << "\tDid not converge." << std::endl;
+					diverged_counter++;
 				}
 				if(T<T_End)
 				{
 					DT = std::min(T_End-T, 0.9*DT*std::min(std::max(pow(Target_Solve_Error/(2.0*tau),0.5),0.3), 2.0));
 				}
 			}
-			
+			// oomph_info << "\t Took " << solve_counter << " solves. " << nan_counter << " " << converged_counter << " " << diverged_counter << std::endl;
 			Last_Used_Dt = DT;
 			//CUSTOM HEUN-EULER SOLVE
 			///////////////////////////////////////////////////////////////////////////////////
@@ -1664,6 +1817,8 @@ namespace cellhandlenan
 		int active_strain_index;
 
 		double dt_rushlarsen;
+
+		std::string Cell_Model_Name;
 
 	private:
 

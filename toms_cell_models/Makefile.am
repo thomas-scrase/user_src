@@ -18,7 +18,8 @@ OHaraRudy.h \
 TNNP06_Force_Without_ISAC.h \
 OHaraRudy_TestForce.h \
 OHaraRudy_RushLarsen.h \
-TNNP06_RushLarsen.h
+TNNP06_RushLarsen.h \
+exponential_test_cell_model.h
 
 # Define name of library
 libname = toms_cell_models

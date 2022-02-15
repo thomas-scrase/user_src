@@ -127,7 +127,7 @@ namespace oomph{
 			// 	std::srand(std::time(0));
 			// 	double ran_val = 2.0*((double)std::rand()/(RAND_MAX) - 0.5); //random number between -1 and 1
 			// 	for(unsigned v=0; v<this->n_variables(); v++){
-			// 		if(std::abs(Simplex[i][v] - node[v])<1e-12){continue;}//If the node vertex is identical to the one creating a nan then skip it
+			// 		if(std::fabs(Simplex[i][v] - node[v])<1e-12){continue;}//If the node vertex is identical to the one creating a nan then skip it
 			// 		node[v] += Simplex[i][v]/(this->n_variables()); //Take random weighted average over all nodes in the simplex, except the one we are changing
 			// 	}
 			// }
@@ -158,7 +158,7 @@ namespace oomph{
 				for(unsigned index=0; index<this->n_variables(); index++){
 					length += Simplex[node1][index] - Simplex[node2][index];
 				}
-				if(std::abs(length) > max_length){max_length = std::abs(length);}
+				if(std::fabs(length) > max_length){max_length = std::fabs(length);}
 			}
 		}
 		return max_length;
@@ -173,7 +173,7 @@ namespace oomph{
 	
 		for(unsigned i=0; i < this->n_variables();i++){
 			for(unsigned j=0; j < this->n_variables()-i; j++){
-				if(std::abs(Node_Fitnesses[sorted_node_indexes[j]]) > std::abs(Node_Fitnesses[sorted_node_indexes[j+1]])){
+				if(std::fabs(Node_Fitnesses[sorted_node_indexes[j]]) > std::fabs(Node_Fitnesses[sorted_node_indexes[j+1]])){
 					unsigned tmp = sorted_node_indexes[j];
 					sorted_node_indexes[j] = sorted_node_indexes[j+1];
 					sorted_node_indexes[j+1] = tmp;
@@ -249,7 +249,7 @@ namespace oomph{
 			//Check if all fitnesses are identical, if they are then terminate
 			bool simplex_is_uniformly_fit = true;
 			for(unsigned i=1; i<this->n_variables()+1; i++){
-				if(std::abs(Node_Fitnesses[i]-Node_Fitnesses[i-1])>Acceptable_Homogenous_Fitness){simplex_is_uniformly_fit = false;break;}
+				if(std::fabs(Node_Fitnesses[i]-Node_Fitnesses[i-1])>Acceptable_Homogenous_Fitness){simplex_is_uniformly_fit = false;break;}
 			}
 			if(simplex_is_uniformly_fit){
 				outfile << "Fitness of all nodes is identical and we don't know how to proceed. Terminating." << std::endl;
@@ -325,7 +325,7 @@ namespace oomph{
 			}
 			outfile << ") -> " << xr_fitness <<  std::endl;
 
-			if(std::abs(Node_Fitnesses[best_node_index]) <= std::abs(xr_fitness) && std::abs(xr_fitness) <= std::abs(Node_Fitnesses[second_worst_node_index])){
+			if(std::fabs(Node_Fitnesses[best_node_index]) <= std::fabs(xr_fitness) && std::fabs(xr_fitness) <= std::fabs(Node_Fitnesses[second_worst_node_index])){
 				replace_node(Simplex[worst_node_index], xr);
 				//calculate the fitness of the new node
 				//record fitness for the new worst node
@@ -338,7 +338,7 @@ namespace oomph{
 			}
 
 			//if the reflected node fitness is better than that of the best node
-			if(std::abs(xr_fitness) < std::abs(Node_Fitnesses[best_node_index])){
+			if(std::fabs(xr_fitness) < std::fabs(Node_Fitnesses[best_node_index])){
 				//make xe
 				Vector<double> xe(this->n_variables());
 				fill_in_xe(xe, x0, xr);
@@ -353,7 +353,7 @@ namespace oomph{
 				outfile << ") -> " << xe_fitness <<  std::endl;
 
 				//if the expansion node is better than the reflected node replace the worst node with the expansion node
-				if(std::abs(xe_fitness) < std::abs(xr_fitness)){
+				if(std::fabs(xe_fitness) < std::fabs(xr_fitness)){
 					replace_node(Simplex[worst_node_index], xe);
 					outfile << "Replaced node " << worst_node_index << " for xe:\t";
 					output(xe, outfile);
@@ -387,7 +387,7 @@ namespace oomph{
 			outfile << ") -> " << xc_fitness <<  std::endl;
 
 			//if the contraction node is better than the worst node replace then worst node with the contracted node
-			if(std::abs(xc_fitness) < std::abs(Node_Fitnesses[worst_node_index])){
+			if(std::fabs(xc_fitness) < std::fabs(Node_Fitnesses[worst_node_index])){
 				replace_node(Simplex[worst_node_index], xc);
 				outfile << "Replaced node " << worst_node_index << " for xc:\t";
 				output(xc, outfile);
@@ -512,7 +512,7 @@ namespace oomph{
 			outfile << "Current Position fitness " << Current_Fitness << std::endl;
 			//Check termination
 			if(iterations>1){
-				if(std::abs(History_Fitness[iterations] - History_Fitness[iterations-1])
+				if(std::fabs(History_Fitness[iterations] - History_Fitness[iterations-1])
 						<Convergence_Test_Constant){
 					outfile << "Converged." << std::endl;
 					break;
@@ -565,7 +565,7 @@ namespace oomph{
 			// 	gamma = 0.0;
 			// 	double grad_norm = 0.0;
 			// 	for(unsigned i=0; i<this->n_variables(); i++){
-			// 		gamma += std::abs((Current_Point[i] - History_Points[iterations-1][i])*
+			// 		gamma += std::fabs((Current_Point[i] - History_Points[iterations-1][i])*
 			// 					(GradF[i] - History_Gradients[iterations-1][i]));
 
 			// 		grad_norm += pow(GradF[i] - History_Gradients[iterations-1][i], 2.0);

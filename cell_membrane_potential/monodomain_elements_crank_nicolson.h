@@ -122,7 +122,7 @@ namespace oomph{
 		      {	
 		      	//If we're feeling paranoid then we check to ensure dt is infact the same for all the nodes
 		      	#ifdef PARANOID
-		      		if(std::abs(dt-this->node_pt(0)->time_stepper_pt()->time_pt()->dt())>1e-9)
+		      		if(std::fabs(dt-this->node_pt(0)->time_stepper_pt()->time_pt()->dt())>1e-9)
 		      		{
 						throw OomphLibError(
 							"dt is not the same over all the nodes, but it has to be for this implementation",
