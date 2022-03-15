@@ -8,7 +8,8 @@ OHaraRudy.cc \
 TNNP06_Force_Without_ISAC.cc \
 OHaraRudy_TestForce.cc \
 OHaraRudy_RushLarsen.cc \
-TNNP06_RushLarsen.cc
+TNNP06_RushLarsen.cc \
+Ismail_TNNP_06.cc
 
 
 # Define the headers
@@ -19,7 +20,8 @@ TNNP06_Force_Without_ISAC.h \
 OHaraRudy_TestForce.h \
 OHaraRudy_RushLarsen.h \
 TNNP06_RushLarsen.h \
-exponential_test_cell_model.h
+exponential_test_cell_model.h \
+Ismail_TNNP_06.h
 
 # Define name of library
 libname = toms_cell_models

@@ -520,7 +520,7 @@ class CellProbe : public virtual APDMeasurer
 {
 public:
 
-	CellProbe(CellModelBaseFullySegregated* cell_pt, const std::string OutFileName = "", const unsigned& l = 0)
+	CellProbe(CellModelBaseFullySegregated* cell_pt, const std::string OutFileName = "", const unsigned& l = 0, const double& time=0.0)
 	{
 		Cell_pt = cell_pt;
 
@@ -529,17 +529,17 @@ public:
 		//Grab the current value of membrane potential as vmin
 		InitializeMeasurements();
 
-		Record();
+		Record(time);
 	}
 
 	//Perform recordings if we are an oomph lib element, grab the data straight from the element
-	void Record()
+	void Record(const double &time)
 	{
-		const double t = Cell_pt->get_time();
+		// const double t = Cell_pt->get_time();
 		const double V = Cell_pt->get_predicted_vm();
 		const double dVdt = Cell_pt->get_predicted_dvmdt();
 
-		this->MeasureAPD(t, V, dVdt);
+		this->MeasureAPD(time, V, dVdt);
 	}
 
 	//Reset the probe, useful if we are using a single probe for measuring multiple different conditions

@@ -766,8 +766,8 @@ void OHaraRudyTestForce::get_optional_output(const Boost_State_Type &Variables,
 								Vector<double> &Out)
 {
 	//Oscillates once every 600ms
-	const double min = 0.9;
-	Out[0] = (1-min)*(cos(t*MathematicalConstants::Pi/300.0)+1.0)/2.0 + min;
+	const double min = 0.7;
+	Out[0] = (1-min)*(cos(t*MathematicalConstants::Pi/300.0)+1.0)/2.0 + min - 1.0;
 }
 
 }; //End namespace

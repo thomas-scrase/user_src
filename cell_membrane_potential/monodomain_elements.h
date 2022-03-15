@@ -51,7 +51,7 @@ namespace oomph{
 		(const Vector<double> &x, DenseMatrix<double> &D);
 
 
-        MonodomainEquations()	:	Diff_fct_pt(0)
+        MonodomainEquations()//	:	Diff_fct_pt(0)
         {
 
         }
@@ -148,7 +148,7 @@ namespace oomph{
 
 				//Get diffusivity tensor
 				DenseMatrix<double> D(DIM,DIM,0.0);
-				this->get_diff_monodomain(ipt,s,interpolated_x,D);
+				this->get_diff_BaseCellMembranePotential(ipt,s,interpolated_x,D);
 
 				// Assemble residuals and Jacobian
 				//--------------------------------
@@ -294,13 +294,13 @@ namespace oomph{
 		inline unsigned required_nvalue(const unsigned &n) const 
 	  		{return 1;}
 
-		/// Access function: Pointer to diffusion  function
-		MonodomainEquationsDiffFctPt& diff_fct_pt() 
-		{return Diff_fct_pt;}
+		// /// Access function: Pointer to diffusion  function
+		// MonodomainEquationsDiffFctPt& diff_fct_pt() 
+		// {return Diff_fct_pt;}
 
-		/// Access function: Pointer to diffusion function. Const version
-		MonodomainEquationsDiffFctPt diff_fct_pt() const 
-		{return Diff_fct_pt;}
+		// /// Access function: Pointer to diffusion function. Const version
+		// MonodomainEquationsDiffFctPt diff_fct_pt() const 
+		// {return Diff_fct_pt;}
 
 
 		void assign_additional_initial_conditions()
@@ -314,31 +314,31 @@ namespace oomph{
 		}
 
 
-		/// \short Get diffusivity tensor at (Eulerian) position 
-		/// x and/or local coordinate s. 
-		/// This function is
-		/// virtual to allow overloading in multi-physics problems where
-		/// the diff function might be determined by
-		/// another system of equations 
-		inline virtual void get_diff_monodomain(const unsigned& ipt,
-	                                            const Vector<double> &s,
-	                                            const Vector<double>& x,
-	                                            DenseMatrix<double>& D) const
-		{
-			//If no diff function has been set, return identity
-			if(Diff_fct_pt==0){
-				for(unsigned i=0; i<DIM; i++){
-					for(unsigned j=0; j<DIM; j++){
-						D(i,j) =  0.0;
-					}
-					D(i,i)  = 1.0;
-				}
-			}
-			else{
-				// Get diffusivity tensor from function
-				(*Diff_fct_pt)(x,D);
-			}
-		}
+		// /// \short Get diffusivity tensor at (Eulerian) position 
+		// /// x and/or local coordinate s. 
+		// /// This function is
+		// /// virtual to allow overloading in multi-physics problems where
+		// /// the diff function might be determined by
+		// /// another system of equations 
+		// inline virtual void get_diff_monodomain(const unsigned& ipt,
+	 //                                            const Vector<double> &s,
+	 //                                            const Vector<double>& x,
+	 //                                            DenseMatrix<double>& D) const
+		// {
+		// 	//If no diff function has been set, return identity
+		// 	if(Diff_fct_pt==0){
+		// 		for(unsigned i=0; i<DIM; i++){
+		// 			for(unsigned j=0; j<DIM; j++){
+		// 				D(i,j) =  0.0;
+		// 			}
+		// 			D(i,i)  = 1.0;
+		// 		}
+		// 	}
+		// 	else{
+		// 		// Get diffusivity tensor from function
+		// 		(*Diff_fct_pt)(x,D);
+		// 	}
+		// }
 
 		/// Get flux: \f$\mbox{flux}[i] = \mbox{d}u / \mbox{d}x_i \f$
 		void get_total_flux_monodomain(const Vector<double>& s, 
@@ -383,7 +383,7 @@ namespace oomph{
 
 			//Get diffusivity tensor
 			DenseMatrix<double> D(DIM,DIM);
-			get_diff_monodomain(ipt,s,interpolated_x,D);
+			this->get_diff_BaseCellMembranePotential(ipt,s,interpolated_x,D);
 
 			//Calculate the total flux made up of the diffusive flux
 			//and the conserved wind
@@ -397,7 +397,7 @@ namespace oomph{
 			}
 		}
 
-		inline std::vector<std::string> get_variable_names() const override
+		inline std::vector<std::string> get_variable_names_BaseCellMembranePotentialEquations() const override
 		{
 			std::vector<std::string> v = {"Vm"};
 			return v;
@@ -434,7 +434,7 @@ namespace oomph{
 				// Get local coordinates of plot point
 				this->get_s_plot(iplot,nplot,s);
 
-				file_out << this->interpolated_vm_BaseCellMembranePotential(s) << std::endl;
+				file_out << this->get_interpolated_membrane_potential_BaseCellMembranePotential(s) << std::endl;
 			}
 		}
 
@@ -498,7 +498,7 @@ namespace oomph{
 	protected:
 		/// Pointer to diffusivity function:
 		///		function typedef is given in BaseCellMembranePotentialEquations
-		MonodomainEquationsDiffFctPt Diff_fct_pt;
+		// MonodomainEquationsDiffFctPt Diff_fct_pt;
 
 };
 
@@ -582,7 +582,7 @@ namespace oomph{
 			this->interpolated_x(s,x);
 
 			for(unsigned i=0;i<DIM;i++) {outfile << x[i] << " ";}
-			outfile << this->interpolated_vm_BaseCellMembranePotential(s) << " ";
+			outfile << this->get_interpolated_membrane_potential_BaseCellMembranePotential(s) << " ";
 
 			//Get the gradients
 			(void)this->dshape_eulerian(s,psi,dpsidx);
@@ -600,7 +600,7 @@ namespace oomph{
 
 			//Get diffusivity tensor
 			DenseMatrix<double> D(DIM,DIM,0.0);
-			this->get_diff_monodomain(iplot,s,x,D);
+			this->get_diff_BaseCellMembranePotential(iplot,s,x,D);
 			for(unsigned i=0; i<DIM; i++){
 				for(unsigned j=0; j<=i; j++){
 					outfile << D(i,j) << " ";
@@ -785,7 +785,7 @@ namespace oomph{
 	{
 	public:
 
-		inline void get_diff_monodomain(const unsigned& ipt,
+		inline void get_diff_BaseCellMembranePotential(const unsigned& ipt,
                                         const Vector<double> &s,
                                         const Vector<double>& x,
                                         DenseMatrix<double>& D) const
@@ -1038,7 +1038,7 @@ namespace oomph{
 	{
 	public:
 
-		inline void get_diff_monodomain(const unsigned& ipt,
+		inline void get_diff_BaseCellMembranePotential(const unsigned& ipt,
                                         const Vector<double> &s,
                                         const Vector<double>& x,
                                         DenseMatrix<double>& D) const

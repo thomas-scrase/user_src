@@ -344,7 +344,7 @@ calculate_d_contravariant_dG(const DenseMatrix<double> &Gdown,
 //==========================================================================
 void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A,
+ const Vector<Vector<double>>& A,
  const Vector<double> &V,
  const DenseMatrix<double> &sigma,
  RankFourTensor<double> &d_sigma_dG,
@@ -446,7 +446,7 @@ void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
 //========================================================================  
 void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A,
+ const Vector<Vector<double>>& A,
  const Vector<double> &V,
  const DenseMatrix<double> &sigma,
  const double &detG,
@@ -560,7 +560,7 @@ void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
 //=======================================================================
 void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A,
+ const Vector<Vector<double>>& A,
  const Vector<double> &V,
  const DenseMatrix<double> &sigma,
  const double &gen_dil, 
@@ -679,7 +679,7 @@ void AnisotropicConstitutiveLaw::calculate_d_second_piola_kirchhoff_stress_dG(
 void AnisotropicGeneralisedHookean:: 
 calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g, 
                                         const DenseMatrix<double> &G,
-                                        const DenseMatrix<double> &A,
+                                        const Vector<Vector<double>>& A,
                                         const Vector<double> &V,
                                         DenseMatrix<double> &sigma)
 {
@@ -735,7 +735,7 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
          sigma(i,j) += C1*(Gup(i,k)*Gup(j,l)+Gup(i,l)*Gup(j,k)+
                            C2*Gup(i,j)*Gup(k,l))*strain(k,l);
 
-         sigma(i,j) += V[0]*A(i,0)*A(j,0);
+         sigma(i,j) += V[0]*(A[i])[0]*(A[j])[0];
         }
       }
     }
@@ -765,7 +765,7 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
 void AnisotropicGeneralisedHookean:: 
 calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g, 
                                         const DenseMatrix<double> &G,
-                                        const DenseMatrix<double> &A,
+                                        const Vector<Vector<double>>& A,
                                         const Vector<double> &V,
                                         DenseMatrix<double> &sigma_dev, 
                                         DenseMatrix<double> &Gup,
@@ -813,7 +813,7 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
 void AnisotropicGeneralisedHookean:: 
 calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g, 
                                         const DenseMatrix<double> &G,
-                                        const DenseMatrix<double> &A,
+                                        const Vector<Vector<double>>& A,
                                         const Vector<double> &V,
                                         DenseMatrix<double> &sigma_dev, 
                                         DenseMatrix<double> &Gup,
@@ -842,7 +842,7 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
   {
    for (unsigned j=i;j<dim;j++)
     {
-      active_strain(i,j) = V[0]*A(i,0)*A(j,0);
+      active_strain(i,j) = V[0]*(A[i])[0]*(A[j])[0];
     }
   }
 
@@ -908,94 +908,8 @@ calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g,
 
 }
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-//POLE ZERO STRAIN CONSTITUTIVE LAW FUNCTIONS
-
-void PoleZeroConstitutiveLaw::
-calculate_second_piola_kirchhoff_stress(
-  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-  const DenseMatrix<double> &A,
-  const Vector<double> &V,
-  DenseMatrix<double> &sigma)
-{
-//Error checking
-#ifdef PARANOID
- error_checking_in_input(g,G,sigma);
-#endif 
-
-unsigned dim = g.nrow();
-
-#ifdef PARANOID
- if (dim==1)
-  {
-   std::string function_name =     
-    "AnisotropicStrainEnergyFunctionConstitutiveLaw::";
-   function_name += "calculate_second_piola_kirchhoff_stress()";
-
-   throw OomphLibError(
-    "Check constitutive equations carefully when dim=1",
-    OOMPH_CURRENT_FUNCTION, OOMPH_EXCEPTION_LOCATION);
-  }
-#endif
-
-DenseMatrix<double> gup(dim), Gup(dim);
-double detg = calculate_contravariant(g,gup);
-double detG = calculate_contravariant(G,Gup);
-
-DenseMatrix<double> strain(dim);
-//Fill in the strain tensor
-for(unsigned i=0;i<dim;i++)
-{
-  for(unsigned j=0;j<dim;j++){
-    strain(i,j) = 0.5*(G(i,j) - g(i,j));
-  }
-}
-
-//calculate the derivative of the strain energy function wrt strain
-DenseMatrix<double> dWdgamma(3);
-Pole_zero_strain_energy_function_pt->derivative(strain, A, V, dWdgamma);
-
-//calculate sigma
-for(unsigned i=0;i<dim;i++)
-  {
-   for(unsigned j=0;j<dim;j++)
-    {
-      sigma(i,j) = dWdgamma(i,j);
-    }
-  }
-
-}
 
 
-void PoleZeroConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
-   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
-   const Vector<double> &V,
-   DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
-   double &Gdet)
-{
-  throw OomphLibError(
-    "Sorry, the deviatoric calculate_second_piola_kirchhoff_stress for PoleZeroConstitutiveLaw hasn't been implemented yet",
-    OOMPH_CURRENT_FUNCTION,
-    OOMPH_EXCEPTION_LOCATION);
-}
-
-
-
-void PoleZeroConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
-   const DenseMatrix<double> &g, const DenseMatrix<double> &G, 
-   const DenseMatrix<double> &A,
-   const Vector<double> &V,
-   DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
-   double& gen_dil, double& inv_kappa)
-{
-  throw OomphLibError(
-    "Sorry, the incompressible deviatoric calculate_second_piola_kirchhoff_stress for PoleZeroConstitutiveLaw hasn't been implemented yet",
-    OOMPH_CURRENT_FUNCTION,
-    OOMPH_EXCEPTION_LOCATION);
-}
 
 
 
@@ -1003,131 +917,154 @@ void PoleZeroConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+//Compressible
+void ActiveNeoHookeanStressConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
-   const Vector<double> &V,
-   DenseMatrix<double>& sigma_dev,
-   DenseMatrix<double> &G_contra, double &Gdet)
-{
-  // std::cout << "boom" << std::endl;
- //Error checking
- #ifdef PARANOID
-  error_checking_in_input(g,G,sigma_dev);
- #endif 
-
-  //Find the dimension of the problem
-  unsigned dim = G.nrow();
-  double detg;
-  DenseMatrix<double> gup(dim);
-
-
-  //Calculate the contravariant Deformed metric tensor 
-  Gdet = calculate_contravariant(G,G_contra);
-  detg = calculate_contravariant(g,gup);
-
-
-  //Calculate invariants
-  double I1 = 0.0;
-  double I4f = 0.0;
-  double I4s = 0.0;
-  double I8fs = 0.0;
-
-  for(unsigned i=0;i<dim;i++){
-   for(unsigned j=0;j<dim;j++){
-    I1 += gup(i,j)*G(i,j);
-
-    I4f += A(i,0)*G(i,j)*A(j,0);
-    I4s += A(i,1)*G(i,j)*A(j,1);
-    I8fs+= A(i,0)*G(i,j)*A(j,1);
-
-   }
-  }
-
-  if (dim==2)
-  {
-   I1+=1.0;
-  }
-
-
-  //calculate stress due to the active strain
- DenseMatrix<double> active_strain(dim, dim);
- for (unsigned i=0;i<dim;i++)
-  {
-   for (unsigned j=i;j<dim;j++)
-    {
-      active_strain(i,j) = V[0]*A(i,0)*A(j,0);
-    }
-  }
-
- double active_strain_tr = 0.0;
- for (unsigned i=0;i<dim;i++)
-  {
-    active_strain_tr += active_strain(i,i);
-  }
-
-
- DenseMatrix<double> sigma(dim, dim);
- for(unsigned i=0;i<dim;i++){
-  for(unsigned j=i;j<dim;j++){
-   sigma(i,j) = a*exp(b*(I1-3.0))*G(j,i)
-              + 2.0*af*(I4f-1.0)*exp(bf*pow(I4f-1.0,  2.0))*A(i,0)*A(j,0)
-              + 2.0*as*(I4s-1.0)*exp(bs*pow(I4s-1.0,  2.0))*A(i,1)*A(j,1)
-              + afs*I8fs*exp(bfs*pow(I8fs,  2.0))*(A(i,0)*A(j,1) + A(i,1)*A(j,0));
-  }
- }
- double sigma_tr = 0.0;
- for(unsigned i=0;i<dim;i++){
-  sigma_tr += sigma(i,i);
- }
-
- //Calculate 2nd piola kitchhoff stress tensor
- for(unsigned i=0;i<dim;i++){
-  for(unsigned j=i;j<dim;j++){
-   // sigma_dev(i,j) = a*exp(b*(I1-3.0))*gup(i,j)
-   //              + 2.0*af*(I4f-1.0)*exp(bf*pow(I4f-1.0,  2.0))*A(i,0)*A(j,0)
-   //              + 2.0*as*(I4s-1.0)*exp(bs*pow(I4s-1.0,  2.0))*A(i,1)*A(j,1)
-   //              + afs*I8fs*exp(bfs*pow(I8fs,  2.0))*(A(i,0)*A(j,1) + A(i,1)*A(j,0))
-
-                // + (active_strain(i,j)-active_strain_dev/3.0); //Add the active strain
-    sigma_dev(i,j) = (sigma(i,j) - sigma_tr/3.0) + (active_strain(i,j) - active_strain_tr/3.0);
-  }
- }
-
- //Copy across
- for(unsigned i=0;i<dim;i++){
-  for(unsigned j=0;j<i;j++){
-   sigma_dev(i,j) = sigma_dev(j,i);
-  }
- }
-
-
- }
-
-
-
-void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
-   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double> &sigma)
 {
-  throw OomphLibError(
-    "Sorry, the compressible calculate_second_piola_kirchhoff_stress for HolzapfelOgdenConstitutiveLaw hasn't been implemented yet",
-    OOMPH_CURRENT_FUNCTION,
-    OOMPH_EXCEPTION_LOCATION);
+    //Error checking
+#ifdef PARANOID
+    error_checking_in_input(g,G,sigma);
+#endif 
+
+
+    unsigned dim = G.nrow();
+    
+    //Calculate the contravariant undeformed metric tensor 
+    DenseMatrix<double> gup(dim);
+    //We don't need the Jacobian so cast the function to void
+    (void)calculate_contravariant(g,gup);
+
+
+    const double gamma = V[0];
+    double I1 = 0.0;
+
+    //Invariant
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=0; j<dim; j++)
+        {
+            I1 += gup(i,j)*G(i,j);
+        }
+    }
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=i; j<dim; j++)
+        {
+            sigma(i,j) = 0.0;
+            for(unsigned m=0; m<dim; m++)
+            {
+                for(unsigned k=0; k<dim; k++)
+                {
+                    sigma(i,j) += (*Mu_pt)*gup(i,j);
+                }
+            }
+
+            sigma(i,j) += (*Active_Scaling_pt)*gamma*((A[0])[i])*((A[0])[j]);
+        }
+    }
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=0; j<i; j++)
+        {
+            sigma(i,j) = sigma(j,i);
+        }
+    }
 }
 
-void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+//Incompressible
+void ActiveNeoHookeanStressConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
-   DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
-   double& gen_dil, double& inv_kappa)
+   DenseMatrix<double>& sigma_dev,
+   DenseMatrix<double> &G_contra, 
+   double &Gdet)
 {
-  throw OomphLibError(
-    "Sorry, the nearly incompressible calculate_second_piola_kirchhoff_stress for HolzapfelOgdenConstitutiveLaw hasn't been implemented yet",
+    //Error checking
+#ifdef PARANOID
+    error_checking_in_input(g,G,sigma_dev);
+#endif 
+
+
+    unsigned dim = G.nrow();
+    
+    //Calculate the contravariant undeformed metric tensor 
+    DenseMatrix<double> gup(dim);
+    //We don't need the Jacobian so cast the function to void
+    (void)calculate_contravariant(g,gup);
+
+    //Calculate the contravariant Deformed metric tensor 
+    Gdet = calculate_contravariant(G,G_contra);
+
+
+    const double gamma = V[0];
+    double I1 = 0.0;
+
+    //Invariant
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=0; j<dim; j++)
+        {
+            I1 += gup(i,j)*G(i,j);
+        }
+    }
+
+    double P = 0.0;
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=i; j<dim; j++)
+        {
+            sigma_dev(i,j) = 0.0;
+            // for(unsigned m=0; m<dim; m++)
+            // {
+            //     for(unsigned k=0; k<dim; k++)
+            //     {
+            //         sigma_dev(i,j) += (*Mu_pt)*(I1-3.0);//(double)dim);
+            //     }
+            // }
+            // sigma_dev(i,j) += (*Mu_pt)*(I1-(double)dim);
+            sigma_dev(i,j) += (*Mu_pt)*gup(i,j);
+
+            sigma_dev(i,j) += (*Active_Scaling_pt)*gamma*((A[0])[i])*((A[0])[j]);
+        }
+        P += sigma_dev(i,i);
+    }
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=i; j<dim; j++)
+        {
+            sigma_dev(i,j) -= (P/3.0)*G_contra(i,j);
+        }
+    }
+
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=0; j<i; j++)
+        {
+            sigma_dev(i,j) = sigma_dev(j,i);
+        }
+    }
+}
+
+//Near incompressible
+void ActiveNeoHookeanStressConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma_dev,
+   DenseMatrix<double> &Gcontra, 
+   double& gen_dil,
+   double& inv_kappa)
+{
+    throw OomphLibError(
+    "Not implemented nearly incompressible active neo hookean constitutive law yet",
     OOMPH_CURRENT_FUNCTION,
     OOMPH_EXCEPTION_LOCATION);
 }
@@ -1135,6 +1072,421 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Compressible
+void ActiveNeoHookeanConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma)
+{
+throw OomphLibError(
+    "Not implemented compressible active neo hookean constitutive law yet",
+    OOMPH_CURRENT_FUNCTION,
+    OOMPH_EXCEPTION_LOCATION);
+}
+
+//Incompressible
+void ActiveNeoHookeanConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double>& sigma_dev,
+   DenseMatrix<double> &G_contra, 
+   double &Gdet)
+{
+    //Error checking
+#ifdef PARANOID
+    error_checking_in_input(g,G,sigma_dev);
+#endif 
+
+    unsigned dim = G.nrow();
+
+    //Calculate the contravariant undeformed metric tensor 
+    DenseMatrix<double> gup(dim);
+    //We don't need the Jacobian so cast the function to void
+    (void)calculate_contravariant(g,gup);
+
+    //Calculate the contravariant Deformed metric tensor 
+    Gdet = calculate_contravariant(G,G_contra);
+
+    const double gamma = V[0];
+    double g_gamma = -gamma*(1.0 + (gamma+2.0)/((1.0+gamma)*(1.0+gamma)));
+
+    double P = 0.0;
+    for(unsigned k=0; k<dim; k++)
+    {
+        for(unsigned r=0; r<dim; r++)
+        {
+            for(unsigned s=0; s<dim; s++)
+            {
+                P += G(r,s)*gup(r,k)*gup(s,k)*(1.0 + gamma) + ((A[0])[r])*((A[0])[k])*G(r,s)*gup(s,k)*g_gamma;
+            }
+        }
+    }
+    P *= (*Mu_pt)/3.0;
+
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=i; j<dim; j++)
+        {
+            sigma_dev(i,j) = 0.0;
+            for(unsigned r=0; r<dim; r++)
+            {
+                for(unsigned s=0; s<dim; s++)
+                {
+                    sigma_dev(i,j) += (*Mu_pt)*(G(r,s)*gup(r,i)*gup(s,j)*(1.0+gamma) + ((A[0])[r])*((A[0])[i])*G(r,s)*gup(s,j)*g_gamma);
+                }
+            }
+            sigma_dev(i,j) -= P*G_contra(i,j);
+        }
+    }
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=0; j<i; j++)
+        {
+            sigma_dev(i,j) = sigma_dev(j,i);
+        }
+    }
+}
+
+//Near incompressible
+void ActiveNeoHookeanConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma_dev,
+   DenseMatrix<double> &Gcontra, 
+   double& gen_dil,
+   double& inv_kappa)
+{
+    throw OomphLibError(
+    "Not implemented nearly incompressible active neo hookean constitutive law yet",
+    OOMPH_CURRENT_FUNCTION,
+    OOMPH_EXCEPTION_LOCATION);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Compressible
+void ActiveExponentialConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma)
+{
+    throw OomphLibError(
+    "Not implemented compressible active exponential neo hookean constitutive law yet",
+    OOMPH_CURRENT_FUNCTION,
+    OOMPH_EXCEPTION_LOCATION);
+}
+
+//Incompressible
+void ActiveExponentialConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double>& sigma_dev,
+   DenseMatrix<double> &G_contra, 
+   double &Gdet)
+{
+    //Error checking
+#ifdef PARANOID
+    error_checking_in_input(g,G,sigma_dev);
+#endif 
+
+    unsigned dim = G.nrow();
+
+    //Calculate the contravariant undeformed metric tensor 
+    DenseMatrix<double> gup(dim);
+    //We don't need the Jacobian so cast the function to void
+    (void)calculate_contravariant(g,gup);
+
+    //Calculate the contravariant Deformed metric tensor 
+    Gdet = calculate_contravariant(G,G_contra);
+
+    const double gamma = V[0];
+    double g_gamma = -gamma*(1.0 + (gamma+2.0)/((1.0+gamma)*(1.0+gamma)));
+
+    double I1 = 0.0;
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=0; j<dim; j++)
+        {
+            I1 += (1.0 + gamma)*G(i,j)*gup(i,j) + g_gamma*G(i,j)*((A[0])[i])*((A[0])[j]);
+        }
+    }
+
+    const double exp_factor = (*A_pt)*exp((*B_pt)*(I1-3.0));
+
+    double P = 0.0;
+    for(unsigned k=0; k<dim; k++)
+    {
+        for(unsigned r=0; r<dim; r++)
+        {
+            for(unsigned s=0; s<dim; s++)
+            {
+                P += G(r,s)*gup(r,k)*gup(s,k)*(1.0 + gamma) + ((A[0])[r])*((A[0])[k])*G(r,s)*gup(s,k)*g_gamma;
+            }
+        }
+    }
+    P *= exp_factor/3.0;
+
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=i; j<dim; j++)
+        {
+            sigma_dev(i,j) = 0.0;
+            for(unsigned r=0; r<dim; r++)
+            {
+                for(unsigned s=0; s<dim; s++)
+                {
+                    sigma_dev(i,j) += exp_factor*(G(r,s)*gup(r,i)*gup(s,j)*(1.0+gamma) + ((A[0])[r])*((A[0])[i])*G(r,s)*gup(s,j)*g_gamma);
+                }
+            }
+            sigma_dev(i,j) -= P*G_contra(i,j);
+        }
+    }
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=0; j<i; j++)
+        {
+            sigma_dev(i,j) = sigma_dev(j,i);
+        }
+    }
+}
+
+//Near incompressible
+void ActiveExponentialConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma_dev,
+   DenseMatrix<double> &Gcontra, 
+   double& gen_dil,
+   double& inv_kappa)
+{
+    throw OomphLibError(
+    "Not implemented nearly incompressible exponential active neo hookean constitutive law yet",
+    OOMPH_CURRENT_FUNCTION,
+    OOMPH_EXCEPTION_LOCATION);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//Compressible
+void ActiveHolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma)
+{
+    throw OomphLibError(
+    "Not implemented compressible exponential active holzapfel ogden constitutive law yet",
+    OOMPH_CURRENT_FUNCTION,
+    OOMPH_EXCEPTION_LOCATION);
+}
+
+//Incompressible
+void ActiveHolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double>& sigma_dev,
+   DenseMatrix<double> &G_contra, 
+   double &Gdet)
+{
+    //Error checking
+#ifdef PARANOID
+    error_checking_in_input(g,G,sigma_dev);
+#endif 
+
+
+    unsigned dim = G.nrow();
+    
+    //Calculate the contravariant undeformed metric tensor 
+    DenseMatrix<double> gup(dim);
+    //We don't need the Jacobian so cast the function to void
+    (void)calculate_contravariant(g,gup);
+
+    //Calculate the contravariant Deformed metric tensor 
+    Gdet = calculate_contravariant(G,G_contra);
+
+
+    const double gamma = V[0];
+    const double g_gamma = -gamma*(1.0 + (gamma+2.0)/((1.0+gamma)*(1.0+gamma)));
+
+    //Calculate the invariants
+    double I1E = 0.0;
+    double I4fE = 0.0;
+    double I4sE = 0.0;
+    double I8fsE = 0.0;
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=0; j<dim; j++)
+        {
+            I1E     += (1.0+gamma)*gup(i,j)*G(i,j) + g_gamma*G(i,j)*((A[0])[i])*((A[0])[j]);
+            I4fE    += ((A[0])[i])*G(i,j)*((A[0])[j]);
+            I4sE    += ((A[1])[i])*G(i,j)*((A[1])[j]);
+            I8fsE   += ((A[0])[i])*G(i,j)*((A[1])[j]);
+        }
+    }
+
+    //Do the multiplication by scaling factors now
+    I4fE    /=((1.0+gamma)*(1.0+gamma));
+    I4sE    *= (1.0+gamma);
+    I8fsE   /= (1.0/sqrt(1.0+gamma));
+
+
+    const double K1 = (*A_pt)*(1.0+gamma)*exp((*B_pt)*(I1E-3.0));
+    const double K2 = (*A_pt)*g_gamma*exp((*B_pt)*(I1E-3.0));
+    const double K3 = (2.0*(*Af_pt)/((1.0+gamma)*(1.0+gamma)))*(I4fE-1.0)*exp((*Bf_pt)*(I4fE-1.0)*(I4fE-1.0));
+    const double K4 = 2.0*(*As_pt)*(1.0+gamma)*(I4sE-1.0)*exp((*Bs_pt)*(I4sE-1.0)*(I4sE-1.0));
+    const double K5 = ((*Afs_pt)*I8fsE/sqrt(1.0+gamma))*exp((*Bfs_pt)*I8fsE*I8fsE-1.0);
+
+    double P = 0.0;
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=i; j<dim; j++)
+        {
+            sigma_dev(i,j) = 0.0;
+            for(unsigned r=0; r<dim; r++)
+            {
+                for(unsigned s=0; s<dim; s++)
+                {   
+                    //Safe, works
+                    // sigma_dev(i,j) += G(r,s)*gup(s,j)*(
+                    //             (*A_pt)*((1.0+gamma)*gup(r,i) + g_gamma*((A[0])[i])*((A[0])[r]))*exp((*B_pt)*(I1E-3.0))
+                    //             +(2.0*(*Af_pt)/((1.0+gamma)*(1.0+gamma)))*((A[0])[i])*((A[0])[r])*(I4fE-1.0)*exp((*Bf_pt)*(I4fE-1.0)*(I4fE-1.0))
+                    //             +2.0*(*As_pt)*(1.0+gamma)*((A[1])[i])*((A[1])[r])*(I4sE-1.0)*exp((*Bs_pt)*(I4sE-1.0)*(I4sE-1.0))
+                    //             +((*Afs_pt)*I8fsE/sqrt(1.0+gamma))*(((A[1])[r])*((A[0])[i]) + ((A[0])[r])*((A[1])[i]) )*exp((*Bfs_pt)*I8fsE*I8fsE-1.0)
+                    //             );
+
+                    sigma_dev(i,j) += G(r,s)*gup(s,j)*(K1*gup(r,i)
+                                                        + K2*((A[0])[i])*((A[0])[r])
+                                                        + K3*((A[0])[i])*((A[0])[r])
+                                                        + K4*((A[1])[i])*((A[1])[r])
+                                                        + K5*(((A[1])[r])*((A[0])[i]) + ((A[0])[r])*((A[1])[i]))
+                                                    );
+                }
+            }
+        }
+        P += sigma_dev(i,i);
+    }
+
+    //I think it's probably cheaper to calculate P as we go and just subtract from each element as so.
+    P/=3.0;
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=i; j<dim; j++)
+        {
+            sigma_dev(i,j) -= P*G_contra(i,j);
+        }
+    }
+
+    for(unsigned i=0; i<dim; i++)
+    {
+        for(unsigned j=0; j<i; j++)
+        {
+            sigma_dev(i,j) = sigma_dev(j,i);
+        }
+    }
+}
+
+//Near incompressible
+void ActiveHolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma_dev,
+   DenseMatrix<double> &Gcontra, 
+   double& gen_dil,
+   double& inv_kappa)
+{
+    throw OomphLibError(
+    "Not implemented nearly incompressible active neo hookean constitutive law yet",
+    OOMPH_CURRENT_FUNCTION,
+    OOMPH_EXCEPTION_LOCATION);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 //========================================================================
@@ -1147,7 +1499,7 @@ void HolzapfelOgdenConstitutiveLaw::calculate_second_piola_kirchhoff_stress(
 void AnisotropicStrainEnergyFunctionConstitutiveLaw::
 calculate_second_piola_kirchhoff_stress(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A,
+ const Vector<Vector<double>>& A,
  const Vector<double> &V,
  DenseMatrix<double> &sigma)
 {
@@ -1270,7 +1622,7 @@ calculate_second_piola_kirchhoff_stress(
 void AnisotropicStrainEnergyFunctionConstitutiveLaw::
 calculate_second_piola_kirchhoff_stress(
  const DenseMatrix<double> &g, const DenseMatrix<double> &G,
- const DenseMatrix<double> &A,
+ const Vector<Vector<double>>& A,
  const Vector<double> &V,
  DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gup, double &detG)
 {
@@ -1400,7 +1752,7 @@ calculate_second_piola_kirchhoff_stress(
 void AnisotropicStrainEnergyFunctionConstitutiveLaw:: 
 calculate_second_piola_kirchhoff_stress(const DenseMatrix<double> &g, 
                                         const DenseMatrix<double> &G,
-                                        const DenseMatrix<double> &A,
+                                        const Vector<Vector<double>>& A,
                                         const Vector<double> &V,
                                         DenseMatrix<double> &sigma_dev, 
                                         DenseMatrix<double> &Gup,

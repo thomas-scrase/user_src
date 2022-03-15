@@ -586,13 +586,13 @@ namespace oomph{
 			{                               
 			 total_flux[i] = 0.0;
 			 for(unsigned j=0;j<DIM;j++)
-			  {
-			   total_flux[i] += (interpolated_dvmdx[j] + interpolated_dphiedx[j])*Gi(i,j) + interpolated_dphiedx[j]*Ge(i,j);
-			  }
+			 {
+				total_flux[i] += (interpolated_dvmdx[j] + interpolated_dphiedx[j])*Gi(i,j) + interpolated_dphiedx[j]*Ge(i,j);
+			 }
 			}
 		}
 
-		inline std::vector<std::string> get_variable_names() const override
+		inline std::vector<std::string> get_variable_names_BaseCellMembranePotentialEquations() const override
 		{
 			std::vector<std::string> v = {"Vm", "phie"};
 			return v;
@@ -625,7 +625,7 @@ namespace oomph{
 						// Get local coordinates of plot point
 						this->get_s_plot(iplot,nplot,s);
 
-						file_out << this->interpolated_vm_BaseCellMembranePotential(s) << " ";
+						file_out << this->get_interpolated_membrane_potential_BaseCellMembranePotential(s) << " ";
 					case 1 :
 						// Get local coordinates of plot point
 						this->get_s_plot(iplot,nplot,s);
@@ -742,7 +742,7 @@ namespace oomph{
 			this->interpolated_x(s,x);
 
 			for(unsigned i=0;i<DIM;i++) {outfile << x[i] << " ";}
-			outfile << this->interpolated_vm_BaseCellMembranePotential(s) << " ";
+			outfile << this->get_interpolated_membrane_potential_BaseCellMembranePotential(s) << " ";
 
 			//Get the gradients
 			(void)this->dshape_eulerian(s,psi,dpsidx);

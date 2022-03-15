@@ -8,7 +8,8 @@ dummy.cc
 	
 # Define the headers
 headers = \
-	electro_mechanical_multiphysics_elements.h
+	electro_mechanical_fluid_multiphysics_elements.h \
+	separated_cell_and_diffusion_mesh_elements.h
 
 # Define name of library
 libname = cardiac_multiphysics

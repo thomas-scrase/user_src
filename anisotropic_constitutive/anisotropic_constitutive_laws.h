@@ -62,7 +62,7 @@ class AnisotropicStrainEnergyFunction
 
  /// Return the strain energy in terms of the strain tensor
  virtual double W(const DenseMatrix<double> &gamma,
-                  const DenseMatrix<double> &A,
+                  const Vector<Vector<double>>& A,
                   const Vector<double> &V)
   {
    std::string error_message =
@@ -79,7 +79,7 @@ class AnisotropicStrainEnergyFunction
 
  /// Return the strain energy in terms of the strain invariants
  virtual double W(const Vector<double> &I,
-                  const DenseMatrix<double> &A,
+                  const Vector<Vector<double>>& A,
                   const Vector<double> &V)
   {
    std::string error_message =
@@ -99,7 +99,7 @@ class AnisotropicStrainEnergyFunction
  /// respect to the components of the strain tensor (default is to use 
  /// finite differences).
  virtual void derivative(const DenseMatrix<double> &gamma,
-                         const DenseMatrix<double> &A,
+                         const Vector<Vector<double>>& A,
                          const Vector<double> &V,
                          DenseMatrix<double> &dWdgamma)
   {
@@ -114,7 +114,7 @@ class AnisotropicStrainEnergyFunction
  /// respect to the strain invariants. Default version is to use finite
  /// differences
  virtual void derivatives(Vector<double> &I,
-                          const DenseMatrix<double> &A,
+                          const Vector<Vector<double>>& A,
                           const Vector<double> &V,
                           Vector<double> &dWdI)
   {
@@ -176,17 +176,17 @@ class AnisotropicMooneyRivlin : public AnisotropicStrainEnergyFunction
  virtual ~AnisotropicMooneyRivlin(){}
 
  /// Return the strain energy in terms of strain tensor
- double W(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A, const Vector<double> &V)
+ double W(const DenseMatrix<double> &gamma, const Vector<Vector<double>>& A, const Vector<double> &V)
   {return AnisotropicStrainEnergyFunction::W(gamma, A, V);}
 
  /// Return the strain energy in terms of the strain invariants
- double W(const Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V)
+ double W(const Vector<double> &I, const Vector<Vector<double>>& A, const Vector<double> &V)
  {return (*C1_pt)*(I[0]-3.0) + (*C2_pt)*(I[1]-3.0);}
 
  
  /// \short Return the derivatives of the strain energy function with
  /// respect to the strain invariants
- void derivatives(Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V, Vector<double> &dWdI)
+ void derivatives(Vector<double> &I, const Vector<Vector<double>>& A, const Vector<double> &V, Vector<double> &dWdI)
   {
    dWdI[0] = (*C1_pt);
    dWdI[1] = (*C2_pt);
@@ -228,7 +228,7 @@ public:
 
   virtual ~ PoleZeroStrainEnergyFunction(){}
 
-  double W(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A, const Vector<double> &V)
+  double W(const DenseMatrix<double> &gamma, const Vector<Vector<double>>& A, const Vector<double> &V)
   {
     //transform a,b,k,gamma from fibre, sheet, normal to cartesian basis using A if A!=0
     
@@ -236,46 +236,46 @@ public:
     DenseMatrix<double> b_cart(3,3);
     DenseMatrix<double> k_cart(3,3);
 
-    if(A.ncol()!=1 && A.nrow()!=1){//if A contains vectors
-      for(int i=0;i<3;i++){
-        for(int j=0;j<3;j++){
-          for(int m=0;m<A.ncol();m++){
-            a_cart(i,j) += A(i,m)*((*a)(m,j));
-            b_cart(i,j) += A(i,m)*((*b)(m,j));
-            k_cart(i,j) += A(i,m)*((*k)(m,j));
+    // if(A.ncol()!=1 && A.nrow()!=1){//if A contains vectors
+      for(unsigned i=0;i<3;i++){
+        for(unsigned j=0;j<3;j++){
+          for(unsigned m=0;m<3;m++){
+            a_cart(i,j) += (A[i])[m]*((*a)(m,j));
+            b_cart(i,j) += (A[i])[m]*((*b)(m,j));
+            k_cart(i,j) += (A[i])[m]*((*k)(m,j));
           }
         }
       }
-    }
-    else{
-      for(int i=0;i<3;i++){
-        for(int j=0;j<3;j++){
-          a_cart(i,j) = (*a)(i,j);
-          b_cart(i,j) = (*b)(i,j);
-          k_cart(i,j) = (*k)(i,j);
-        }
-      }
-    }
+    // }
+    // else{
+    //   for(int i=0;i<3;i++){
+    //     for(int j=0;j<3;j++){
+    //       a_cart(i,j) = (*a)(i,j);
+    //       b_cart(i,j) = (*b)(i,j);
+    //       k_cart(i,j) = (*k)(i,j);
+    //     }
+    //   }
+    // }
 
     //dummy W
     double W_temp = 0.0;
-    for(int i=0;i<3;i++){
-      for(int j=0;j<3;j++){
+    for(unsigned i=0;i<3;i++){
+      for(unsigned j=0;j<3;j++){
         W_temp += ((*k)(i,j))*pow(gamma(i,j),2.0)/(pow(((*a)(i,j))-gamma(i,j),((*b)(i,j))));
       }
     }
     return W_temp;
   }
 
-  double W(const Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V)
+  double W(const Vector<double> &I, const Vector<Vector<double>>& A, const Vector<double> &V)
   {
     return AnisotropicStrainEnergyFunction::W(I,A, V);
   }
 
-  void derivative(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A, const Vector<double> &V, DenseMatrix<double> &dWdgamma)
+  void derivative(const DenseMatrix<double> &gamma, const Vector<Vector<double>>& A, const Vector<double> &V, DenseMatrix<double> &dWdgamma)
   {
-    for(int i=0;i<3;i++){
-      for(int j=0;j<3;j++){
+    for(unsigned i=0;i<3;i++){
+      for(unsigned j=0;j<3;j++){
         dWdgamma(i,j) = ((*k)(i,j))*(gamma(i,j)/pow(((*a)(i,j))-gamma(i,j),((*b)(i,j))))*(2.0 + gamma(i,j)*((*b)(i,j))/(((*a)(i,j))-gamma(i,j)));
       }
     }
@@ -342,12 +342,12 @@ class AnisotropicGeneralisedMooneyRivlin : public AnisotropicStrainEnergyFunctio
   }
  
   /// Return the strain energy in terms of strain tensor
- double W(const DenseMatrix<double> &gamma, const DenseMatrix<double> &A, const Vector<double> &V)
+ double W(const DenseMatrix<double> &gamma, const Vector<Vector<double>>& A, const Vector<double> &V)
  {return AnisotropicStrainEnergyFunction::W(gamma, A, V);}
  
  
  /// Return the strain energy in terms of the strain invariants
- double W(const Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V)
+ double W(const Vector<double> &I, const Vector<Vector<double>>& A, const Vector<double> &V)
  {
   double G=(*E_pt)/(2.0*(1.0+(*Nu_pt)));
   return 0.5*((*C1_pt)*(I[0]-3.0) + (G-(*C1_pt))*(I[1]-3.0)
@@ -359,7 +359,7 @@ class AnisotropicGeneralisedMooneyRivlin : public AnisotropicStrainEnergyFunctio
  
  /// \short Return the derivatives of the strain energy function with
  /// respect to the strain invariants
- void derivatives(Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V, Vector<double> &dWdI)
+ void derivatives(Vector<double> &I, const Vector<Vector<double>>& A, const Vector<double> &V, Vector<double> &dWdI)
  {
   double G=(*E_pt)/(2.0*(1.0+(*Nu_pt)));
   dWdI[0] = 0.5*(*C1_pt);
@@ -413,14 +413,14 @@ public:
 
   ~HolzapfelOgdenStrainEnergyFunction(){}
 
-  double W(const Vector<double> &I, const DenseMatrix<double> &A, const Vector<double> &V)
+  double W(const Vector<double> &I, const Vector<Vector<double>>& A, const Vector<double> &V)
   {
     return a/(2*b)*exp(b*(I[0] - 3)) + af/(2*bf)*(exp(bf*pow(I[3] - 1, 2.0)) - 1)
                                      + as/(2*bs)*(exp(bs*pow(I[5] - 1, 2.0)) - 1)
                                      + afs/(2*bfs)*(exp(bfs*pow(I[7], 2.0)) - 1);
   }
 
-  // void derivatives(Vector<double> &I, const DenseMatrix<double> &A, Vector<double> &dWdI)
+  // void derivatives(Vector<double> &I, const Vector<Vector<double>>& A, Vector<double> &dWdI)
   // {
 
   // }
@@ -667,7 +667,7 @@ class AnisotropicConstitutiveLaw
   /// covariant undeformed and deformed metric tensor and the 
   /// matrix in which to return the stress tensor
   virtual void calculate_second_piola_kirchhoff_stress(
-   const DenseMatrix<double> &g, const DenseMatrix<double> &G, const DenseMatrix<double> &A, const Vector<double> &V, DenseMatrix<double> &sigma)=0;
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G, const Vector<Vector<double>>& A, const Vector<double> &V, DenseMatrix<double> &sigma)=0;
 
   /// \short Calculate the derivatives of the contravariant 
   /// 2nd Piola Kirchhoff stress tensor with respect to the deformed metric
@@ -683,7 +683,7 @@ class AnisotropicConstitutiveLaw
   /// a useful efficiency when using the derivatives in Jacobian calculations.
   virtual void calculate_d_second_piola_kirchhoff_stress_dG(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    const DenseMatrix<double> &sigma,
    RankFourTensor<double> &d_sigma_dG,const bool &symmetrize_tensor=true);
@@ -701,7 +701,7 @@ class AnisotropicConstitutiveLaw
   /// \f$ \det G_{ij} - \det g_{ij} = 0 \f$. 
   virtual void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet)
@@ -727,7 +727,7 @@ class AnisotropicConstitutiveLaw
   /// a useful efficiency when using the derivatives in Jacobian calculations.
   virtual void calculate_d_second_piola_kirchhoff_stress_dG(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    const DenseMatrix<double> &sigma,
    const double &detG,    
@@ -746,7 +746,7 @@ class AnisotropicConstitutiveLaw
   /// \f$ p / \kappa - d =0 \f$. 
   virtual void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G, 
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa) 
@@ -769,7 +769,7 @@ class AnisotropicConstitutiveLaw
   /// a useful efficiency when using the derivatives in Jacobian calculations.
   virtual void calculate_d_second_piola_kirchhoff_stress_dG(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    const DenseMatrix<double> &sigma,
    const double &gen_dil,
@@ -888,7 +888,7 @@ class AnisotropicGeneralisedHookean : public AnisotropicConstitutiveLaw
   /// matrix in which to return the stress tensor
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double> &sigma);
 
@@ -905,7 +905,7 @@ class AnisotropicGeneralisedHookean : public AnisotropicConstitutiveLaw
   /// \f$ \det G_{ij} - \det g_{ij} = 0 \f$. 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet);
@@ -921,7 +921,7 @@ class AnisotropicGeneralisedHookean : public AnisotropicConstitutiveLaw
   /// \f$ p / \kappa - d =0 \f$. 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa);
@@ -948,105 +948,92 @@ class AnisotropicGeneralisedHookean : public AnisotropicConstitutiveLaw
 
 
 
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
-
-
-class PoleZeroConstitutiveLaw : public AnisotropicConstitutiveLaw
-{
-private:
-  AnisotropicStrainEnergyFunction* Pole_zero_strain_energy_function_pt;
-public:
-  PoleZeroConstitutiveLaw(
-    AnisotropicStrainEnergyFunction* const pole_zero_strain_energy_function_pt) :
-  AnisotropicConstitutiveLaw(), Pole_zero_strain_energy_function_pt(pole_zero_strain_energy_function_pt) {}
-
-  void calculate_second_piola_kirchhoff_stress(
-   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
-   const Vector<double> &V,
-   DenseMatrix<double> &sigma);
-
-  void calculate_second_piola_kirchhoff_stress(
-   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
-   const Vector<double> &V,
-   DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
-   double &Gdet);
-
-  void calculate_second_piola_kirchhoff_stress(
-   const DenseMatrix<double> &g, const DenseMatrix<double> &G, 
-   const DenseMatrix<double> &A,
-   const Vector<double> &V,
-   DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
-   double& gen_dil, double& inv_kappa);
-
-  bool requires_incompressibility_constraint()
-   {
-    return Pole_zero_strain_energy_function_pt->requires_incompressibility_constraint();
-   }
-};
-
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class HolzapfelOgdenConstitutiveLaw : public AnisotropicConstitutiveLaw
+class ActiveNeoHookeanStressConstitutiveLaw : public AnisotropicConstitutiveLaw
 {
 public:
-  HolzapfelOgdenConstitutiveLaw(const Vector<double> HOParams, const double active_scaling) : 
-  AnisotropicConstitutiveLaw(),a(HOParams[0]),
-                              b(HOParams[1]),
-                              af(HOParams[2]),
-                              bf(HOParams[4]),
-                              as(HOParams[3]),
-                              bs(HOParams[5]),
-                              afs(HOParams[6]),
-                              bfs(HOParams[7]),
-                              Active_Scaling(active_scaling) {}
+  ActiveNeoHookeanStressConstitutiveLaw(double* mu_pt, double* active_scaling_pt) : AnisotropicConstitutiveLaw(),
+                                                                                          Mu_pt(mu_pt),
+                                                                                          Active_Scaling_pt(active_scaling_pt)
+  {
+  }
 
-  HolzapfelOgdenConstitutiveLaw(const double HO_a,
-                                const double HO_b,
-                                const double HO_af,
-                                const double HO_bf,
-                                const double HO_as,
-                                const double HO_bs,
-                                const double HO_afs,
-                                const double HO_bfs, 
-                                const double active_scaling) : 
-  AnisotropicConstitutiveLaw(),
-  a(HO_a),
-  b(HO_b),
-  af(HO_af),
-  bf(HO_bf),
-  as(HO_as),
-  bs(HO_bs),
-  afs(HO_afs),
-  bfs(HO_bf),
-  Active_Scaling(active_scaling) {}
-
-  virtual ~HolzapfelOgdenConstitutiveLaw(){ }
+  virtual ~ActiveNeoHookeanStressConstitutiveLaw(){ }
 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double> &sigma);
 
   //INCOMPRESSIBLE SOLID BECAUSE SOFT TISSUE IS APPROXIMATELY INCOMPRESSIBLE
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet);
 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
+   double& gen_dil, double& inv_kappa);
+
+  //ADD DSIGMA/DG
+  bool requires_incompressibility_constraint(){return false;}
+
+private:
+  double* Mu_pt;
+  double* Active_Scaling_pt;
+};
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class ActiveNeoHookeanConstitutiveLaw : public AnisotropicConstitutiveLaw
+{
+public:
+  ActiveNeoHookeanConstitutiveLaw(double* mu_pt, double* active_scaling_pt) : AnisotropicConstitutiveLaw(),
+                                                                                          Mu_pt(mu_pt),
+                                                                                          Active_Scaling_pt(active_scaling_pt)
+  {
+  }
+
+  virtual ~ActiveNeoHookeanConstitutiveLaw(){ }
+
+  void calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma);
+
+  //INCOMPRESSIBLE SOLID BECAUSE SOFT TISSUE IS APPROXIMATELY INCOMPRESSIBLE
+  void calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
+   double &Gdet);
+
+  void calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa);
@@ -1055,20 +1042,145 @@ public:
   bool requires_incompressibility_constraint(){return true;}
 
 private:
-  //PERHAPS THESE SHOULD BE CHANGED INTO POINTERS???
-  double a;
-  double b;
-  double af;
-  double bf;
-  double as;
-  double bs;
-  double afs;
-  double bfs;
-  double Active_Scaling;
+  double* Mu_pt;
+  double* Active_Scaling_pt;
 };
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class ActiveExponentialConstitutiveLaw : public AnisotropicConstitutiveLaw
+{
+public:
+  ActiveExponentialConstitutiveLaw(double* a_pt, double* b_pt, double* active_scaling_pt) : AnisotropicConstitutiveLaw(),
+                                                                                            A_pt(a_pt),
+                                                                                            B_pt(b_pt),
+                                                                                            Active_Scaling_pt(active_scaling_pt)
+  {
+
+  }
+
+  virtual ~ActiveExponentialConstitutiveLaw(){ }
+
+  void calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma);
+
+  //INCOMPRESSIBLE SOLID BECAUSE SOFT TISSUE IS APPROXIMATELY INCOMPRESSIBLE
+  void calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
+   double &Gdet);
+
+  void calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
+   double& gen_dil, double& inv_kappa);
+
+  //ADD DSIGMA/DG
+  bool requires_incompressibility_constraint(){return true;}
+
+private:
+  double* A_pt;
+  double* B_pt;
+  double* Active_Scaling_pt;
+};
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+class ActiveHolzapfelOgdenConstitutiveLaw : public AnisotropicConstitutiveLaw
+{
+public:
+  ActiveHolzapfelOgdenConstitutiveLaw(double* a_pt,
+                                      double* b_pt,
+                                      double* af_pt,
+                                      double* bf_pt,
+                                      double* as_pt,
+                                      double* bs_pt,
+                                      double* afs_pt,
+                                      double* bfs_pt,
+                                      double* active_scaling_pt) : AnisotropicConstitutiveLaw(),
+                                                                    A_pt(a_pt),
+                                                                    B_pt(b_pt),
+                                                                    Af_pt(af_pt),
+                                                                    Bf_pt(bf_pt),
+                                                                    As_pt(as_pt),
+                                                                    Bs_pt(bs_pt),
+                                                                    Afs_pt(afs_pt),
+                                                                    Bfs_pt(bfs_pt),
+                                                                    Active_Scaling_pt(active_scaling_pt)
+  {
+
+  }
+
+  virtual ~ActiveHolzapfelOgdenConstitutiveLaw(){ }
+
+  void calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma);
+
+  //INCOMPRESSIBLE SOLID BECAUSE SOFT TISSUE IS APPROXIMATELY INCOMPRESSIBLE
+  void calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
+   double &Gdet);
+
+  void calculate_second_piola_kirchhoff_stress(
+   const DenseMatrix<double> &g, const DenseMatrix<double> &G,
+   const Vector<Vector<double>>& A,
+   const Vector<double> &V,
+   DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
+   double& gen_dil, double& inv_kappa);
+
+  //ADD DSIGMA/DG
+  bool requires_incompressibility_constraint(){return true;}
+
+private:
+  double* A_pt;
+  double* B_pt;
+  double* Af_pt;
+  double* Bf_pt;
+  double* As_pt;
+  double* Bs_pt;
+  double* Afs_pt;
+  double* Bfs_pt;
+
+  double* Active_Scaling_pt;
+};
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1097,7 +1209,7 @@ class AnisotropicStrainEnergyFunctionConstitutiveLaw : public AnisotropicConstit
   /// Uses correct 3D invariants for 2D (plane strain) problems.
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double> &sigma);
 
@@ -1114,7 +1226,7 @@ class AnisotropicStrainEnergyFunctionConstitutiveLaw : public AnisotropicConstit
   /// \f$ \det G_{ij} - \det g_{ij} = 0 \f$. 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G,
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double>& sigma_dev, DenseMatrix<double> &G_contra, 
    double &Gdet);
@@ -1130,7 +1242,7 @@ class AnisotropicStrainEnergyFunctionConstitutiveLaw : public AnisotropicConstit
   /// \f$ p / \kappa - d =0 \f$. 
   void calculate_second_piola_kirchhoff_stress(
    const DenseMatrix<double> &g, const DenseMatrix<double> &G, 
-   const DenseMatrix<double> &A,
+   const Vector<Vector<double>>& A,
    const Vector<double> &V,
    DenseMatrix<double> &sigma_dev, DenseMatrix<double> &Gcontra, 
    double& gen_dil, double& inv_kappa);

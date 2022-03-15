@@ -39,7 +39,7 @@ public:
 	(const Vector<double> &x, Vector<double> &D);
 
 
-    MonodomainEquationsHermiteApproximation()	:	Diff_fct_pt(0), Div_diff_fct_pt(0)
+    MonodomainEquationsHermiteApproximation()	:	/*Diff_fct_pt(0),*/ Div_diff_fct_pt(0)
     {
     	this->disable_ALE();
     }
@@ -230,7 +230,7 @@ public:
 
 			//Get diffusivity tensor
 			DenseMatrix<double> D(DIM, DIM, 0.0);
-			this->get_diff_monodomain(ipt,s,interpolated_x,D);
+			this->get_diff_BaseCellMembranePotential(ipt,s,interpolated_x,D);
 
 			//Get the divergence of the diffusivity tensor
 			Vector<double> divD(DIM, 0.0);
@@ -277,14 +277,14 @@ public:
 							//tmp1[i] but we don't bother making it a vector
 							tmp1 += D(i,j)*(interpolated_dcell_vm_dx[j] + interpolated_dvm_dx[j]);
 
-							tmp2 += D(i,j)*(interpolated_d2cell_vm_dx(i,j) -interpolated_d2vm_dx(i,j));
+							tmp2 += D(i,j)*(interpolated_d2cell_vm_dx(i,j) - interpolated_d2vm_dx(i,j));
 
 							tmp3 += D(i,j)*m_d2testdx[l](i,j);
 						}
-						residuals[local_eqn] += -(dt/2.0)*tmp1*dtestdx(l, i)*W;
+						residuals[local_eqn] += (dt/2.0)*tmp1*dtestdx(l, i)*W;
 					}
 
-					residuals[local_eqn] += (dt/12.0)*tmp2*tmp3*W;
+					residuals[local_eqn] += (dt*dt/12.0)*tmp2*tmp3*W;
 
 					// Calculate the jacobian
 					//-----------------------
@@ -328,10 +328,10 @@ public:
 										tmp3 += D(i,j)*m_d2testdx[l](i,j);
 									}
 
-									jacobian(local_eqn, local_unknown) += -(dt/2.0)*tmp1*dtestdx(l,i)*W;
+									jacobian(local_eqn, local_unknown) += (dt/2.0)*tmp1*dtestdx(l,i)*W;
 								}
 
-								jacobian(local_eqn, local_unknown) += (dt/12.0)*tmp2*tmp3*W;
+								jacobian(local_eqn, local_unknown) += (dt*dt/12.0)*tmp2*tmp3*W;
 							}
 						}
 					}
@@ -343,13 +343,13 @@ public:
 	inline unsigned required_nvalue(const unsigned &n) const 
   		{return 1;}
 
-	/// Access function: Pointer to diffusion  function
-	MonodomainEquationsHermiteApproximationDiffFctPt& diff_fct_pt() 
-	{return Diff_fct_pt;}
+	// /// Access function: Pointer to diffusion  function
+	// MonodomainEquationsHermiteApproximationDiffFctPt& diff_fct_pt() 
+	// {return Diff_fct_pt;}
 
-	/// Access function: Pointer to diffusion function. Const version
-	MonodomainEquationsHermiteApproximationDiffFctPt diff_fct_pt() const 
-	{return Diff_fct_pt;}
+	// /// Access function: Pointer to diffusion function. Const version
+	// MonodomainEquationsHermiteApproximationDiffFctPt diff_fct_pt() const 
+	// {return Diff_fct_pt;}
 
 
 	/// Access function: Pointer to diffusion  function
@@ -403,33 +403,33 @@ public:
 	}
 
 
-	/// \short Get diffusivity tensor at (Eulerian) position 
-	/// x and/or local coordinate s. 
-	/// This function is
-	/// virtual to allow overloading in multi-physics problems where
-	/// the diff function might be determined by
-	/// another system of equations 
-	inline virtual void get_diff_monodomain(const unsigned& ipt,
-                                            const Vector<double> &s,
-                                            const Vector<double>& x,
-                                            DenseMatrix<double>& D) const
-	{
-		//If no diff function has been set, return identity
-		if(Diff_fct_pt==0){
-			// oomph_info << "Not using fct pt" << std::endl;
-			for(unsigned i=0; i<DIM; i++){
-				for(unsigned j=0; j<DIM; j++){
-					D(i,j) =  0.0;
-				}
-				D(i,i)  = 1.0;
-			}
-		}
-		else{
-			// oomph_info << "Using fct pt" << std::endl;
-			// Get diffusivity tensor from function
-			(*Diff_fct_pt)(x,D);
-		}
-	}
+	// /// \short Get diffusivity tensor at (Eulerian) position 
+	// /// x and/or local coordinate s. 
+	// /// This function is
+	// /// virtual to allow overloading in multi-physics problems where
+	// /// the diff function might be determined by
+	// /// another system of equations 
+	// inline virtual void get_diff_monodomain(const unsigned& ipt,
+ //                                            const Vector<double> &s,
+ //                                            const Vector<double>& x,
+ //                                            DenseMatrix<double>& D) const
+	// {
+	// 	//If no diff function has been set, return identity
+	// 	if(Diff_fct_pt==0){
+	// 		// oomph_info << "Not using fct pt" << std::endl;
+	// 		for(unsigned i=0; i<DIM; i++){
+	// 			for(unsigned j=0; j<DIM; j++){
+	// 				D(i,j) =  0.0;
+	// 			}
+	// 			D(i,i)  = 1.0;
+	// 		}
+	// 	}
+	// 	else{
+	// 		// oomph_info << "Using fct pt" << std::endl;
+	// 		// Get diffusivity tensor from function
+	// 		(*Diff_fct_pt)(x,D);
+	// 	}
+	// }
 
 
 	//Get the 'divergence' of the diffusion tensor divD[i] = dD(j,i)/dx_j
@@ -440,7 +440,7 @@ public:
                                             Vector<double>& divD) const
 	{
 		//If no diff function has been set, return the zero vector
-		if(Diff_fct_pt==0)
+		if(this->diff_fct_pt()==0)
 		{
 			for(unsigned i=0; i<DIM; i++)
 			{
@@ -460,7 +460,7 @@ public:
 			Vector<double> x_fd = x;
 
 			DenseMatrix<double> D0(DIM);
-			(*Diff_fct_pt)(x,D0);
+			(*this->diff_fct_pt())(x,D0);
 
 			for(unsigned i=0; i<DIM; i++)
 			{
@@ -468,7 +468,7 @@ public:
 				x_fd[i] += this->Default_fd_jacobian_step;
 
 				DenseMatrix<double> D1(DIM);
-				(*Diff_fct_pt)(x_fd,D1);
+				(*this->diff_fct_pt())(x_fd,D1);
 
 				for(unsigned j=0; j<DIM; j++)
 				{
@@ -527,7 +527,7 @@ public:
 
 		//Get diffusivity tensor
 		DenseMatrix<double> D(DIM,DIM);
-		get_diff_monodomain(ipt,s,interpolated_x,D);
+		this->get_diff_BaseCellMembranePotential(ipt,s,interpolated_x,D);
 
 		//Calculate the total flux made up of the diffusive flux
 		//and the conserved wind
@@ -541,7 +541,7 @@ public:
 		}
 	}
 
-	inline std::vector<std::string> get_variable_names() const override
+	inline std::vector<std::string> get_variable_names_BaseCellMembranePotentialEquations() const override
 	{
 		std::vector<std::string> v = {"Vm"};
 		return v;
@@ -578,7 +578,7 @@ public:
 			// Get local coordinates of plot point
 			this->get_s_plot(iplot,nplot,s);
 
-			file_out << this->interpolated_vm_BaseCellMembranePotential(s) << std::endl;
+			file_out << this->get_interpolated_membrane_potential_BaseCellMembranePotential(s) << std::endl;
 		}
 	}
 
@@ -638,7 +638,7 @@ public:
 protected:
 	/// Pointer to diffusivity function:
 	///		function typedef is given in BaseCellMembranePotentialEquations
-	MonodomainEquationsHermiteApproximationDiffFctPt Diff_fct_pt;
+	// MonodomainEquationsHermiteApproximationDiffFctPt Diff_fct_pt;
 
 	MonodomainEquationsHermiteApproximationDivDiffFctPt Div_diff_fct_pt;	
 };
@@ -725,7 +725,7 @@ private:
 		this->interpolated_x(s,x);
 
 		for(unsigned i=0;i<DIM;i++) {outfile << x[i] << " ";}
-		outfile << this->interpolated_vm_BaseCellMembranePotential(s) << " ";
+		outfile << this->get_interpolated_membrane_potential_BaseCellMembranePotential(s) << " ";
 
 		//Get the gradients
 		(void)this->dshape_eulerian(s,psi,dpsidx);
@@ -743,7 +743,7 @@ private:
 
 		//Get diffusivity tensor
 		DenseMatrix<double> D(DIM,DIM,0.0);
-		this->get_diff_monodomain(iplot,s,x,D);
+		this->get_diff_BaseCellMembranePotential(iplot,s,x,D);
 		for(unsigned i=0; i<DIM; i++){
 			for(unsigned j=0; j<=i; j++){
 				outfile << D(i,j) << " ";
@@ -968,7 +968,7 @@ class DiffAugmentedCell<QMonodomainElementHermiteApproximation<DIM, NNODE_1D>>:
 {
 public:
 
-	inline void get_diff_monodomain(const unsigned& ipt,
+	inline void get_diff_BaseCellMembranePotential(const unsigned& ipt,
                                     const Vector<double> &s,
                                     const Vector<double>& x,
                                     DenseMatrix<double>& D) const
@@ -1269,7 +1269,7 @@ class DiffAugmentedCell<TMonodomainElementHermiteApproximation<DIM, NNODE_1D>>:
 {
 public:
 
-	inline void get_diff_monodomain(const unsigned& ipt,
+	inline void get_diff_BaseCellMembranePotential(const unsigned& ipt,
                                     const Vector<double> &s,
                                     const Vector<double>& x,
                                     DenseMatrix<double>& D) const

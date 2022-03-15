@@ -19,11 +19,9 @@ bidomain_elements.h \
 bidomain_flux_elements.h \
 refineable_bidomain_elements.h \
 monodomain_elements_crank_nicolson.h \
-monodomain_elements_simpsons_one_third_approximation.h \
-monodomain_elements_simpsons_three_eighths_approximation.h \
-monodomain_elements_hermite_approximation.h \
-monodomain_elements_double_taylor_approximation.h \
-monodomain_elements_pade_2_point_1_1_approximant.h
+monodomain_elements_obrechkoff_1_1.h \
+no_diffusion_elements.h \
+refineable_monodomain_crank_nicolson_elements.h
 
 # Define name of library
 libname = cell_membrane_potential

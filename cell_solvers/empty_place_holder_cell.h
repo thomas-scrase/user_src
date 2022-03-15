@@ -32,7 +32,7 @@ namespace oomph
 		// it returns a Nan. This is to ensure that the user correctly handles the initial conditions
 		// of this cell. If they forget or make a mistake, then the initial conditions will contian
 		// nans.
-		double return_initial_membrane_potential(const unsigned &cell_type){return nan("");}
+		double return_initial_membrane_potential(const unsigned &cell_type){return 0.0;}
 
 		void Calculate_Derivatives(const Boost_State_Type &Variables,
 									const double &t,

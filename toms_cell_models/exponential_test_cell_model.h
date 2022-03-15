@@ -10,18 +10,29 @@
 
 namespace oomph
 {
+	//dydt = V
+	//dVdt = -y+I_stim
+
+	//Oscillatory solutions:
+	//d2ydt2 = -y + I_stim
+	//d2Vdt2 = -V + dI_stimdt (?)
+	static double K_Default_ExponentialTestCellModel = 1.0;
+
+
 	class ExponentialTestCellModel : public CellModelBaseFullySegregated
 	{
 	public:
-		ExponentialTestCellModel()
+		ExponentialTestCellModel() : K(K_Default_ExponentialTestCellModel)
 		{
 			Cell_Model_Name = "ExponentialTestCellModel";
 
-			//This cell is empty
+			//The active strain is the first (and only) other variable the model generates
+			active_strain_index = 0;
+
 			Names_Of_Cell_Variables = { "y" };
 			Names_Of_Other_Parameters = { };
 			Names_Of_Other_Variables = { };
-			Names_Of_Output_Data = { };
+			Names_Of_Output_Data = { "ActiveStrain" };
 
 			FinalizeConstruction();
 		}
@@ -30,7 +41,7 @@ namespace oomph
 
 		double return_initial_state_variable(const unsigned &v, const unsigned &cell_type){return 0.0;}
 
-		double return_initial_membrane_potential(const unsigned &cell_type){return 1.0;}
+		double return_initial_membrane_potential(const unsigned &cell_type){return 0.0;}
 
 		void Calculate_Derivatives(const Boost_State_Type &Variables,
 									const double &t,
@@ -41,8 +52,8 @@ namespace oomph
 									Vector<double> &Variable_Derivatives,
 									double &Iion)
 		{
-			Variable_Derivatives[0] = Variables[Num_Cell_Vars];
-			Iion = -Variables[0];
+			Variable_Derivatives[0] = K*Variables[Num_Cell_Vars];
+			Iion = -Variables[0]+Istim;
 		}
 
 		void get_optional_output(const Boost_State_Type &Variables,
@@ -51,7 +62,20 @@ namespace oomph
 								const double &Istim,
 								const Vector<double> &Other_Parameters,
 								const Vector<double> &Other_Variables,
-								Vector<double> &Out){ }
+								Vector<double> &Out)
+		{
+			//Oscillates
+			const double min = 0.7;
+			Out[0] = 0.5*(min-1.0)*(1.0-cos(sqrt(K)*t));
+		}
+
+		void set_K(const double& new_k)
+		{
+			K = new_k;
+		}
+
+	private:
+		double K;
 	};
 
 }

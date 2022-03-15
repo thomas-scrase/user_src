@@ -97,7 +97,7 @@ namespace oomph
 
 			//Get diffusivity tensor
 			DenseMatrix<double> D(DIM,DIM,0.0);
-			this->get_diff_monodomain(ipt,s,interpolated_x,D);
+			this->get_diff_BaseCellMembranePotential(ipt,s,interpolated_x,D);
 
 			// Assemble residuals and Jacobian
 			//--------------------------------

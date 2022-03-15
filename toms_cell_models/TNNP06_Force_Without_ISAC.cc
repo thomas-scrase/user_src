@@ -131,41 +131,41 @@ TNNP06_Force_Without_ISAC::TNNP06_Force_Without_ISAC()
 	//Assign the names of the variables used by this model
 	Names_Of_Cell_Variables =
 	{
-		"Vm",
-		"cai",
-		"CaSR",
-		"CaSS",
-		"Nai",
-		"Ki",
-		"sm",
-		"sh",
-		"sj",
-		"sxr1",
-		"sxr2",
-		"sxs",
-		"ss",
-		"sr",
-		"sd",
-		"sf",
-		"sf2",
-		"sfcass",
-		"sRR",
-		"mNaL",
-		"hNaL",
-		"wt_C3",
-		"wt_O",
-		"wt_C1",
-		"wt_C2",
-		"wt_I",
-		"N",
-		"XBprer",
-		"XBpostr",
-		"SL",
-		"xXBpostr",
-		"xXBprer",
-		"TRPNCaL",
-		"TRPNCaH",
-		"intf"
+		"cai",		//cai
+		"Nai",		//Nai
+		"Ki",		//Ki
+		"CaSR",		//CaSR
+		"CaSS",		//CaSS
+		"sm",		//sm
+		"sh",		//sh
+		"sj",		//sj
+		"sd",		//sd
+		"sf",		//sf
+		"sf2",		//sf2
+		"sfcass",	//sfcass
+		"sr",		//sr
+		"ss",		//ss
+		"sxr1",		//sxr1
+		"sxr2",		//sxr2
+		"sxs",		//sxs
+		
+		"sRR",		//sRR
+		"mNaL",		//mNaL
+		"hNaL",		//hNaL
+		"wt_C3",	//wt_C3
+		"wt_O",		//wt_O
+		"wt_C1",	//wt_C1
+		"wt_C2",	//wt_C2
+		"wt_I",		//wt_I
+		"N",		//N
+		"XBprer",	//XBprer
+		"XBpostr",	//XBpostr
+		"SL",		//SL
+		"xXBpostr",	//xXBpostr
+		"xXBprer",	//xXBprer
+		"TRPNCaL",	//TRPNCaL
+		"TRPNCaH",	//TRPNCaH
+		"intf"		//intf
 	};
 	Names_Of_Other_Parameters =
 	{
@@ -192,9 +192,81 @@ TNNP06_Force_Without_ISAC::~TNNP06_Force_Without_ISAC()
 
 double TNNP06_Force_Without_ISAC::return_initial_state_variable(const unsigned &v, const unsigned &cell_type)
 {
-	const double Vars[50] = {8.37604e-05, 2.43747, 0.000187031, 8.66537, 135.875, 0.00157112, 0.756077, 0.755924, 0, 1,
-			6.89887e-24, 1.74656e-18, 0.156871, 0.369442, 0.326288, 0.128122, 0.0189051, 9.24159e-05, 0.000163242, 9.61494e-05, 1.89167e-05, 2.04175e-08, 2.40518e-08, 7.09812e-09, 2.00552e-12, 1.18375e-12, 7.40385e-17,
-			0.999998, 2.25571e-08, 3.19131e-05, 0.988368, 0.999517, 0.999982, 0.991112, 0.00029464, 0.427938, 0.998997, 5.46719e-05, 0.000619172, 0.000306603, 2.2339e-05, 0.999848, 2.1554e-05, 0.000114638, 2.19965, 0.00700003, 1.84508e-08, 0.0181649, 0.156304, -0.00105964};
+	const double Vars[50] = {
+		8.37604e-05,	//cai
+		8.66537,	//Nai
+		135.875,	//Ki
+		2.43747,	//CaSR
+		0.000187031,	//CaSS
+		0.00157112,	//sm
+		0.756077,	//sh
+		0.755924,	//sj
+		0,	//sxr1
+		1,	//sxr2
+		6.89887e-24,	//sxs
+		1.74656e-18,	//ss
+		0.156871,	//sr
+		0.369442,	//sd
+		0.326288,	//sf
+		0.128122,	//sf2
+		0.0189051,	//sfcass
+		9.24159e-05,	//sRR
+
+		0.000163242,	//mNaL
+		9.61494e-05,	//hNaL
+		1.89167e-05,	//wt_C3
+		2.04175e-08,	//wt_O
+		2.40518e-08,	//wt_C1
+		7.09812e-09,	//wt_C2
+		2.00552e-12,	//wt_I
+
+		// 1.18375e-12,	//N
+		// 7.40385e-17,	//XBprer
+		// 0.999998,		//XBpostr
+		// 2.25571e-08,	//SL
+		// 3.19131e-05,	//xXBpostr
+		// 0.988368,		//xXBprer
+		// 0.999517,		//TRPNCaL
+		// 0.999982,		//TRPNCaH
+		// 0.991112,		//intf
+
+		0.97,			//N
+		0.01,			//XBprer
+		0.01,			//XBpostr
+		SLset,			//SL
+		x_0,			//xXBpostr
+		0.0,			//xXBprer
+		0.01447254,		//TRPNCaL
+		0.2320947,		//TRPNCaH
+		0.0,			//intf
+
+
+
+
+
+
+
+
+
+
+
+		// 0.00029464,
+		// 0.427938,
+		// 0.998997,
+		// 5.46719e-05,
+		// 0.000619172,
+		// 0.000306603,
+		// 2.2339e-05,
+		// 0.999848,
+		// 2.1554e-05,
+		// 0.000114638,
+		// 2.19965,
+		// 0.00700003,
+		// 1.84508e-08,
+		// 0.0181649,
+		// 0.156304,
+		// -0.00105964
+	};
 
 	return Vars[v];
 }
@@ -206,13 +278,13 @@ double TNNP06_Force_Without_ISAC::return_initial_membrane_potential(const unsign
 
 
 void TNNP06_Force_Without_ISAC::Calculate_Derivatives(const Boost_State_Type &Variables,
-									const double &t,
-									const unsigned &cell_type,
-									const double &Istim,
-									const Vector<double> &Other_Parameters,
-									const Vector<double> &Other_Variables,
-									Vector<double> &Variable_Derivatives,
-									double &Iion)
+														const double &t,
+														const unsigned &cell_type,
+														const double &Istim,
+														const Vector<double> &Other_Parameters,
+														const Vector<double> &Other_Variables,
+														Vector<double> &Variable_Derivatives,
+														double &Iion)
 {
 	const double cai 	  = Variables[cai_TT]; // 0.00007;
 	const double CaSR   = Variables[CaSR_TT]; // 1.3;
@@ -232,6 +304,7 @@ void TNNP06_Force_Without_ISAC::Calculate_Derivatives(const Boost_State_Type &Va
 	const double sf2    = Variables[sf2_TT]; // 1.0;
 	const double sfcass = Variables[sfcass_TT]; // 1.0;
 	const double sRR    = Variables[sRR_TT]; // 1.0;
+
 	const double mNaL   = Variables[mNaL_TT];
 	const double hNaL   = Variables[hNaL_TT];
 	const double wt_C3  = Variables[wt_C3_TT];  // 1.0;
@@ -946,15 +1019,16 @@ void TNNP06_Force_Without_ISAC::Calculate_Derivatives(const Boost_State_Type &Va
 
 
 void TNNP06_Force_Without_ISAC::get_optional_output(const Boost_State_Type &Variables,
-								const double &t,
-								const unsigned &cell_type,
-								const double &Istim,
-								const Vector<double> &Other_Parameters,
-								const Vector<double> &Other_Variables,
-								Vector<double> &Out)
+													const double &t,
+													const unsigned &cell_type,
+													const double &Istim,
+													const Vector<double> &Other_Parameters,
+													const Vector<double> &Other_Variables,
+													Vector<double> &Out)
 {
 	// Out[0] = (SL - SLrest)/SLrest;
 	Out[0] = (Variables[SL_TT] - SLset)/SLset;
+	oomph_info << "active strain cell " << Out[0] << ". " << Variables[SL_TT] << " " << SLset << std::endl;
 }
 
 }; //End namespace
