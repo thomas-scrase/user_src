@@ -11,13 +11,13 @@
 
 namespace oomph{
 
-namespace ISMAIL_TT
-{
-	template <typename T> int sgn( T val )
-	{
-		return (val > T(0)) - (val < T(0));
-	}
-};
+// namespace ISMAIL_TT
+// {
+// 	template <typename T> int sgn( T val )
+// 	{
+// 		return (val > T(0)) - (val < T(0));
+// 	}
+// };
 
 class IsmailTNNP06 : public CellModelBaseFullySegregated
 {
@@ -103,7 +103,7 @@ public:
 
 protected:
 	
-	int sign(double a){ return ((a) < (0.) ? (-1.0) : (1.0));}
+	double sign(double a){ return ((a) < (0.) ? (-1.0) : (1.0));}
 	double heav(double a){ return ((a) < (0.) ? (0.0) : (1.0));}
 
 
@@ -201,18 +201,18 @@ protected:
 	//==========================
 	// PARAMETER FOR INTEGRATION
 	//==========================
-	double  m_HT; // time step
+	// double  m_HT; // time step
 	
 	//==================================
 	// PARAMETERS FOR INITIAL CONDITIONS 
 	//==================================
 	//Initial values of state variables
-	double svolt;
-	double Cai;
-	double CaSR;
-	double CaSS;
-	double Nai;
-	double Ki;
+	// double svolt;
+	// double Cai;
+	// double CaSR;
+	// double CaSS;
+	// double Nai;
+	// double Ki;
 	
 	//==================================
 	// PARAMETER FOR SIMULATION DURATION
@@ -223,17 +223,17 @@ protected:
 	//=====================================
 	// PARAMETERS FOR STIMULATION PROTOCOLS 
 	//=====================================	
-	double stimduration;
-	double stimstrength;
-	double tbegin;
-	double tend;
-	int counter;
-	double dia;
-	double basicperiod;
-	double basicapd;
-	int repeats;
-	double Istim;
-	double time;
+	// double stimduration;
+	// double stimstrength;
+	// double tbegin;
+	// double tend;
+	// int counter;
+	// double dia;
+	// double basicperiod;
+	// double basicapd;
+	// int repeats;
+	// double Istim;
+	// double time;
 	//double m_HT;
 	
 	//
@@ -277,7 +277,7 @@ protected:
 	double bcss;
 	double ccss;
 	double CaBuf;
-	double bc;
+	// double bc;
 	double cc;
 	double Ak1;
 	double Bk1;
@@ -339,54 +339,54 @@ protected:
 	double inverseVcF;
 	double inversevssF2;
 	
-	double sm;
-	double sh;
-	double sj;
-	double sxr1;
-	double sxr2;
-	double sxs; 
-	double ss;  
-	double sr;
-	double sd;
-	double sf;
-	double sf2;
-	double sfcass;
-	double sRR;
-	double sOO;
-	double sItot;
+	// double sm;
+	// double sh;
+	// double sj;
+	// double sxr1;
+	// double sxr2;
+	// double sxs; 
+	// double ss;  
+	// double sr;
+	// double sd;
+	// double sf;
+	// double sf2;
+	// double sfcass;
+	// double sRR;
+	// double sOO;
+	// double sItot;
 	
-	// CVODE
-	int NEQ;
-	double T0;		// Initial time
-	double T1;		// First output time
-	double TMULT;
-	int NOUT;
-	double rtol;	// Scalar relative tolerance
-	double atol;	// Vector absolute tolerance
-	double TOUT;
-	double IOUT;
+	// // CVODE
+	// int NEQ;
+	// double T0;		// Initial time
+	// double T1;		// First output time
+	// double TMULT;
+	// int NOUT;
+	// double rtol;	// Scalar relative tolerance
+	// double atol;	// Vector absolute tolerance
+	// double TOUT;
+	// double IOUT;
 	
-	int flag, k;
+	// int flag, k;
 	// N_Vector y, abstol;
-	void *cvode_mem;
-	double *data;
-	double *ropt;
-	long int *iopt;
+	// void *cvode_mem;
+	// double *data;
+	// double *ropt;
+	// long int *iopt;
 	
 	// Rice et al.
 	//============
-	double N_NoXB;
-	double P_NoXB;
-	double N;
-	double P;
-	double XBprer;
-	double XBpostr;
-	double SL;
-	double xXBpostr;
-	double xXBprer;
-	double TropCaL;
-	double TropCaH; 
-	double intf0; 
+	// double N_NoXB;
+	// double P_NoXB;
+	// double N;
+	// double P;
+	// double XBprer;
+	// double XBpostr;
+	// double SL;
+	// double xXBpostr;
+	// double xXBprer;
+	// double TropCaL;
+	// double TropCaH; 
+	// double intf0; 
 	double kon, konT, koffL, koffLT, koffH, koffHT, Qkon, Qkoff;
 	double sovr_ze, len_thick, sovr_cle, len_thin, len_hbare, len_sovr, SOVFThick, SOVFThin, perm, permtot, perm50, nperm, inprmt;
 	double kn_p, kn_pT, Qkn_p, kp_n, kp_nT, Qkp_n, fapp, fappT, Qfapp, gapslmd, gslmod, gapp, gappT, Qgapp;
@@ -394,7 +394,7 @@ protected:
 	double gxbmd, gxbT, gxb, Qgxb, sigmap, sigman;
 	double SSXBprer, SSXBpostr, Fnordv, kxb, force, active_force;
 	double ppforce, PCon_t, PExp_t, SLrest, PCon_col, PExp_col, SLcol;
-	bool singlecell, SEon, SEon_LengthClamp, myo, contraction, Isovolume, WholeHeart;
+	bool /*singlecell,*//* SEon, SEon_LengthClamp,*/ myo /*,contraction, *//*Isovolume,*/ /*WholeHeart*/;
 	double afterload, KSE, SLset, SLref, pulse_number, index, PreloadF;
 	double dSLisolated, visc, massf, SLmin, SLmax, dSL, dtyf_prer, dtyf_postr, xPsi;
 	double sovr_ze_dt, sovr_cle_dt, len_sovr_dt, SOVFThick_dt, SOVFThin_dt;
@@ -436,8 +436,8 @@ protected:
 	//=====
 	double INaL;
 	double GNaL;
-	double mNaL;
-	double hNaL;
+	// double mNaL;
+	// double hNaL;
 	double alpha_mNaL;
 	double beta_mNaL;
 	double mNaL_INF;

@@ -69,41 +69,28 @@ namespace oomph{
 class OHaraRudyRushLarsen : public CellModelBaseFullySegregated
 {
 public:
-	OHaraRudyRushLarsen();
+	OHaraRudyRushLarsen(const unsigned& number_of_backup_values);
 
 	~OHaraRudyRushLarsen();
 
-	double return_initial_state_variable(const unsigned &v, const unsigned &cell_type);
+	std::string get_cell_model_name(){return "OHaraRudyRushLarsen";}
+protected:
+	double get_initial_state_variable(const unsigned &v);
 
-	double return_initial_membrane_potential(const unsigned &cell_type);
+	unsigned index_of_membrane_potential_in_cell_data(){return 0;}
 
-	void Calculate_Derivatives(const Boost_State_Type &Variables,
-														const double &t,
-														const unsigned &cell_type,
-														const double &Istim,
-														const Vector<double> &Other_Parameters,
-														const Vector<double> &Other_Variables,
-														Vector<double> &Variable_Derivatives,
-														double &Iion);
+	void TakeTimestep(const double& dt, const double &t, double* state);
 
-	void get_optional_output(const Boost_State_Type &Variables,
-													const double &t,
-													const unsigned &cell_type,
-													const double &Istim,
-													const Vector<double> &Other_Parameters,
-													const Vector<double> &Other_Variables,
-													Vector<double> &Out);
+	virtual void get_output(double *state, double *out);
+public:
 
 	enum Cell_Variables_Enum : unsigned
 	{
 
 	};
-	enum Other_Parameters_Enum : unsigned
-	{
-		ZIndex_TT
-	};		
 
 protected:
+		unsigned cell_type;
 
 		//constants
 		double nao;

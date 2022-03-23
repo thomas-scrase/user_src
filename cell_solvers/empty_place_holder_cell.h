@@ -13,12 +13,10 @@ namespace oomph
 	class Empty_Cell : public CellModelBaseFullySegregated
 	{
 	public:
-		Empty_Cell()
+		Empty_Cell(const unsigned& number_of_backup_values) : CellModelBaseFullySegregated(number_of_backup_values)
 		{
 			//This cell is empty
-			Names_Of_Cell_Variables = { };
-			Names_Of_Other_Parameters = { };
-			Names_Of_Other_Variables = { };
+			Names_Of_Cell_Variables = { "Vm" };
 			Names_Of_Output_Data = { };
 
 			FinalizeConstruction();
@@ -26,30 +24,18 @@ namespace oomph
 
 		~Empty_Cell(){ }
 
-		double return_initial_state_variable(const unsigned &v, const unsigned &cell_type){return 0.0;}
+		std::string get_cell_model_name(){return "empty cell";}
 
-		//Since this cell does not have any concept of what is a sensible value of membrane potential
-		// it returns a Nan. This is to ensure that the user correctly handles the initial conditions
-		// of this cell. If they forget or make a mistake, then the initial conditions will contian
-		// nans.
-		double return_initial_membrane_potential(const unsigned &cell_type){return 0.0;}
 
-		void Calculate_Derivatives(const Boost_State_Type &Variables,
-									const double &t,
-									const unsigned &cell_type,
-									const double &Istim,
-									const Vector<double> &Other_Parameters,
-									const Vector<double> &Other_Variables,
-									Vector<double> &Variable_Derivatives,
-									double &Iion){ }
+	protected:
 
-		void get_optional_output(const Boost_State_Type &Variables,
-								const double &t,
-								const unsigned &cell_type,
-								const double &Istim,
-								const Vector<double> &Other_Parameters,
-								const Vector<double> &Other_Variables,
-								Vector<double> &Out){ }
+		unsigned index_of_membrane_potential_in_cell_data(){return 0;}
+
+		double get_initial_state_variable(const unsigned &v){return 0.0;}
+
+		void TakeTimestep(const double& dt, const double& t, double* state){ }
+
+		void get_output(double *state, double *out){ }
 	};
 
 }

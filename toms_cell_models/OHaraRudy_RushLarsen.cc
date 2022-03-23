@@ -54,9 +54,12 @@
 
 namespace oomph{
 
-OHaraRudyRushLarsen::OHaraRudyRushLarsen()
+OHaraRudyRushLarsen::OHaraRudyRushLarsen(const unsigned& number_of_backup_values) : CellModelBaseFullySegregated(number_of_backup_values)
 {
-	Cell_Model_Name = "OHaraRudyRushLarsen";
+	//Default cell type
+	cell_type = 100;
+
+
 	//constants
 	nao=140.0;//extracellular sodium in mM
 	cao=1.8;//extracellular calcium in mM
@@ -102,6 +105,7 @@ OHaraRudyRushLarsen::OHaraRudyRushLarsen()
 	//Assign the names of the variables used by this model
 	Names_Of_Cell_Variables =
 	{
+		"Vm",
 		"nai",
 		"nass",
 		"ki",
@@ -143,17 +147,9 @@ OHaraRudyRushLarsen::OHaraRudyRushLarsen()
 		"Jrelp",
 		"CaMKt"
 	};
-	Names_Of_Other_Parameters =
-	{
 
-	};
-	Names_Of_Other_Variables =
-	{
-
-	};
 	Names_Of_Output_Data =
 	{
-
 	};
 
 	FinalizeConstruction();
@@ -164,72 +160,81 @@ OHaraRudyRushLarsen::~OHaraRudyRushLarsen()
 
 }
 
-double OHaraRudyRushLarsen::return_initial_state_variable(const unsigned &v, const unsigned &cell_type)
+double OHaraRudyRushLarsen::get_initial_state_variable(const unsigned &v)
 {
-	double Vars[40] = {
-		7.0, 7.0, 145.0, 145.0, 1.0e-4, 1.0e-4, 1.2, 1.2, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
+	double Vars[41] = {
+		-87.5, 7.0, 7.0, 145.0, 145.0, 1.0e-4, 1.0e-4, 1.2, 1.2, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0,
 		1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0};
 
 	if(v>=0 && v<=40){return Vars[v];}
 }
 
-double OHaraRudyRushLarsen::return_initial_membrane_potential(const unsigned &cell_type)
+void OHaraRudyRushLarsen::TakeTimestep(const double& dt, const double &t, double* state)
 {
-	return -87.5;
-}
+	//We don't want to take a time-step larger than 0.01ms
+	if(dt>0.01)
+	{
+		const unsigned N_solve_at_0p01 = unsigned(dt/0.01);
+		const double remainder = dt - N_solve_at_0p01*0.01;
+		double t_running = t;
 
-void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variables,
-									const double &t,
-									const unsigned &cell_type,
-									const double &Istim,
-									const Vector<double> &Other_Parameters,
-									const Vector<double> &Other_Variables,
-									Vector<double> &Variable_Derivatives,
-									double &Iion)
-{
+		for(unsigned n=0; n<N_solve_at_0p01; n++)
+		{
+			TakeTimestep(0.01, t_running, state);
+			t_running+=0.01;
+		}
+		if(remainder>0.0)
+		{
+			TakeTimestep(remainder, t_running, state);
+		}
+
+		return;
+	}
+
 	//Extract the variables
-	const double nai=Variables[0];
-	const double nass=Variables[1];
-	const double ki=Variables[2];
-	const double kss=Variables[3];
-	const double cai=Variables[4];
-	const double cass=Variables[5];
-	const double cansr=Variables[6];
-	const double cajsr=Variables[7];
-	const double m=Variables[8];
-	const double hf=Variables[9];
-	const double hs=Variables[10];
-	const double j=Variables[11];
-	const double hsp=Variables[12];
-	const double jp=Variables[13];
-	const double mL=Variables[14];
-	const double hL=Variables[15];
-	const double hLp=Variables[16];
-	const double a=Variables[17];
-	const double iF=Variables[18];
-	const double iS=Variables[19];
-	const double ap=Variables[20];
-	const double iFp=Variables[21];
-	const double iSp=Variables[22];
-	const double d=Variables[23];
-	const double ff=Variables[24];
-	const double fs=Variables[25];
-	const double fcaf=Variables[26];
-	const double fcas=Variables[27];
-	const double jca=Variables[28];
-	const double nca=Variables[29];
-	const double ffp=Variables[30];
-	const double fcafp=Variables[31];
-	const double xrf=Variables[32];
-	const double xrs=Variables[33];
-	const double xs1=Variables[34];
-	const double xs2=Variables[35];
-	const double xk1=Variables[36];
-	const double Jrelnp=Variables[37];
-	const double Jrelp=Variables[38];
-	const double CaMKt=Variables[39];
+	double v=state[0];
+	double nai=state[0+1];
+	double nass=state[1+1];
+	double ki=state[2+1];
+	double kss=state[3+1];
+	double cai=state[4+1];
+	double cass=state[5+1];
+	double cansr=state[6+1];
+	double cajsr=state[7+1];
+	double m=state[8+1];
+	double hf=state[9+1];
+	double hs=state[10+1];
+	double j=state[11+1];
+	double hsp=state[12+1];
+	double jp=state[13+1];
+	double mL=state[14+1];
+	double hL=state[15+1];
+	double hLp=state[16+1];
+	double a=state[17+1];
+	double iF=state[18+1];
+	double iS=state[19+1];
+	double ap=state[20+1];
+	double iFp=state[21+1];
+	double iSp=state[22+1];
+	double d=state[23+1];
+	double ff=state[24+1];
+	double fs=state[25+1];
+	double fcaf=state[26+1];
+	double fcas=state[27+1];
+	double jca=state[28+1];
+	double nca=state[29+1];
+	double ffp=state[30+1];
+	double fcafp=state[31+1];
+	double xrf=state[32+1];
+	double xrs=state[33+1];
+	double xs1=state[34+1];
+	double xs2=state[35+1];
+	double xk1=state[36+1];
+	double Jrelnp=state[37+1];
+	double Jrelp=state[38+1];
+	double CaMKt=state[39+1];
 
-	const double v=Variables[Num_Cell_Vars];
+	
 
 	//introduce varaibles for reversal potentials, currents, fluxes, and CaMK
 	double ENa,EK,EKs;
@@ -252,37 +257,37 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 
 	double mss=1.0/(1.0+exp((-(v+39.57))/9.871));
 	double tm=1.0/(6.765*exp((v+11.64)/34.77)+8.552*exp(-(v+77.42)/5.955));
-	// m=mss-(mss-m)*exp(-dt/tm);
+	m=mss-(mss-m)*exp(-dt/tm);
 	double hss=1.0/(1+exp((v+82.90)/6.086));
 	double thf=1.0/(1.432e-5*exp(-(v+1.196)/6.285)+6.149*exp((v+0.5096)/20.27));
 	double ths=1.0/(0.009794*exp(-(v+17.95)/28.05)+0.3343*exp((v+5.730)/56.66));
 	double Ahf=0.99;
 	double Ahs=1.0-Ahf;
-	// hf=hss-(hss-hf)*exp(-dt/thf);
-	// hs=hss-(hss-hs)*exp(-dt/ths);
+	hf=hss-(hss-hf)*exp(-dt/thf);
+	hs=hss-(hss-hs)*exp(-dt/ths);
 	double h=Ahf*hf+Ahs*hs;
 	double jss=hss;
 	double tj=2.038+1.0/(0.02136*exp(-(v+100.6)/8.281)+0.3052*exp((v+0.9941)/38.45));
-	// j=jss-(jss-j)*exp(-dt/tj);
+	j=jss-(jss-j)*exp(-dt/tj);
 	double hssp=1.0/(1+exp((v+89.1)/6.086));
 	double thsp=3.0*ths;
-	// hsp=hssp-(hssp-hsp)*exp(-dt/thsp);
+	hsp=hssp-(hssp-hsp)*exp(-dt/thsp);
 	double hp=Ahf*hf+Ahs*hsp;
 	double tjp=1.46*tj;
-	// jp=jss-(jss-jp)*exp(-dt/tjp);
+	jp=jss-(jss-jp)*exp(-dt/tjp);
 	double GNa=75;
 	double fINap=(1.0/(1.0+KmCaMK/CaMKa));
 	INa=GNa*(v-ENa)*m*m*m*((1.0-fINap)*h*j+fINap*hp*jp);
 	  
 	double mLss=1.0/(1.0+exp((-(v+42.85))/5.264));
 	double tmL=tm;
-	// mL=mLss-(mLss-mL)*exp(-dt/tmL);
+	mL=mLss-(mLss-mL)*exp(-dt/tmL);
 	double hLss=1.0/(1.0+exp((v+87.61)/7.488));
 	double thL=200.0;
-	// hL=hLss-(hLss-hL)*exp(-dt/thL);
+	hL=hLss-(hLss-hL)*exp(-dt/thL);
 	double hLssp=1.0/(1.0+exp((v+93.81)/7.488));
 	double thLp=3.0*thL;
-	// hLp=hLssp-(hLssp-hLp)*exp(-dt/thLp);
+	hLp=hLssp-(hLssp-hLp)*exp(-dt/thLp);
 	double GNaL=0.0075;
 	if (cell_type==100)
 	{
@@ -293,7 +298,7 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 
 	double ass=1.0/(1.0+exp((-(v-14.34))/14.82));
 	double ta=1.0515/(1.0/(1.2089*(1.0+exp(-(v-18.4099)/29.3814)))+3.5/(1.0+exp((v+100.0)/29.3814)));
-	// a=ass-(ass-a)*exp(-dt/ta);
+	a=ass-(ass-a)*exp(-dt/ta);
 	double iss=1.0/(1.0+exp((v+43.94)/5.711));
 	double delta_epi;
 	if (cell_type==100)
@@ -310,17 +315,17 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 	tiS*=delta_epi;
 	double AiF=1.0/(1.0+exp((v-213.6)/151.2));
 	double AiS=1.0-AiF;
-	// iF=iss-(iss-iF)*exp(-dt/tiF);
-	// iS=iss-(iss-iS)*exp(-dt/tiS);
+	iF=iss-(iss-iF)*exp(-dt/tiF);
+	iS=iss-(iss-iS)*exp(-dt/tiS);
 	double i=AiF*iF+AiS*iS;
 	double assp=1.0/(1.0+exp((-(v-24.34))/14.82));
-	// ap=assp-(assp-ap)*exp(-dt/ta);
+	ap=assp-(assp-ap)*exp(-dt/ta);
 	double dti_develop=1.354+1.0e-4/(exp((v-167.4)/15.89)+exp(-(v-12.23)/0.2154));
 	double dti_recover=1.0-0.5/(1.0+exp((v+70.0)/20.0));
 	double tiFp=dti_develop*dti_recover*tiF;
 	double tiSp=dti_develop*dti_recover*tiS;
-	// ap=assp-(assp-ap)*exp(-dt/ta);
-	// iSp=iss-(iss-iSp)*exp(-dt/tiSp);
+	ap=assp-(assp-ap)*exp(-dt/ta);
+	iSp=iss-(iss-iSp)*exp(-dt/tiSp);
 	double ip=AiF*iFp+AiS*iSp;
 	double Gto=0.02;
 	if (cell_type==100)
@@ -336,36 +341,36 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 
 	double dss=1.0/(1.0+exp((-(v+3.940))/4.230));
 	double td=0.6+1.0/(exp(-0.05*(v+6.0))+exp(0.09*(v+14.0)));
-	// d=dss-(dss-d)*exp(-dt/td);
+	d=dss-(dss-d)*exp(-dt/td);
 	double fss=1.0/(1.0+exp((v+19.58)/3.696));
 	double tff=7.0+1.0/(0.0045*exp(-(v+20.0)/10.0)+0.0045*exp((v+20.0)/10.0));
 	double tfs=1000.0+1.0/(0.000035*exp(-(v+5.0)/4.0)+0.000035*exp((v+5.0)/6.0));
 	double Aff=0.6;
 	double Afs=1.0-Aff;
-	// ff=fss-(fss-ff)*exp(-dt/tff);
-	// fs=fss-(fss-fs)*exp(-dt/tfs);
+	ff=fss-(fss-ff)*exp(-dt/tff);
+	fs=fss-(fss-fs)*exp(-dt/tfs);
 	double f=Aff*ff+Afs*fs;
 	double fcass=fss;
 	double tfcaf=7.0+1.0/(0.04*exp(-(v-4.0)/7.0)+0.04*exp((v-4.0)/7.0));
 	double tfcas=100.0+1.0/(0.00012*exp(-v/3.0)+0.00012*exp(v/7.0));
 	double Afcaf=0.3+0.6/(1.0+exp((v-10.0)/10.0));
 	double Afcas=1.0-Afcaf;
-	// fcaf=fcass-(fcass-fcaf)*exp(-dt/tfcaf);
-	// fcas=fcass-(fcass-fcas)*exp(-dt/tfcas);
+	fcaf=fcass-(fcass-fcaf)*exp(-dt/tfcaf);
+	fcas=fcass-(fcass-fcas)*exp(-dt/tfcas);
 	double fca=Afcaf*fcaf+Afcas*fcas;
 	double tjca=75.0;
-	// jca=fcass-(fcass-jca)*exp(-dt/tjca);
+	jca=fcass-(fcass-jca)*exp(-dt/tjca);
 	double tffp=2.5*tff;
-	// ffp=fss-(fss-ffp)*exp(-dt/tffp);
+	ffp=fss-(fss-ffp)*exp(-dt/tffp);
 	double fp=Aff*ffp+Afs*fs;
 	double tfcafp=2.5*tfcaf;
-	// fcafp=fcass-(fcass-fcafp)*exp(-dt/tfcafp);
+	fcafp=fcass-(fcass-fcafp)*exp(-dt/tfcafp);
 	double fcap=Afcaf*fcafp+Afcas*fcas;
 	double Kmn=0.002;
 	double k2n=1000.0;
 	double km2n=jca*1.0;
 	double anca=1.0/(k2n/km2n+pow(1.0+Kmn/cass,4.0));
-	// nca=anca*k2n/km2n-(anca*k2n/km2n-nca)*exp(-km2n*dt);
+	nca=anca*k2n/km2n-(anca*k2n/km2n-nca)*exp(-km2n*dt);
 	//These are undefined for vffrt = vfrt = v = 0 so we need to be careful, use L'Hopital
 	double PhiCaL;
 	if(std::fabs(v)<1e-9){PhiCaL = 2*F*(cass-0.341*cao);}
@@ -401,8 +406,8 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 	double txrs=1.865+1.0/(0.06629*exp((v-34.70)/7.355)+1.128e-5*exp((-(v-29.74))/25.94));
 	double Axrf=1.0/(1.0+exp((v+54.81)/38.21));
 	double Axrs=1.0-Axrf;
-	// xrf=xrss-(xrss-xrf)*exp(-dt/txrf);
-	// xrs=xrss-(xrss-xrs)*exp(-dt/txrs);
+	xrf=xrss-(xrss-xrf)*exp(-dt/txrf);
+	xrs=xrss-(xrss-xrs)*exp(-dt/txrs);
 	double xr=Axrf*xrf+Axrs*xrs;
 	double rkr=1.0/(1.0+exp((v+55.0)/75.0))*1.0/(1.0+exp((v-10.0)/30.0));
 	double GKr=0.046;
@@ -418,10 +423,10 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 
 	double xs1ss=1.0/(1.0+exp((-(v+11.60))/8.932));
 	double txs1=817.3+1.0/(2.326e-4*exp((v+48.28)/17.80)+0.001292*exp((-(v+210.0))/230.0));
-	// xs1=xs1ss-(xs1ss-xs1)*exp(-dt/txs1);
+	xs1=xs1ss-(xs1ss-xs1)*exp(-dt/txs1);
 	double xs2ss=xs1ss;
 	double txs2=1.0/(0.01*exp((v-50.0)/20.0)+0.0193*exp((-(v+66.54))/31.0));
-	// xs2=xs2ss-(xs2ss-xs2)*exp(-dt/txs2);
+	xs2=xs2ss-(xs2ss-xs2)*exp(-dt/txs2);
 	double KsCa=1.0+0.6/(1.0+pow(3.8e-5/cai,1.4));
 	double GKs=0.0034;
 	if (cell_type==100)
@@ -432,7 +437,7 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 
 	double xk1ss=1.0/(1.0+exp(-(v+2.5538*ko+144.59)/(1.5692*ko+3.8115)));
 	double txk1=122.2/(exp((-(v+127.2))/20.36)+exp((v+236.8)/69.33));
-	// xk1=xk1ss-(xk1ss-xk1)*exp(-dt/txk1);
+	xk1=xk1ss-(xk1ss-xk1)*exp(-dt/txk1);
 	double rk1=1.0/(1.0+exp((v+105.8-2.6*ko)/9.493));
 	double GK1=0.1908;
 	if (cell_type==100)
@@ -624,7 +629,7 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 
 	CaMKb=CaMKo*(1.0-CaMKt)/(1.0+KmCaM/cass);
 	CaMKa=CaMKb+CaMKt;
-	// CaMKt+=dt*(aCaMK*CaMKb*(CaMKb+CaMKt)-bCaMK*CaMKt);
+	CaMKt+=dt*(aCaMK*CaMKb*(CaMKb+CaMKt)-bCaMK*CaMKt);
 
 	JdiffNa=(nass-nai)/2.0;
 	JdiffK=(kss-ki)/2.0;
@@ -642,7 +647,7 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 	{
 	tau_rel=0.005;
 	}
-	// Jrelnp=Jrel_inf-(Jrel_inf-Jrelnp)*exp(-dt/tau_rel);
+	Jrelnp=Jrel_inf-(Jrel_inf-Jrelnp)*exp(-dt/tau_rel);
 	double btp=1.25*bt;
 	double a_relp=0.5*btp;
 	double Jrel_infp=a_relp*(-ICaL)/(1.0+pow(1.5/cajsr,8.0));
@@ -655,7 +660,7 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 	{
 	tau_relp=0.005;
 	}
-	// Jrelp=Jrel_infp-(Jrel_infp-Jrelp)*exp(-dt/tau_relp);
+	Jrelp=Jrel_infp-(Jrel_infp-Jrelp)*exp(-dt/tau_relp);
 	double fJrelp=(1.0/(1.0+KmCaMK/CaMKa));
 	Jrel=(1.0-fJrelp)*Jrelnp+fJrelp*Jrelp;
 
@@ -672,11 +677,11 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 
 	Jtr=(cansr-cajsr)/100.0;
 
-	// nai+=dt*(-(INa+INaL+3.0*INaCa_i+3.0*INaK+INab)*Acap/(F*vmyo)+JdiffNa*vss/vmyo);
-	// nass+=dt*(-(ICaNa+3.0*INaCa_ss)*Acap/(F*vss)-JdiffNa);
+	nai+=dt*(-(INa+INaL+3.0*INaCa_i+3.0*INaK+INab)*Acap/(F*vmyo)+JdiffNa*vss/vmyo);
+	nass+=dt*(-(ICaNa+3.0*INaCa_ss)*Acap/(F*vss)-JdiffNa);
 
-	// ki+=dt*(-(Ito+IKr+IKs+IK1+IKb+Istim-2.0*INaK)*Acap/(F*vmyo)+JdiffK*vss/vmyo);
-	// kss+=dt*(-(ICaK)*Acap/(F*vss)-JdiffK);
+	ki+=dt*(-(Ito+IKr+IKs+IK1+IKb+this->get_stimulus(t)-2.0*INaK)*Acap/(F*vmyo)+JdiffK*vss/vmyo);
+	kss+=dt*(-(ICaK)*Acap/(F*vss)-JdiffK);
 
 	double Bcai;
 	if (cell_type==100)
@@ -687,81 +692,66 @@ void OHaraRudyRushLarsen::Calculate_Derivatives(const Boost_State_Type &Variable
 	{
 	Bcai=1.0/(1.0+cmdnmax*kmcmdn/pow(kmcmdn+cai,2.0)+trpnmax*kmtrpn/pow(kmtrpn+cai,2.0));
 	}
-	// cai+=dt*(Bcai*(-(IpCa+ICab-2.0*INaCa_i)*Acap/(2.0*F*vmyo)-Jup*vnsr/vmyo+Jdiff*vss/vmyo));
+	cai+=dt*(Bcai*(-(IpCa+ICab-2.0*INaCa_i)*Acap/(2.0*F*vmyo)-Jup*vnsr/vmyo+Jdiff*vss/vmyo));
 
 	double Bcass=1.0/(1.0+BSRmax*KmBSR/pow(KmBSR+cass,2.0)+BSLmax*KmBSL/pow(KmBSL+cass,2.0));
-	// cass+=dt*(Bcass*(-(ICaL-2.0*INaCa_ss)*Acap/(2.0*F*vss)+Jrel*vjsr/vss-Jdiff));
+	cass+=dt*(Bcass*(-(ICaL-2.0*INaCa_ss)*Acap/(2.0*F*vss)+Jrel*vjsr/vss-Jdiff));
 
-	// cansr+=dt*(Jup-Jtr*vjsr/vnsr);
+	cansr+=dt*(Jup-Jtr*vjsr/vnsr);
 
 	double Bcajsr=1.0/(1.0+csqnmax*kmcsqn/pow(kmcsqn+cajsr,2.0));
-	// cajsr+=dt*(Bcajsr*(Jtr-Jrel));
+	cajsr+=dt*(Bcajsr*(Jtr-Jrel));
 
 	const double ncas = anca*k2n/km2n;
 
-	//Set the new values of the variables
-	Variable_Derivatives[0] = (-(INa+INaL+3.0*INaCa_i+3.0*INaK+INab)*Acap/(F*vmyo)+JdiffNa*vss/vmyo);
-	Variable_Derivatives[1] = (-(ICaNa+3.0*INaCa_ss)*Acap/(F*vss)-JdiffNa);
-	Variable_Derivatives[2] = (-(Ito+IKr+IKs+IK1+IKb+Istim-2.0*INaK)*Acap/(F*vmyo)+JdiffK*vss/vmyo);
-	Variable_Derivatives[3] = (-(ICaK)*Acap/(F*vss)-JdiffK);
-	Variable_Derivatives[4] = (Bcai*(-(IpCa+ICab-2.0*INaCa_i)*Acap/(2.0*F*vmyo)-Jup*vnsr/vmyo+Jdiff*vss/vmyo));
-	Variable_Derivatives[5] = (Bcass*(-(ICaL-2.0*INaCa_ss)*Acap/(2.0*F*vss)+Jrel*vjsr/vss-Jdiff));
-	Variable_Derivatives[6] = (Jup-Jtr*vjsr/vnsr);
-	Variable_Derivatives[7] = (Bcajsr*(Jtr-Jrel));
-	Variable_Derivatives[8] = (-m+mss+(m-mss)*exp(-dt_rushlarsen/tm))/dt_rushlarsen;//	(1.0/tm)*(mss-m);
-	Variable_Derivatives[9] = (-hf+hss+(hf-hss)*exp(-dt_rushlarsen/thf))/dt_rushlarsen;//	(1.0/thf)*(hss-hf);
-	Variable_Derivatives[10] = (-hs+hss+(hs-hss)*exp(-dt_rushlarsen/ths))/dt_rushlarsen;//	(1.0/ths)*(hss-hs);
-	Variable_Derivatives[11] = (-j+jss+(j-jss)*exp(-dt_rushlarsen/tj))/dt_rushlarsen;//	(1.0/tj)*(jss-j);
-	Variable_Derivatives[12] = (-hsp+hssp+(hsp-hssp)*exp(-dt_rushlarsen/thsp))/dt_rushlarsen;//	(1.0/thsp)*(hssp-hsp);
-	Variable_Derivatives[13] = (-jp+jss+(jp-jss)*exp(-dt_rushlarsen/tjp))/dt_rushlarsen;//	(1.0/tjp)*(jss-jp);
-	Variable_Derivatives[14] = (-mL+mLss+(mL-mLss)*exp(-dt_rushlarsen/tmL))/dt_rushlarsen;//	(1.0/tmL)*(mLss-mL);
-	Variable_Derivatives[15] = (-hL+hLss+(hL-hLss)*exp(-dt_rushlarsen/thL))/dt_rushlarsen;//	(1.0/thL)*(hLss-hL);
-	Variable_Derivatives[16] = (-hLp+hLssp+(hLp-hLssp)*exp(-dt_rushlarsen/thLp))/dt_rushlarsen;//	(1.0/thLp)*(hLssp-hLp);
-	Variable_Derivatives[17] = (-a+ass+(a-ass)*exp(-dt_rushlarsen/ta))/dt_rushlarsen;//	(1.0/ta)*(ass-a);
-	Variable_Derivatives[18] = (-iF+iss+(iF-iss)*exp(-dt_rushlarsen/tiF))/dt_rushlarsen;//	(1.0/tiF)*(iss-iF);
-	Variable_Derivatives[19] = (-iS+iss+(iS-iss)*exp(-dt_rushlarsen/tiS))/dt_rushlarsen;//	(1.0/tiS)*(iss-iS);
-	Variable_Derivatives[20] = (-ap+assp+(ap-assp)*exp(-dt_rushlarsen/ta))/dt_rushlarsen;//	(1.0/ta)*(assp-ap);
-	Variable_Derivatives[21] = (-ap+assp+(ap-assp)*exp(-dt_rushlarsen/ta))/dt_rushlarsen;//	(1.0/ta)*(assp-ap);
-	Variable_Derivatives[22] = (-iSp+iss+(iSp-iss)*exp(-dt_rushlarsen/tiSp))/dt_rushlarsen;//	(1.0/tiSp)*(iss-iSp);
-	Variable_Derivatives[23] = (-d+dss+(d-dss)*exp(-dt_rushlarsen/td))/dt_rushlarsen;//	(1.0/td)*(dss-d);
-	Variable_Derivatives[24] = (-ff+fss+(ff-fss)*exp(-dt_rushlarsen/tff))/dt_rushlarsen;//	(1.0/tff)*(fss-ff);
-	Variable_Derivatives[25] = (-fs+fss+(fs-fss)*exp(-dt_rushlarsen/tfs))/dt_rushlarsen;//	(1.0/tfs)*(fss-fs);
-	Variable_Derivatives[26] = (-fcaf+fcass+(fcaf-fcass)*exp(-dt_rushlarsen/tfcaf))/dt_rushlarsen;//	(1.0/tfcaf)*(fcass-fcaf);
-	Variable_Derivatives[27] = (-fcas+fcass+(fcas-fcass)*exp(-dt_rushlarsen/tfcas))/dt_rushlarsen;//	(1.0/tfcas)*(fcass-fcas);
-	Variable_Derivatives[28] = (-jca+fcass+(jca-fcass)*exp(-dt_rushlarsen/tjca))/dt_rushlarsen;//	(1.0/tjca)*(fcass-jca);
-	Variable_Derivatives[29] = (-nca+ncas+(nca-ncas)*exp(-dt_rushlarsen/km2n))/dt_rushlarsen;//	(1.0/km2n)*(ncas-nca);
-	Variable_Derivatives[30] = (-ffp+fss+(ffp-fss)*exp(-dt_rushlarsen/tffp))/dt_rushlarsen;//	(1.0/tffp)*(fss-ffp);
-	Variable_Derivatives[31] = (-fcafp+fcass+(fcafp-fcass)*exp(-dt_rushlarsen/tfcafp))/dt_rushlarsen;//	(1.0/tfcafp)*(fcass-fcafp);
-	Variable_Derivatives[32] = (-xrf+xrss+(xrf-xrss)*exp(-dt_rushlarsen/txrf))/dt_rushlarsen;//	(1.0/txrf)*(xrss-xrf);
-	Variable_Derivatives[33] = (-xrs+xrss+(xrs-xrss)*exp(-dt_rushlarsen/txrs))/dt_rushlarsen;//	(1.0/txrs)*(xrss-xrs);
-	Variable_Derivatives[34] = (-xs1+xs1ss+(xs1-xs1ss)*exp(-dt_rushlarsen/txs1))/dt_rushlarsen;//	(1.0/txs1)*(xs1ss-xs1);
-	Variable_Derivatives[35] = (-xs2+xs2ss+(xs2-xs2ss)*exp(-dt_rushlarsen/txs2))/dt_rushlarsen;//	(1.0/txs2)*(xs2ss-xs2);
-	Variable_Derivatives[36] = (-xk1+xk1ss+(xk1-xk1ss)*exp(-dt_rushlarsen/txk1))/dt_rushlarsen;//	(1.0/txk1)*(xk1ss-xk1);
-	Variable_Derivatives[37] = (-Jrelnp+Jrel_inf+(Jrelnp-Jrel_inf)*exp(-dt_rushlarsen/tau_rel))/dt_rushlarsen;//	(1.0/tau_rel)*(Jrel_inf-Jrelnp);
-	Variable_Derivatives[38] = (-Jrelp+Jrel_infp+(Jrelp-Jrel_infp)*exp(-dt_rushlarsen/tau_relp))/dt_rushlarsen;//	(1.0/tau_relp)*(Jrel_infp-Jrelp);
-	Variable_Derivatives[39] = (aCaMK*CaMKb*(CaMKb+CaMKt)-bCaMK*CaMKt);
-
 	//The active strain and ion membrane current
-	Iion = -(INa+INaL+Ito+ICaL+ICaNa+ICaK+IKr+IKs+IK1+INaCa+INaK+INab+IKb+IpCa+ICab+Istim);
+	v += -dt*(INa+INaL+Ito+ICaL+ICaNa+ICaK+IKr+IKs+IK1+INaCa+INaK+INab+IKb+IpCa+ICab+this->get_stimulus(t));
 
-	// //If a derivative is non-finite then set it to some random value
-	// for(unsigned i=0; i<Num_Cell_Vars; i++){
-	// 	Variable_Derivatives[i] = (std::isfinite(Variable_Derivatives[i]))*Variable_Derivatives[i]
-	// 							+ (!std::isfinite(Variable_Derivatives[i]))*((double)std::rand()/(RAND_MAX));
-	// }
-	// //Do the same for the ionic current
-	// Iion = (std::isfinite(Iion))*Iion
-	// 	 + (!std::isfinite(Iion))*((double)std::rand()/(RAND_MAX));
+	state[0]	= v;
+	state[0+1]	= nai;
+	state[1+1]	= nass;
+	state[2+1]	= ki;
+	state[3+1]	= kss;
+	state[4+1]	= cai;
+	state[5+1]	= cass;
+	state[6+1]	= cansr;
+	state[7+1]	= cajsr;
+	state[8+1]	= m;
+	state[9+1]	= hf;
+	state[10+1]	= hs;
+	state[11+1]	= j;
+	state[12+1]	= hsp;
+	state[13+1]	= jp;
+	state[14+1]	= mL;
+	state[15+1]	= hL;
+	state[16+1]	= hLp;
+	state[17+1]	= a;
+	state[18+1]	= iF;
+	state[19+1]	= iS;
+	state[20+1]	= ap;
+	state[21+1]	= iFp;
+	state[22+1]	= iSp;
+	state[23+1]	= d;
+	state[24+1]	= ff;
+	state[25+1]	= fs;
+	state[26+1]	= fcaf;
+	state[27+1]	= fcas;
+	state[28+1]	= jca;
+	state[29+1]	= nca;
+	state[30+1]	= ffp;
+	state[31+1]	= fcafp;
+	state[32+1]	= xrf;
+	state[33+1]	= xrs;
+	state[34+1]	= xs1;
+	state[35+1]	= xs2;
+	state[36+1]	= xk1;
+	state[37+1]	= Jrelnp;
+	state[38+1]	= Jrelp;
+	state[39+1]	= CaMKt;
 }
 
 
-void OHaraRudyRushLarsen::get_optional_output(const Boost_State_Type &Variables,
-								const double &t,
-								const unsigned &cell_type,
-								const double &Istim,
-								const Vector<double> &Other_Parameters,
-								const Vector<double> &Other_Variables,
-								Vector<double> &Out)
+void OHaraRudyRushLarsen::get_output(double *state, double *out)
 {
 	//Intentionally empty
 }

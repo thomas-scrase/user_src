@@ -724,10 +724,10 @@ public:
 		{return Source_fct_pt;}
 
 
-	//Pointer to the predicted membrane potential function
-	BaseCellMembranePotentialPredictedVmFctPt& predicted_vm_fct_pt()
+	//Pointer to the cell membrane potential function
+	BaseCellMembranePotentialPredictedVmFctPt& cell_vm_fct_pt()
 		{return Predicted_vm_fct_pt;}
-	BaseCellMembranePotentialPredictedVmFctPt predicted_vm_fct_pt() const
+	BaseCellMembranePotentialPredictedVmFctPt cell_vm_fct_pt() const
 		{return Predicted_vm_fct_pt;}
 
 
@@ -760,12 +760,12 @@ public:
     }
   }
 
-  //Get the predicted vm at node l - used by strang splitting elements to get the value of vm
+  //Get the cell vm at node l - used by strang splitting elements to get the value of vm
   // achieved through a segregated, decoupled cell solve step
-  inline virtual double get_nodal_predicted_vm_BaseCellMembranePotential(const unsigned &l) const
+  inline virtual double get_nodal_cell_vm_BaseCellMembranePotential(const unsigned &l) const
   {
   	// throw OomphLibError(
-		 //        "get_nodal_predicted_vm_BaseCellMembranePotential, this shouldn't be called in a multi-domain problem",
+		 //        "get_nodal_cell_vm_BaseCellMembranePotential, this shouldn't be called in a multi-domain problem",
 		 //        OOMPH_CURRENT_FUNCTION,
 		 //        OOMPH_EXCEPTION_LOCATION);
    //If no source function has been set, return zero
@@ -781,7 +781,7 @@ public:
   //Get the interpolated value of membrane potential as predicted by the cell model
   // Passes shape function to allow for call to non-overridden version of this func
   // without the need to re-compute shape functions
-  virtual void get_interpolated_predicted_vm_and_dpredicted_vm_dx(double &interpolated_pred_vm, Vector<double> &interpolated_dpred_vm_dx, const Vector<double>& s, const unsigned& ipt, const Shape &psi, const DShape &dpsidx) const
+  virtual void get_interpolated_cell_vm_and_dcell_vm_dx(double &interpolated_pred_vm, Vector<double> &interpolated_dpred_vm_dx, const Vector<double>& s, const unsigned& ipt, const Shape &psi, const DShape &dpsidx) const
   {
   	//Zero the data
 		interpolated_pred_vm = 0.0;
@@ -796,7 +796,7 @@ public:
     { 
       //We get the predicted vm value from the nodal predicted vm, in the cell mesh this will be
       // overridden by a call to the correct cell in the mesh.
-      double pred_vm_value = this->get_nodal_predicted_vm_BaseCellMembranePotential(l);
+      double pred_vm_value = this->get_nodal_cell_vm_BaseCellMembranePotential(l);
 
       //Calculated interpolated value
       interpolated_pred_vm += pred_vm_value*psi(l);

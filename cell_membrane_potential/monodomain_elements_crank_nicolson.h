@@ -150,7 +150,7 @@ namespace oomph{
 		      // to interpolate the source function of this element by default but:
 		      // in the case of this element belonging to a cell mesh interpolates the values at the nodes given by the cells
 		      // in the case of multiphysics is overridden to interpolate the value in the external element
-		      this->get_interpolated_predicted_vm_and_dpredicted_vm_dx(interpolated_predvm, interpolated_dpredvmdx, s, ipt, psi, dpsidx);
+		      this->get_interpolated_cell_vm_and_dcell_vm_dx(interpolated_predvm, interpolated_dpredvmdx, s, ipt, psi, dpsidx);
 
 		      // oomph_info << interpolated_predvm << std::endl;
 
@@ -354,7 +354,7 @@ namespace oomph{
 		// 	   dvmdt += time_stepper_pt->weight(1,t)*this->nodal_value(t,n,vm_nodal_index);
 		// 	  }
 		// 	  //Add the previous timestep and the current timestep
-		// 	  dvmdt += time_stepper_pt->weight(1,1)*this->get_nodal_predicted_vm_BaseCellMembranePotential(n);
+		// 	  dvmdt += time_stepper_pt->weight(1,1)*this->get_nodal_cell_vm_BaseCellMembranePotential(n);
 
 		// 	  dvmdt += time_stepper_pt->weight(1,0)*this->nodal_value(0,n,vm_nodal_index);
 		// 	}

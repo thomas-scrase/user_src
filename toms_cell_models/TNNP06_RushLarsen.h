@@ -14,35 +14,24 @@ namespace oomph{
 class TNNP06RushLarsen : public CellModelBaseFullySegregated
 {
 public:
-	TNNP06RushLarsen();
+	TNNP06RushLarsen(const unsigned& number_of_backup_values);
 
 	~TNNP06RushLarsen();
+	std::string get_cell_model_name(){return "TNNP06RushLarsen";}
 
-	double return_initial_state_variable(const unsigned &v, const unsigned &cell_type);
+protected:
+	double get_initial_state_variable(const unsigned &v);
 
-	double return_initial_membrane_potential(const unsigned &cell_type);
+	void TakeTimestep(const double& dt, double* state);
 
+	unsigned index_of_membrane_potential_in_cell_data(){return Vm_TT;}
 
-	void Calculate_Derivatives(const Boost_State_Type &Variables,
-														const double &t,
-														const unsigned &cell_type,
-														const double &Istim,
-														const Vector<double> &Other_Parameters,
-														const Vector<double> &Other_Variables,
-														Vector<double> &Variable_Derivatives,
-														double &Iion);
+	void get_output(double *state, double *out);
 
-
-	void get_optional_output(const Boost_State_Type &Variables,
-													const double &t,
-													const unsigned &cell_type,
-													const double &Istim,
-													const Vector<double> &Other_Parameters,
-													const Vector<double> &Other_Variables,
-													Vector<double> &Out);
-
+public:
 	enum Cell_Variables_Enum : unsigned
 	{
+		Vm_TT,
 		Cai_TT,
 		Nai_TT,
 		Ki_TT,
@@ -68,9 +57,11 @@ public:
 	{
 		ZIndex_TT
 	};
-		
+
+	
 
 protected:
+		unsigned cell_type;
 		double Tent_R;
 		double Tent_F;
 		double Tent_T;

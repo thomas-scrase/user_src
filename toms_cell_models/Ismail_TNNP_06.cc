@@ -74,22 +74,22 @@ IsmailTNNP06::IsmailTNNP06()
 	GpCa=0.1238;
 	KpCa=0.0005;
 	GpK=0.0146;
-	svolt=-86.2;
-	Cai=0.00007;
-	CaSR=1.3;
-	CaSS=0.00007;
-	Nai=7.67;
-	Ki=138.3;
+	// svolt=-86.2;
+	// Cai=0.00007;
+	// CaSR=1.3;
+	// CaSS=0.00007;
+	// Nai=7.67;
+	// Ki=138.3;
 	
-	stimduration=1.;
-	stimstrength=-52;
-	tbegin=0;
-	tend=tbegin+stimduration;
-	counter=1;
-	dia=5000;
-	basicperiod=1000.0;
-	basicapd=274;
-	repeats=10;
+	// stimduration=1.;
+	// stimstrength=-52;
+	// tbegin=0;
+	// tend=tbegin+stimduration;
+	// counter=1;
+	// dia=5000;
+	// basicperiod=1000.0;
+	// basicapd=274;
+	// repeats=10;
 	
 	//
 	inverseVcF2=1/(2*Vc*F);
@@ -101,7 +101,7 @@ IsmailTNNP06::IsmailTNNP06()
 	sqt1_a1 = 2.172; sqt1_b1 = 1.077; 
 	
 	// INaL
-	mNaL = hNaL = alpha_mNaL = beta_mNaL = mNaL_INF = hNaL_INF = TAU_mNaL = 0.0;
+	/*mNaL = hNaL =*/ alpha_mNaL = beta_mNaL = mNaL_INF = hNaL_INF = TAU_mNaL = 0.0;
 	TAU_hNaL = 600;
 
 	//===========
@@ -225,6 +225,8 @@ IsmailTNNP06::IsmailTNNP06()
 	 De Tombe, PP and Little, WC. Inotropic effects of ejection 
 	 are myocardial properties. Am J Physiol. 1994 Mar;266(3 Pt 2):H1202-13. */
 	
+	myo = true;
+
 	//Parameters for Windkessel model
 	// units for Cwind are ml/mmHg
 	Cwind = 0.4; 
@@ -255,8 +257,10 @@ IsmailTNNP06::IsmailTNNP06()
 	// LVV = std::pow((SLset/SLref),3.)*(Vref+0.333*Vwall)-0.333*Vwall;
 
 
-	//By default let's assume it is not a mutant cell type
-	m_mutant = false;
+	//By default let's assume it is a mutant cell type
+	m_mutant = true;
+
+	m_epiMidRatio = 1.0;
 
 
 	//Assign the names of the variables used by this model
@@ -654,6 +658,7 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 									Vector<double> &Variable_Derivatives,
 									double &Iion)
 {
+
 	const double sm			= Variables[sm_tt];
 	const double sh			= Variables[sh_tt];
 	const double sj			= Variables[sj_tt];
@@ -698,69 +703,36 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 	const double TropCaH	= Variables[TropCaH_tt];
 	const double intf0 		= Variables[intf0_tt];
 
-
-	// oomph_info << "sm " <<  sm << std::endl;
-	// oomph_info << "sh " <<  sh << std::endl;
-	// oomph_info << "sj " <<  sj << std::endl;
-	// oomph_info << "sqt1_O " <<  sqt1_O << std::endl;
-	// oomph_info << "sqt1_C1 " <<  sqt1_C1 << std::endl;
-	// oomph_info << "sqt1_C2 " <<  sqt1_C2 << std::endl;
-	// oomph_info << "sqt1_C3 " <<  sqt1_C3 << std::endl;
-	// oomph_info << "sqt1_I " <<  sqt1_I << std::endl;
-	// oomph_info << "sxs " <<  sxs << std::endl;
-	// oomph_info << "ss " <<  ss << std::endl;
-	// oomph_info << "sr " <<  sr << std::endl;
-	// oomph_info << "sd " <<  sd << std::endl;
-	// oomph_info << "sf " <<  sf << std::endl;
-	// oomph_info << "sf2 " <<  sf2 << std::endl;
-	// oomph_info << "sfcass " <<  sfcass << std::endl;
-	// oomph_info << "sRR " <<  sRR << std::endl;
-	// oomph_info << "Cai " <<  Cai << std::endl;
-	// oomph_info << "CaSR " <<  CaSR << std::endl;
-	// oomph_info << "CaSS " <<  CaSS << std::endl;
-	// oomph_info << "mNaL " <<  mNaL << std::endl;
-	// oomph_info << "hNaL " <<  hNaL << std::endl;
-	// oomph_info << "Nai " <<  Nai << std::endl;
-	// oomph_info << "Ki " <<  Ki << std::endl;
-	// oomph_info << "N_NoXB " <<  N_NoXB << std::endl;
-	// oomph_info << "N " <<  N << std::endl;
-	// oomph_info << "P_NoXB " <<  P_NoXB << std::endl;
-	// oomph_info << "P " <<  P << std::endl;
-	// oomph_info << "XBprer " <<  XBprer << std::endl;
-	// oomph_info << "XBpostr " <<  XBpostr << std::endl;
-	// oomph_info << "SL " <<  SL << std::endl;
-	// oomph_info << "xXBpostr " <<  xXBpostr << std::endl;
-	// oomph_info << "xXBprer " <<  xXBprer << std::endl;
-	// oomph_info << "TropCaL " <<  TropCaL << std::endl;
-	// oomph_info << "TropCaH " <<  TropCaH << std::endl;
-	// oomph_info << "intf0 " <<  intf0 << std::endl;
-
-	// for(auto i : Variables)
-	// {
-	// 	if(!std::isfinite(i))
-	// 	{
-	// 		exit(0);
-	// 	}
-	// }
-
 	const double Vm = Variables[Num_Cell_Vars];
 
 
 	if (cell_type == 100)
+	{
 		Gks=0.392;
+	}
 	else if (cell_type == 102)
+	{
 		Gks=0.392;
+	}
 	else
+	{
 		Gks=0.098;
+	}
 	
 	GK1=5.405;
 	//Parameters for Ito
 	if (cell_type == 100)
+	{
 		Gto=0.294;
+	}
 	else if (cell_type == 102)
+	{
 		Gto=0.073;
+	}
 	else
+	{
 		Gto=0.294;
+	}
 
 	//ORiginally cvode solved myocardium stuff
 	// flag = CVode(cvode_mem, TOUT, y, &time, CV_NORMAL);	
@@ -770,7 +742,7 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 	
 	/* Handle Ca binding to troponin here */
 	//  Adjust for temperature
-	konT		= kon	*std::pow(Qkon,(T-273.0-37.0)/10.);
+	konT	= kon	*std::pow(Qkon,(T-273.0-37.0)/10.);
 	koffLT	= koffL	*std::pow(Qkoff,(T-273.0-37.0)/10.);
 	koffHT	= koffH	*std::pow(Qkoff,(T-273.0-37.0)/10.);
 	
@@ -817,17 +789,43 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 	
 	/* Set rate for rates between pre-force and force states*/
 	/* Compute modifiers based on mean strain of states. */
-  	hfmd=std::exp(-ISMAIL_TT::sgn(xXBprer)*hfmdc*((xXBprer/x_0)*(xXBprer/x_0)));
-  	hbmd=std::exp(ISMAIL_TT::sgn((xXBpostr-x_0))*hbmdc*(((xXBpostr-x_0)/x_0)*((xXBpostr-x_0)/x_0)));
+  	hfmd=std::exp(-sign(xXBprer)*hfmdc*((xXBprer/x_0)*(xXBprer/x_0)));
+	// oomph_info << "xXBprer " << xXBprer << std::endl;
+	// oomph_info << "hfmdc " << hfmdc << std::endl;
+	// oomph_info << "x_0 " << x_0 << std::endl;
+  	hbmd=std::exp(sign((xXBpostr-x_0))*hbmdc*(((xXBpostr-x_0)/x_0)*((xXBpostr-x_0)/x_0)));
 	
 	/* Combine modifiers of hf and hb */
 	hfT=hf*hfmd*std::pow(Qhf,(T-273.0-37.0)/10.);
-	hbT=hb*hbmd*std::pow(Qhb,(T-273.0-37.0)/10.); 
+	// oomph_info << "hf " << hf << std::endl;
+	// oomph_info << "hfmd " << hfmd << std::endl;
+	// oomph_info << "Qhf " << Qhf << std::endl;
+	// oomph_info << "T " << T << std::endl;
+	hbT=hb*hbmd*std::pow(Qhb,(T-273.0-37.0)/10.);
 	
 	/* Set rate for rates gxb, the ATP using XB transition */
 	/* Add term for distortion dependence of gxb */
-    gxbmd = heav(x_0-xXBpostr)*std::exp(sigmap*((x_0-xXBpostr)/x_0)*((x_0-xXBpostr)/x_0))+(1.-heav(x_0-xXBpostr)*std::exp(sigman*(((xXBpostr-x_0)/x_0)*(xXBpostr-x_0)/x_0)));
+	if(x_0>xXBpostr)
+	{
+		gxbmd = std::exp(sigmap*((x_0-xXBpostr)/x_0)*((x_0-xXBpostr)/x_0))+(1.0-std::exp(sigman*(((xXBpostr-x_0)/x_0)*(xXBpostr-x_0)/x_0)));
+	}
+	else
+	{
+		gxbmd = 1.0;
+	}
+    // gxbmd = heav(x_0-xXBpostr)*std::exp(sigmap*((x_0-xXBpostr)/x_0)*((x_0-xXBpostr)/x_0))+(1.-heav(x_0-xXBpostr)*std::exp(sigman*(((xXBpostr-x_0)/x_0)*(xXBpostr-x_0)/x_0)));
+	// oomph_info << "x_0 " << x_0 << std::endl;
+	// oomph_info << "xXBpostr " << xXBpostr << std::endl;
+	// oomph_info << "sigmap " << sigmap << std::endl;
+	// oomph_info << "sigman " << sigman << std::endl;
+
     gxbT = gxb*gxbmd*std::pow(Qgxb,(T-273.0-37.0)/10.);
+
+	// oomph_info << "gxb " << gxb << std::endl;
+	// oomph_info << "gxbmd " << gxbmd << std::endl;
+	// oomph_info << "Qgxb " << Qgxb << std::endl;
+	// oomph_info << "T " << T << std::endl;
+
 	
 	/* update all RUs */
 	Variable_Derivatives[N_NoXB_tt] = -kn_pT * N_NoXB + kp_nT * P_NoXB;
@@ -855,21 +853,21 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 	// Note that passive force is specified in terms of maximal active force.
 	// Passive force is computed in two ways depending on if cell is skinned or intact.
 	ppforce=sign((SL-SLrest))*PCon_t*(std::exp(PExp_t*std::abs((SL-SLrest)))-1);
-    if (singlecell == false) 
-		ppforce += std::max(0.0,(PCon_col*std::exp(PExp_col*(SL-SLcol))));
+    // if (singlecell == false) 
+	ppforce += std::max(0.0,(PCon_col*std::exp(PExp_col*(SL-SLcol))));
 	
 	// Compute afterload either as a contant or from the series elastic element
  	afterload = 0.0;
 	
-    if (SEon == true) {
-		afterload = KSE*(SLset-SL);
-		if ((SEon_LengthClamp==true)&&(index==(pulse_number-1))) {
-			afterload=5000.0*(SLset-SL);
-		}
-    } 
-	else {
-		afterload=0.0; 
-    }
+ //    if (SEon == true) {
+	// 	afterload = KSE*(SLset-SL);
+	// 	if ((SEon_LengthClamp==true)&&(index==(pulse_number-1))) {
+	// 		afterload=5000.0*(SLset-SL);
+	// 	}
+ //    } 
+	// else {
+	// 	afterload=0.0; 
+ //    }
 	
 	//  Compute the integral of forces 
 	Variable_Derivatives[intf0_tt]=(-ppforce+PreloadF+(-force/Fnordv)+afterload);
@@ -937,7 +935,8 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 	//========>>>>>>>>
 	
 	
-	if(myo == false) {
+	if(myo == false)
+	{
 		Variable_Derivatives[N_NoXB_tt]=0.0;
 		Variable_Derivatives[N_tt]=0.0;
 		Variable_Derivatives[P_NoXB_tt]=0.0;
@@ -952,37 +951,63 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 		// Variable_Derivatives[LVV_tt]=0.0;
 	}
 	
-	// dSL=Variable_Derivatives[SL_tt];
+	dSL=Variable_Derivatives[SL_tt];
 	
 	// Compute the duty fractions using King-Alman Rule
 	// Compute for states XBpref and XBf
 	dtyf_prer=(hbT*fappT+gxbT*fappT)/(fappT*hfT+gxbT*hfT+gxbT*gappT+hbT*fappT+hbT*gappT+gxbT*fappT);
 	dtyf_postr=fappT*hfT/(fappT*hfT+gxbT*hfT+gxbT*gappT+hbT*fappT+hbT*gappT+gxbT*fappT);
 	
+	// oomph_info << "fappT " << fappT << std::endl;
+	// oomph_info << "hfT " << hfT << std::endl;
+	// oomph_info << "gxbT " << gxbT << std::endl;
+	// oomph_info << "gappT " << gappT << std::endl;
+	// oomph_info << "hbT " << hbT << std::endl;
+
 	// Compute mean strain by consider two competing effects - SL motion and XB cycling 
-	if(myo == true) {
+	if(myo == true)
+	{
 		Variable_Derivatives[xXBprer_tt] = dSL/2. + xPsi*(1/dtyf_prer)*(-xXBprer*fappT+(xXBpostr-x_0-xXBprer)*hbT);
 		Variable_Derivatives[xXBpostr_tt] = dSL/2. + xPsi*(1/dtyf_postr)*(x_0+xXBprer-xXBpostr)*hfT;
-	} 
-	else {
+		// if(!std::isfinite(Variable_Derivatives[xXBpostr_tt]))
+		// {
+		// 	Variable_Derivatives[xXBpostr_tt] = dSL/2. + xPsi*(x_0+xXBprer-xXBpostr)*(gxbT*gappT+hbT*fappT+hbT*gappT+gxbT*fappT)/fappT;
+		// }
+	}
+	else
+	{
 		Variable_Derivatives[xXBprer_tt]=0.0;
 		Variable_Derivatives[xXBpostr_tt]=0.0;
 	}
 	
+	// oomph_info << "dSL " << dSL << std::endl;
+	// oomph_info << "xPsi " << xPsi << std::endl;
+	// oomph_info << "dtyf_postr " << dtyf_postr << std::endl;
+	// oomph_info << "x_0 " << x_0 << std::endl;
+	// oomph_info << "xXBprer " << xXBprer << std::endl;
+	// oomph_info << "xXBpostr " << xXBpostr << std::endl;
+	// oomph_info << "hfT " << hfT << std::endl;
+
 	// Compute derivative of z-line end of single overlap region
-	sovr_ze_dt=0.;
+	sovr_ze_dt=0.0;
 	if(len_thick/2.>SL/2.) 
+	{
 		sovr_ze_dt=-dSL/2.;
+	}
 	
 	// Compute derivative of centerline of end of single overlap region
-    sovr_cle_dt=0.;
-    if (SL/2.-(SL-len_thin)>len_hbare/2.)
-		sovr_cle_dt=-dSL/2;
+    sovr_cle_dt=0.0;
+
+    if (SL/2.0-(SL-len_thin)>len_hbare/2.0)
+    {
+		sovr_cle_dt=-dSL/2.0;
+	}
 	
 	// Compute the derivative of the length of the single overlap 
 	len_sovr_dt=sovr_ze_dt-sovr_cle_dt;
  	
 	// Compute the derivative of the overlap fraction for thin filament
+
 	SOVFThin_dt = len_sovr_dt/len_thin;
 	
 	// Compute the derivative of the overlap fraction for thick filament
@@ -992,9 +1017,32 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 	//double FrSBXB=((XBpostr+XBprer)/(SSXBpostr + SSXBprer))*SOVFThick;
 	//double FrSBXB_dt=((Variable_Derivatives[XBpostr_tt]+Variable_Derivatives[XBprer_tt])/(SSXBpostr + SSXBprer))*SOVFThick + ((XBpostr+XBprer)/(SSXBpostr + SSXBprer))*SOVFThick_dt;
 	FrSBXB=((XBpostr+XBprer)/(SSXBpostr + SSXBprer));
+
+	// oomph_info << "Variable_Derivatives[XBpostr_tt] " << Variable_Derivatives[XBpostr_tt] << std::endl;
+	// oomph_info << "Variable_Derivatives[XBprer_tt] " << Variable_Derivatives[XBprer_tt] << std::endl;
+	// oomph_info << "SSXBpostr " << SSXBpostr << std::endl;
+	// oomph_info << "SSXBprer " << SSXBprer << std::endl;
+
 	FrSBXB_dt=((Variable_Derivatives[XBpostr_tt]+Variable_Derivatives[XBprer_tt])/(SSXBpostr + SSXBprer));
 	
 	TropToT=Trop_conc*((1.0-SOVFThin)*TropCaL + SOVFThin*(FrSBXB*TropCaH+(1.0-FrSBXB)*TropCaL));
+	
+	// oomph_info << "TropCaL "<< TropCaL << std::endl;
+	// oomph_info << "SOVFThin "<< SOVFThin << std::endl;
+	// oomph_info << "Variable_Derivatives[TropCaL_tt] "<< Variable_Derivatives[TropCaL_tt] << std::endl;
+	// oomph_info << "SOVFThin_dt "<< SOVFThin_dt << std::endl;
+	// oomph_info << "FrSBXB "<< FrSBXB << std::endl;
+	// oomph_info << "TropCaH "<< TropCaH << std::endl;
+	// oomph_info << "FrSBXB "<< FrSBXB << std::endl;
+	// oomph_info << "SOVFThin "<< SOVFThin << std::endl;
+	// oomph_info << "FrSBXB_dt "<< FrSBXB_dt << std::endl;
+	// oomph_info << "TropCaH "<< TropCaH << std::endl;
+	// oomph_info << "FrSBXB "<< FrSBXB << std::endl;
+	// oomph_info << "Variable_Derivatives[TropCaH_tt] "<< Variable_Derivatives[TropCaH_tt] << std::endl;
+	// oomph_info << "FrSBXB_dt "<< FrSBXB_dt << std::endl;
+	// oomph_info << "FrSBXB "<< FrSBXB << std::endl;
+	// oomph_info << "Variable_Derivatives[TropCaL_tt] "<< Variable_Derivatives[TropCaL_tt] << std::endl;
+
 	TropToT_dt=Trop_conc*(-1.0*SOVFThin_dt*TropCaL+(1.0-SOVFThin)*Variable_Derivatives[TropCaL_tt] + SOVFThin_dt*(FrSBXB*TropCaH+(1.0-FrSBXB)*TropCaL) + SOVFThin*(FrSBXB_dt*TropCaH+FrSBXB*Variable_Derivatives[TropCaH_tt]-FrSBXB_dt*TropCaL+(1.0-FrSBXB)*Variable_Derivatives[TropCaL_tt]));
 	/*
 	 if(myo == true)
@@ -1046,13 +1094,19 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 
 
 
+
 	Ek=RTONF*(log((Ko/Ki)));
 	Ena=RTONF*(log((Nao/Nai)));
 	Eks=RTONF*(log((Ko+pKNa*Nao)/(Ki+pKNa*Nai)));
+	
+	
 	Eca=0.5*RTONF*(log((Cao/Cai)));
+
+
+
+
 	Ak1=0.1/(1.+exp(0.06*(Vm-Ek-200)));
-	Bk1=(3.*exp(0.0002*(Vm-Ek+100))+
-		 exp(0.1*(Vm-Ek-10)))/(1.+exp(-0.5*(Vm-Ek)));
+	Bk1=(3.*exp(0.0002*(Vm-Ek+100))+exp(0.1*(Vm-Ek-10)))/(1.+exp(-0.5*(Vm-Ek)));
 	rec_iK1=Ak1/(Ak1+Bk1);
 	rec_iNaK=(1./(1.+0.1245*exp(-0.1*Vm*F/(R*T))+0.0353*exp(-Vm*F/(R*T))));
 	rec_ipK=1./(1.+exp((25-Vm)/5.98));
@@ -1064,8 +1118,7 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 
 
 
-	ICaL=GCaL*sd*sf*sf2*sfcass*4*(Vm-15)*(F*F/(R*T))*
-	(0.25*exp(2*(Vm-15)*F/(R*T))*CaSS-Cao)/(exp(2*(Vm-15)*F/(R*T))-1.);
+	ICaL=GCaL*sd*sf*sf2*sfcass*4.0*(Vm-15.0)*(F*F/(R*T))*(0.25*exp(2.0*(Vm-15.0)*F/(R*T))*CaSS-Cao)/(exp(2.0*(Vm-15.0)*F/(R*T))-1.0);
 
 
 
@@ -1194,30 +1247,69 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 	Ixfer=Vxfer*(CaSS-Cai);
 	
 	
-	// CaCSQN=Bufsr*CaSR/(CaSR+Kbufsr);
-	// Variable_Derivatives[CaSR_tt]=(Iup-Irel-Ileak);
-	// bjsr=Bufsr-CaCSQN-dCaSR-CaSR+Kbufsr;
-	// cjsr=Kbufsr*(CaCSQN+dCaSR+CaSR);
+	CaCSQN=Bufsr*CaSR/(CaSR+Kbufsr);
+	dCaSR=dt_rushlarsen*(Iup-Irel-Ileak);
+	bjsr=Bufsr-CaCSQN-dCaSR-CaSR+Kbufsr;
+	cjsr=Kbufsr*(CaCSQN+dCaSR+CaSR);
 	// CaSR=(sqrt(bjsr*bjsr+4*cjsr)-bjsr)/2;
+	Variable_Derivatives[CaSR_tt] = (-CaSR + (sqrt(bjsr*bjsr+4*cjsr)-bjsr)/2)/dt_rushlarsen;
 	// double dCaSR = (Iup - Irel - Ileak)/(1.0  + (Kbufsr*Bufsr)/pow(CaSR + Kbufsr, 2.0));
+	// Variable_Derivatives[CaSR_tt] = (Iup - Irel - Ileak)/(1.0  + (Kbufsr*Bufsr)/pow(CaSR + Kbufsr, 2.0));
 	Variable_Derivatives[CaSR_tt] = (Iup - Irel - Ileak)/(1.0  + (Kbufsr*Bufsr)/pow(CaSR + Kbufsr, 2.0));
 	
-	// CaSSBuf=Bufss*CaSS/(CaSS+Kbufss);
-	// Variable_Derivatives[CaSS_tt]=(-Ixfer*(Vc/Vss)+Irel*(Vsr/Vss)+(-ICaL*inversevssF2*CAPACITANCE));
-	// bcss=Bufss-CaSSBuf-dCaSS-CaSS+Kbufss;
-	// ccss=Kbufss*(CaSSBuf+dCaSS+CaSS);
+
+	CaSSBuf=Bufss*CaSS/(CaSS+Kbufss);
+	dCaSS=dt_rushlarsen*(-Ixfer*(Vc/Vss)+Irel*(Vsr/Vss)+(-ICaL*inversevssF2*CAPACITANCE));
+	bcss=Bufss-CaSSBuf-dCaSS-CaSS+Kbufss;
+	ccss=Kbufss*(CaSSBuf+dCaSS+CaSS);
 	// CaSS=(sqrt(bcss*bcss+4*ccss)-bcss)/2;
+	Variable_Derivatives[CaSS_tt] = (-CaSS + (sqrt(bcss*bcss+4*ccss)-bcss)/2)/dt_rushlarsen;
 	// double dCaSS =(-Ixfer * (Vc / Vss) + Irel * (Vsr / Vss) + (-ICaL * inversevssF2 * CAPACITANCE))/(1.0 + (Bufss*Kbufss)/pow(CaSS+Kbufss, 2.0));
+	// Variable_Derivatives[CaSS_tt] = (-Ixfer * (Vc / Vss) + Irel * (Vsr / Vss) + (-ICaL * inversevssF2 * CAPACITANCE))/(1.0 + (Bufss*Kbufss)/pow(CaSS+Kbufss, 2.0));
 	Variable_Derivatives[CaSS_tt] = (-Ixfer * (Vc / Vss) + Irel * (Vsr / Vss) + (-ICaL * inversevssF2 * CAPACITANCE))/(1.0 + (Bufss*Kbufss)/pow(CaSS+Kbufss, 2.0));
-	
-	// CaBuf=Bufc*Cai/(Cai+Kbufc);
-	// Variable_Derivatives[Cai_tt=(((-(IbCa+IpCa-2*INaCa+(Isac/3.0))*inverseVcF2*CAPACITANCE)-(Iup-Ileak)*(Vsr/Vc)+Ixfer) - TropToT_dt/1000.0);
-	// bc=Bufc-CaBuf-dCai-Cai+Kbufc;
-	// cc=Kbufc*(CaBuf+dCai+Cai);
+
+
+
+	CaBuf=Bufc*Cai/(Cai+Kbufc);
+
+	// oomph_info << "IbCa " << IbCa << std::endl;
+	// oomph_info << "IpCa " << IpCa << std::endl;
+	// oomph_info << "INaCa " << INaCa << std::endl;
+	// oomph_info << "Isac " << Isac << std::endl;
+	// oomph_info << "inverseVcF2 " << inverseVcF2 << std::endl;
+	// oomph_info << "CAPACITANCE " << CAPACITANCE << std::endl;
+	// oomph_info << "Iup " << Iup << std::endl;
+	// oomph_info << "Ileak " << Ileak << std::endl;
+	// oomph_info << "Vsr " << Vsr << std::endl;
+	// oomph_info << "Vc " << Vc << std::endl;
+	// oomph_info << "Ixfer " << Ixfer << std::endl;
+	// oomph_info << "TropToT_dt " << TropToT_dt << std::endl;
+
+
+	dCai=dt_rushlarsen*(((-(IbCa+IpCa-2*INaCa+(Isac/3.0))*inverseVcF2*CAPACITANCE)-(Iup-Ileak)*(Vsr/Vc)+Ixfer) - TropToT_dt/1000.0);
+
+
+	// oomph_info << "Bufc " << Bufc << std::endl;
+	// oomph_info << "CaBuf " << CaBuf << std::endl;
+	// oomph_info << "dCai " << dCai << std::endl;
+	// oomph_info << "Cai " << Cai << std::endl;
+	// oomph_info << "Kbufc " << Kbufc << std::endl;
+
+	const double bc=Bufc-CaBuf-dCai-Cai+Kbufc;
+	cc=Kbufc*(CaBuf+dCai+Cai);
 	// Cai=(sqrt(bc*bc+4*cc)-bc)/2;
+	
+	// oomph_info << Cai << std::endl;
+	// oomph_info << bc << std::endl;
+	// oomph_info << cc << std::endl;
+
+	Variable_Derivatives[Cai_tt] = (-Cai + (sqrt(bc*bc+4*cc)-bc)/2)/dt_rushlarsen;
+	// oomph_info << Variable_Derivatives[Cai_tt] << std::endl;
 	// double dCai = ((-(IbCa + IpCa - 2 * INaCa) * inverseVcF2 * CAPACITANCE) - (Iup - Ileak) * (Vsr / Vc) + Ixfer)/(1.0 + (Bufc*Kbufc)/pow(Cai + Kbufc, 2.0));
-	Variable_Derivatives[Cai_tt] = ((-(IbCa + IpCa - 2 * INaCa) * inverseVcF2 * CAPACITANCE) - (Iup - Ileak) * (Vsr / Vc) + Ixfer)/(1.0 + (Bufc*Kbufc)/pow(Cai + Kbufc, 2.0));
-    
+	// Variable_Derivatives[Cai_tt] = ((-(IbCa + IpCa - 2 * INaCa) * inverseVcF2 * CAPACITANCE) - (Iup - Ileak) * (Vsr / Vc) + Ixfer)/(1.0 + (Bufc*Kbufc)/pow(Cai + Kbufc, 2.0));
+    	
+	Variable_Derivatives[Cai_tt] = ((-(IbCa + IpCa - 2 * INaCa) * inverseVcF2 * CAPACITANCE) - (Iup - Ileak) * (Vsr / Vc) + Ixfer)/(1.0 + (Bufc*Kbufc)/pow(Cai + Kbufc, 2.0)) - TropToT_dt/1000.0;
+
 	
 	dNai=-(INa+IbNa+3*INaK+3*INaCa+(Isac/3.0))*inverseVcF*CAPACITANCE;
 	Variable_Derivatives[Nai_tt]=dNai;
@@ -1320,24 +1412,76 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 	hNaL_INF   = 1.0/(1+std::exp((Vm+91.0)/6.1));
 
 
-	Variable_Derivatives[sm_tt] 	= ( -sm		+	M_INF-(M_INF-sm)*exp(-dt_rushlarsen/TAU_M))/dt_rushlarsen;
-	Variable_Derivatives[sh_tt] 	= ( -sh		+	H_INF-(H_INF-sh)*exp(-dt_rushlarsen/TAU_H))/dt_rushlarsen;
-	Variable_Derivatives[sj_tt] 	= ( -sj		+	J_INF-(J_INF-sj)*exp(-dt_rushlarsen/TAU_J))/dt_rushlarsen;
+	// Variable_Derivatives[sm_tt] 	= ( -sm			+	M_INF-(M_INF-sm)*exp(-dt_rushlarsen/TAU_M))/dt_rushlarsen;
+	// Variable_Derivatives[sh_tt] 	= ( -sh			+	H_INF-(H_INF-sh)*exp(-dt_rushlarsen/TAU_H))/dt_rushlarsen;
+	// Variable_Derivatives[sj_tt] 	= ( -sj			+	J_INF-(J_INF-sj)*exp(-dt_rushlarsen/TAU_J))/dt_rushlarsen;
 	// Variable_Derivatives[sxr1_tt] 	=( -sxr1		+	Xr1_INF-(Xr1_INF-sxr1)*exp(-dt_rushlarsen/TAU_Xr1))/dt_rushlarsen;
 	// Variable_Derivatives[sxr2_tt] 	=( -sxr2		+	Xr2_INF-(Xr2_INF-sxr2)*exp(-dt_rushlarsen/TAU_Xr2))/dt_rushlarsen;
-	Variable_Derivatives[sxs_tt] 	= ( -sxs		+	Xs_INF-(Xs_INF-sxs)*exp(-dt_rushlarsen/TAU_Xs))/dt_rushlarsen;
-	Variable_Derivatives[ss_tt] 	= ( -ss		+	S_INF-(S_INF-ss)*exp(-dt_rushlarsen/TAU_S))/dt_rushlarsen;
-	Variable_Derivatives[sr_tt] 	= ( -sr		+	R_INF-(R_INF-sr)*exp(-dt_rushlarsen/TAU_R))/dt_rushlarsen;
-	Variable_Derivatives[sd_tt] 	= ( -sd		+	D_INF-(D_INF-sd)*exp(-dt_rushlarsen/TAU_D))/dt_rushlarsen;
-	Variable_Derivatives[sf_tt] 	= ( -sf		+	F_INF-(F_INF-sf)*exp(-dt_rushlarsen/TAU_F))/dt_rushlarsen;
-	Variable_Derivatives[sf2_tt] 	= ( -sf2		+	F2_INF-(F2_INF-sf2)*exp(-dt_rushlarsen/TAU_F2))/dt_rushlarsen;
-	Variable_Derivatives[sfcass_tt] = ( -sfcass	+	FCaSS_INF-(FCaSS_INF-sfcass)*exp(-dt_rushlarsen/TAU_FCaSS))/dt_rushlarsen;
-	Variable_Derivatives[mNaL_tt] 	= (-mNaL		+	mNaL_INF-(mNaL_INF - mNaL)*exp(-dt_rushlarsen/TAU_mNaL))/dt_rushlarsen;
-	Variable_Derivatives[hNaL_tt] 	= (-hNaL		+	hNaL_INF-(hNaL_INF - hNaL)*exp(-dt_rushlarsen/TAU_hNaL))/dt_rushlarsen;
+	// Variable_Derivatives[sxs_tt] 	= ( -sxs		+	Xs_INF-(Xs_INF-sxs)*exp(-dt_rushlarsen/TAU_Xs))/dt_rushlarsen;
+	// Variable_Derivatives[ss_tt] 	= ( -ss			+	S_INF-(S_INF-ss)*exp(-dt_rushlarsen/TAU_S))/dt_rushlarsen;
+	// Variable_Derivatives[sr_tt] 	= ( -sr			+	R_INF-(R_INF-sr)*exp(-dt_rushlarsen/TAU_R))/dt_rushlarsen;
+	// Variable_Derivatives[sd_tt] 	= ( -sd			+	D_INF-(D_INF-sd)*exp(-dt_rushlarsen/TAU_D))/dt_rushlarsen;
+	// Variable_Derivatives[sf_tt] 	= ( -sf			+	F_INF-(F_INF-sf)*exp(-dt_rushlarsen/TAU_F))/dt_rushlarsen;
+	// Variable_Derivatives[sf2_tt] 	= ( -sf2		+	F2_INF-(F2_INF-sf2)*exp(-dt_rushlarsen/TAU_F2))/dt_rushlarsen;
+	// Variable_Derivatives[sfcass_tt] = ( -sfcass		+	FCaSS_INF-(FCaSS_INF-sfcass)*exp(-dt_rushlarsen/TAU_FCaSS))/dt_rushlarsen;
+	// Variable_Derivatives[mNaL_tt] 	= (-mNaL		+	mNaL_INF-(mNaL_INF - mNaL)*exp(-dt_rushlarsen/TAU_mNaL))/dt_rushlarsen;
+	// Variable_Derivatives[hNaL_tt] 	= (-hNaL		+	hNaL_INF-(hNaL_INF - hNaL)*exp(-dt_rushlarsen/TAU_hNaL))/dt_rushlarsen;
+
+	Variable_Derivatives[sm_tt] 	= 	(M_INF-sm)/TAU_M;
+	Variable_Derivatives[sh_tt] 	= 	(H_INF-sh)/TAU_H;
+	Variable_Derivatives[sj_tt] 	= 	(J_INF-sj)/TAU_J;
+	// Variable_Derivatives[sxr1_tt] 	=	(Xr1_INF-sxr1)/TAU_Xr1;
+	// Variable_Derivatives[sxr2_tt] 	=	(Xr2_INF-sxr2)/TAU_Xr2;
+	Variable_Derivatives[sxs_tt] 	= 	(Xs_INF-sxs)/TAU_Xs;
+	Variable_Derivatives[ss_tt] 	= 	(S_INF-ss)/TAU_S;
+	Variable_Derivatives[sr_tt] 	= 	(R_INF-sr)/TAU_R;
+	Variable_Derivatives[sd_tt] 	= 	(D_INF-sd)/TAU_D;
+	Variable_Derivatives[sf_tt] 	= 	(F_INF-sf)/TAU_F;
+	Variable_Derivatives[sf2_tt] 	= 	(F2_INF-sf2)/TAU_F2;
+	Variable_Derivatives[sfcass_tt] = 	(FCaSS_INF-sfcass)/TAU_FCaSS;
+	Variable_Derivatives[mNaL_tt] 	=	(mNaL_INF - mNaL)/TAU_mNaL;
+	Variable_Derivatives[hNaL_tt] 	=	(hNaL_INF - hNaL)/TAU_hNaL;
 
 
 	//Not doing this here
-	// UpdateVoltage();		
+	// UpdateVoltage();
+
+
+	// oomph_info << "sm_tt " << Variable_Derivatives[sm_tt] << std::endl;
+	// oomph_info << "sh_tt " << Variable_Derivatives[sh_tt] << std::endl;
+	// oomph_info << "sj_tt " << Variable_Derivatives[sj_tt] << std::endl;
+	// oomph_info << "sqt1_O_tt " << Variable_Derivatives[sqt1_O_tt] << std::endl;
+	// oomph_info << "sqt1_C1_tt " << Variable_Derivatives[sqt1_C1_tt] << std::endl;
+	// oomph_info << "sqt1_C2_tt " << Variable_Derivatives[sqt1_C2_tt] << std::endl;
+	// oomph_info << "sqt1_C3_tt " << Variable_Derivatives[sqt1_C3_tt] << std::endl;
+	// oomph_info << "sqt1_I_tt " << Variable_Derivatives[sqt1_I_tt] << std::endl;
+	// oomph_info << "sxs_tt " << Variable_Derivatives[sxs_tt] << std::endl;
+	// oomph_info << "ss_tt " << Variable_Derivatives[ss_tt] << std::endl;
+	// oomph_info << "sr_tt " << Variable_Derivatives[sr_tt] << std::endl;
+	// oomph_info << "sd_tt " << Variable_Derivatives[sd_tt] << std::endl;
+	// oomph_info << "sf_tt " << Variable_Derivatives[sf_tt] << std::endl;
+	// oomph_info << "sf2_tt " << Variable_Derivatives[sf2_tt] << std::endl;
+	// oomph_info << "sfcass_tt " << Variable_Derivatives[sfcass_tt] << std::endl;
+	// oomph_info << "sRR_tt " << Variable_Derivatives[sRR_tt] << std::endl;
+	// oomph_info << "Cai_tt " << Variable_Derivatives[Cai_tt] << std::endl;
+	// oomph_info << "CaSR_tt " << Variable_Derivatives[CaSR_tt] << std::endl;
+	// oomph_info << "CaSS_tt " << Variable_Derivatives[CaSS_tt] << std::endl;
+	// oomph_info << "mNaL_tt " << Variable_Derivatives[mNaL_tt] << std::endl;
+	// oomph_info << "hNaL_tt " << Variable_Derivatives[hNaL_tt] << std::endl;
+	// oomph_info << "Nai_tt " << Variable_Derivatives[Nai_tt] << std::endl;
+	// oomph_info << "Ki_tt " << Variable_Derivatives[Ki_tt] << std::endl;
+	// oomph_info << "N_NoXB_tt " << Variable_Derivatives[N_NoXB_tt] << std::endl;
+	// oomph_info << "N_tt " << Variable_Derivatives[N_tt] << std::endl;
+	// oomph_info << "P_NoXB_tt " << Variable_Derivatives[P_NoXB_tt] << std::endl;
+	// oomph_info << "P_tt " << Variable_Derivatives[P_tt] << std::endl;
+	// oomph_info << "XBprer_tt " << Variable_Derivatives[XBprer_tt] << std::endl;
+	// oomph_info << "XBpostr_tt " << Variable_Derivatives[XBpostr_tt] << std::endl;
+	// oomph_info << "SL_tt " << Variable_Derivatives[SL_tt] << std::endl;
+	// oomph_info << "xXBpostr_tt " << Variable_Derivatives[xXBpostr_tt] << std::endl;
+	// oomph_info << "xXBprer_tt " << Variable_Derivatives[xXBprer_tt] << std::endl;
+	// oomph_info << "TropCaL_tt " << Variable_Derivatives[TropCaL_tt] << std::endl;
+	// oomph_info << "TropCaH_tt " << Variable_Derivatives[TropCaH_tt] << std::endl;
+	// oomph_info << "intf0_tt " << Variable_Derivatives[intf0_tt] << std::endl;
 }
 
 
@@ -1351,6 +1495,11 @@ void IsmailTNNP06::get_optional_output(const Boost_State_Type &Variables,
 								Vector<double> &Out)
 {
 	Out[0] = (Variables[SL_tt] - SLrest)/SLrest;
+}
+
+double IsmailTNNP06::get_active_strain()
+{
+	return (Variables[SL_tt] - SLrest)/SLrest;
 }
 
 

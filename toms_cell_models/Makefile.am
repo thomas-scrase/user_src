@@ -3,25 +3,18 @@
 
 # Define the sources
 sources =  \
-TNNP06.cc \
-OHaraRudy.cc \
-TNNP06_Force_Without_ISAC.cc \
-OHaraRudy_TestForce.cc \
 OHaraRudy_RushLarsen.cc \
 TNNP06_RushLarsen.cc \
-Ismail_TNNP_06.cc
+Ismail_TNNP_06_RushLarsen.cc
 
 
 # Define the headers
 headers =  \
-TNNP06.h \
-OHaraRudy.h \
-TNNP06_Force_Without_ISAC.h \
-OHaraRudy_TestForce.h \
 OHaraRudy_RushLarsen.h \
 TNNP06_RushLarsen.h \
 exponential_test_cell_model.h \
-Ismail_TNNP_06.h
+Ismail_TNNP_06_RushLarsen.h \
+Dom_HRd.h
 
 # Define name of library
 libname = toms_cell_models

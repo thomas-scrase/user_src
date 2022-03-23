@@ -3,9 +3,11 @@
 
 namespace oomph{
 
-TNNP06RushLarsen::TNNP06RushLarsen()
+TNNP06RushLarsen::TNNP06RushLarsen(const unsigned& number_of_backup_values) : CellModelBaseFullySegregated(number_of_backup_values)
 {
-	Cell_Model_Name = "TNNP06RushLarsen";
+	cell_type = 100;
+
+
 	Tent_R = 8314.472;
 	Tent_F = 96485.3415;
 	Tent_T = 310.0;
@@ -77,14 +79,7 @@ TNNP06RushLarsen::TNNP06RushLarsen()
 		"y",
 		"sRR"
 	};
-	Names_Of_Other_Parameters =
-	{
-		"ZIndex"
-	};
-	Names_Of_Other_Variables =
-	{
 
-	};
 	Names_Of_Output_Data =
 	{
 
@@ -98,135 +93,93 @@ TNNP06RushLarsen::~TNNP06RushLarsen()
 
 }
 
-double TNNP06RushLarsen::return_initial_state_variable(const unsigned &v, const unsigned &cell_type)
+
+
+
+
+
+double TNNP06RushLarsen::get_initial_state_variable(const unsigned &v)
 {
 	// double STATE[20];
 	if (cell_type == 108 || cell_type == 107 || cell_type == 106) {
 		switch(v){
-			case 0: return 0.0001720623; // Cai
-			case 1: return 8.5447311020;    // Nai
-			case 2: return 136.9896086978;   // Ki
-			case 3: return 3.2830723338;     // CaSRf
-			case 4: return 0.0006146554; // CaSS
-			case 5: return 0.0145766758;     // sm
-			case 6: return 0.2979720207;    // sh
-			case 7: return 0.0692509548;    // sj
-			case 8: return 0.0001356656;     // sd
-			case 9: return 0.5943228461;    // sf
-			case 10: return 0.8265709174;     // sf2
-			case 11: return 0.9767040566;     // sfcass
-			case 12: return 0.0006830833;     // sr
-			case 13: return 0.9717098312;     // ss
-			case 14: return 0.4663168269;     // sxr1
-			case 15: return 0.3657472179;     // sxr2
-			case 16: return 0.0486609588;     // sxs
-			case 17: return 0.0184308075;     // y
-			case 18: return 0.8199969443;    // sRR
-			case 19: return 0.0;     // sOO
+			case Vm_TT : return -74.7890522727;
+			case Cai_TT: return 0.0001720623; // Cai
+			case Nai_TT: return 8.5447311020;    // Nai
+			case Ki_TT: return 136.9896086978;   // Ki
+			case CaSRf_TT: return 3.2830723338;     // CaSRf
+			case CaSS_TT: return 0.0006146554; // CaSS
+			case sm_TT: return 0.0145766758;     // sm
+			case sh_TT: return 0.2979720207;    // sh
+			case sj_TT: return 0.0692509548;    // sj
+			case sd_TT: return 0.0001356656;     // sd
+			case sf_TT: return 0.5943228461;    // sf
+			case sf2_TT: return 0.8265709174;     // sf2
+			case sfcass_TT: return 0.9767040566;     // sfcass
+			case sr_TT: return 0.0006830833;     // sr
+			case ss_TT: return 0.9717098312;     // ss
+			case sxr1_TT: return 0.4663168269;     // sxr1
+			case sxr2_TT: return 0.3657472179;     // sxr2
+			case sxs_TT: return 0.0486609588;     // sxs
+			case y_TT: return 0.0184308075;     // y
+			case sRR_TT: return 0.8199969443;    // sRR
+			// case 19: return 0.0;     // sOO
 		}
 	}
 	else{
 		switch(v){
-			case 0: return 0.00007; // Cai
-			case 1: return 7.67;    // Nai
-			case 2: return 138.3;   // Ki
-			case 3: return 1.3;     // CaSRf
-			case 4: return 0.00007; // CaSS
-			case 5: return 0.0;     // sm
-			case 6: return 0.75;    // sh
-			case 7: return 0.75;    // sj
-			case 8: return 0.0;     // sd
-			case 9: return 1.0;     // sf
-			case 10: return 1.0;     // sf2
-			case 11: return 1.0;     // sfcass
-			case 12: return 0.0;     // sr
-			case 13: return 1.0;     // ss
-			case 14: return 0.0;     // sxr1
-			case 15: return 0.0;     // sxr2
-			case 16: return 0.0;     // sxs
-			case 17: return 0.0;     // y
-			case 18: return 1.0;     // sRR
-			case 19: return 0.0;     // sOO	
+			case Vm_TT : return -86.2;
+			case Cai_TT: return 0.00007; // Cai
+			case Nai_TT: return 7.67;    // Nai
+			case Ki_TT: return 138.3;   // Ki
+			case CaSRf_TT: return 1.3;     // CaSRf
+			case CaSS_TT: return 0.00007; // CaSS
+			case sm_TT: return 0.0;     // sm
+			case sh_TT: return 0.75;    // sh
+			case sj_TT: return 0.75;    // sj
+			case sd_TT: return 0.0;     // sd
+			case sf_TT: return 1.0;     // sf
+			case sf2_TT: return 1.0;     // sf2
+			case sfcass_TT: return 1.0;     // sfcass
+			case sr_TT: return 0.0;     // sr
+			case ss_TT: return 1.0;     // ss
+			case sxr1_TT: return 0.0;     // sxr1
+			case sxr2_TT: return 0.0;     // sxr2
+			case sxs_TT: return 0.0;     // sxs
+			case y_TT: return 0.0;     // y
+			case sRR_TT: return 1.0;     // sRR
+			// case 19: return 0.0;     // sOO	
 		}	
 	}
 }
 
-double TNNP06RushLarsen::return_initial_membrane_potential(const unsigned &cell_type)
+void TNNP06RushLarsen::TakeTimestep(const double& dt, double* state)
 {
-	if (cell_type == 108 || cell_type == 107 || cell_type == 106){
-		return -74.7890522727;
-	}
-	return -86.2;
-	
-}
-
-// void TNNP06RushLarsen::Calculate_Derivatives(const double &Vm,
-// 							const Vector<double> &CellVariables,
-// 							const double &t,
-// 							const unsigned &cell_type,
-// 							const double &Istim,
-// 							const Vector<double> &Other_Parameters,
-// 							const Vector<double> &Other_Variables,
-// 							Vector<double> &Variable_Derivatives,
-// 							double &Iion)
-void TNNP06RushLarsen::Calculate_Derivatives(const Boost_State_Type &Variables,
-									const double &t,
-									const unsigned &cell_type,
-									const double &Istim,
-									const Vector<double> &Other_Parameters,
-									const Vector<double> &Other_Variables,
-									Vector<double> &Variable_Derivatives,
-									double &Iion)
-{
-	// oomph_info << "Called" << std::endl;
-	//Get all the cell variables
-	// const double Cai	= CellVariables[Cai_TT];
-	// const double Nai	= CellVariables[Nai_TT];
-	// const double Ki		= CellVariables[Ki_TT];
-	// const double CaSRf	= CellVariables[CaSRf_TT];
-	// const double CaSS	= CellVariables[CaSS_TT];
-	// const double sm		= CellVariables[sm_TT];
-	// const double sh		= CellVariables[sh_TT];
-	// const double sj		= CellVariables[sj_TT];
-	// const double sd		= CellVariables[sd_TT];
-	// const double sf		= CellVariables[sf_TT];
-	// const double sf2	= CellVariables[sf2_TT];
-	// const double sfcass	= CellVariables[sfcass_TT];
-	// const double sr		= CellVariables[sr_TT];
-	// const double ss		= CellVariables[ss_TT];
-	// const double sxr1	= CellVariables[sxr1_TT];
-	// const double sxr2	= CellVariables[sxr2_TT];
-	// const double sxs	= CellVariables[sxs_TT];
-	// const double y		= CellVariables[y_TT];
-	// const double sRR	= CellVariables[sRR_TT];
-	// // const double sOO	= CellVariables[sOO_TT];
-	const double Cai	= Variables[Cai_TT];
-	const double Nai	= Variables[Nai_TT];
-	const double Ki		= Variables[Ki_TT];
-	const double CaSRf	= Variables[CaSRf_TT];
-	const double CaSS	= Variables[CaSS_TT];
-	const double sm		= Variables[sm_TT];
-	const double sh		= Variables[sh_TT];
-	const double sj		= Variables[sj_TT];
-	const double sd		= Variables[sd_TT];
-	const double sf		= Variables[sf_TT];
-	const double sf2	= Variables[sf2_TT];
-	const double sfcass	= Variables[sfcass_TT];
-	const double sr		= Variables[sr_TT];
-	const double ss		= Variables[ss_TT];
-	const double sxr1	= Variables[sxr1_TT];
-	const double sxr2	= Variables[sxr2_TT];
-	const double sxs	= Variables[sxs_TT];
-	const double y		= Variables[y_TT];
-	const double sRR	= Variables[sRR_TT];
-	// const double sOO	= Variables[sOO_TT];
-
-	const double Vm = Variables[Num_Cell_Vars];
-
-	const double ZIndex = Other_Parameters[ZIndex_TT];
+	double Vm 	= state[Vm_TT];
+	double Cai	= state[Cai_TT];
+	double Nai	= state[Nai_TT];
+	double Ki		= state[Ki_TT];
+	double CaSRf	= state[CaSRf_TT];
+	double CaSS	= state[CaSS_TT];
+	double sm		= state[sm_TT];
+	double sh		= state[sh_TT];
+	double sj		= state[sj_TT];
+	double sd		= state[sd_TT];
+	double sf		= state[sf_TT];
+	double sf2	= state[sf2_TT];
+	double sfcass	= state[sfcass_TT];
+	double sr		= state[sr_TT];
+	double ss		= state[ss_TT];
+	double sxr1	= state[sxr1_TT];
+	double sxr2	= state[sxr2_TT];
+	double sxs	= state[sxs_TT];
+	double y		= state[y_TT];
+	double sRR	= state[sRR_TT];
 
 
-	// static double Tent_RTONF = (Tent_R * Tent_T / Tent_F);
+	const double ZIndex = 1.0;
+
+
 	static double Tent_inverseVcF2  =  (1. / (2 * Tent_Vc * Tent_F));
 	static double Tent_inverseVcF   =  (1. / (Tent_Vc * Tent_F));
 	static double Tent_inversevssF2 = (1. / (2 * Tent_Vss * Tent_F));
@@ -248,10 +201,10 @@ void TNNP06RushLarsen::Calculate_Derivatives(const Boost_State_Type &Variables,
 	// double IbCa;
 	// double kCaSR, k1, k2, dRR;
 	// double Irel, Ileak, Iup, Ixfer;
-	// double CaCSQN, bjsr, cjsr;
-	// double CaSSBuf, bcss, ccss;
-	// double CaBuf, bc, cc;
-	// double dNai, dKi, dCai, dCaSR, dCaSS;
+	double CaCSQN, bjsr, cjsr;
+	double CaSSBuf, bcss, ccss;
+	double CaBuf, bc, cc;
+	double dNai, dKi, dCai, dCaSR, dCaSS;
 
 	double Ek = Tent_RTONF * (log((Tent_Ko / Ki)));
 	double Ena = Tent_RTONF * (log((Tent_Nao / Nai)));
@@ -511,103 +464,59 @@ void TNNP06RushLarsen::Calculate_Derivatives(const Boost_State_Type &Variables,
 	double Iup = Tent_Vmaxup / (1. + ((Tent_Kup * Tent_Kup) / (Cai * Cai)));
 	double Ixfer = Tent_Vxfer * (CaSS - Cai);
 
-	// CaCSQN = Tent_Bufsr * CaSRf / (CaSRf + Tent_Kbufsr);
-	// dCaSR = dt * (Iup - Irel - Ileak);
-	// bjsr = Tent_Bufsr - CaCSQN - dCaSR - CaSRf + Tent_Kbufsr;
-	// cjsr = Tent_Kbufsr * (CaCSQN + dCaSR + CaSRf);
-	// // CaSRf = (sqrt(bjsr * bjsr + 4 * cjsr) - bjsr) / 2;
-	double dCaSR = (Iup - Irel - Ileak)/(1.0  + (Tent_Kbufsr*Tent_Bufsr)/pow(CaSRf + Tent_Kbufsr, 2.0));
+	CaCSQN = Tent_Bufsr * CaSRf / (CaSRf + Tent_Kbufsr);
+	dCaSR = dt * (Iup - Irel - Ileak);
+	bjsr = Tent_Bufsr - CaCSQN - dCaSR - CaSRf + Tent_Kbufsr;
+	cjsr = Tent_Kbufsr * (CaCSQN + dCaSR + CaSRf);
+	CaSRf = (sqrt(bjsr * bjsr + 4 * cjsr) - bjsr) / 2;
+	// double dCaSR = (Iup - Irel - Ileak)/(1.0  + (Tent_Kbufsr*Tent_Bufsr)/pow(CaSRf + Tent_Kbufsr, 2.0));
 
-	// CaSSBuf = Tent_Bufss * CaSS / (CaSS + Tent_Kbufss);
-	// dCaSS = dt * (-Ixfer * (Tent_Vc / Tent_Vss) + Irel * (Tent_Vsr / Tent_Vss) + (-ICaL * Tent_inversevssF2 * Tent_CAPACITANCE));
-	// bcss = Tent_Bufss - CaSSBuf - dCaSS - CaSS + Tent_Kbufss;
-	// ccss = Tent_Kbufss * (CaSSBuf + dCaSS + CaSS);
-	// // CaSS = (sqrt(bcss * bcss + 4 * ccss) - bcss) / 2;
-	double dCaSS =(-Ixfer * (Tent_Vc / Tent_Vss) + Irel * (Tent_Vsr / Tent_Vss) + (-ICaL * Tent_inversevssF2 * Tent_CAPACITANCE))/(1.0 + (Tent_Bufss*Tent_Kbufss)/pow(CaSS+Tent_Kbufss, 2.0));
+	CaSSBuf = Tent_Bufss * CaSS / (CaSS + Tent_Kbufss);
+	dCaSS = dt * (-Ixfer * (Tent_Vc / Tent_Vss) + Irel * (Tent_Vsr / Tent_Vss) + (-ICaL * Tent_inversevssF2 * Tent_CAPACITANCE));
+	bcss = Tent_Bufss - CaSSBuf - dCaSS - CaSS + Tent_Kbufss;
+	ccss = Tent_Kbufss * (CaSSBuf + dCaSS + CaSS);
+	CaSS = (sqrt(bcss * bcss + 4 * ccss) - bcss) / 2;
+	// double dCaSS =(-Ixfer * (Tent_Vc / Tent_Vss) + Irel * (Tent_Vsr / Tent_Vss) + (-ICaL * Tent_inversevssF2 * Tent_CAPACITANCE))/(1.0 + (Tent_Bufss*Tent_Kbufss)/pow(CaSS+Tent_Kbufss, 2.0));
 
 
-	// CaBuf = Tent_Bufc * Cai / (Cai + Tent_Kbufc);
-	// dCai = dt * ((-(IbCa + IpCa - 2 * INaCa) * Tent_inverseVcF2 * Tent_CAPACITANCE) - (Iup - Ileak) * (Tent_Vsr / Tent_Vc) + Ixfer);
-	// bc = Tent_Bufc - CaBuf - dCai - Cai + Tent_Kbufc;
-	// cc = Tent_Kbufc * (CaBuf + dCai + Cai);
-	// // Cai = (sqrt(bc * bc + 4 * cc) - bc) / 2;
-	double dCai = ((-(IbCa + IpCa - 2 * INaCa) * Tent_inverseVcF2 * Tent_CAPACITANCE) - (Iup - Ileak) * (Tent_Vsr / Tent_Vc) + Ixfer)/(1.0 + (Tent_Bufc*Tent_Kbufc)/pow(Cai + Tent_Kbufc, 2.0));
+	CaBuf = Tent_Bufc * Cai / (Cai + Tent_Kbufc);
+	dCai = dt * ((-(IbCa + IpCa - 2 * INaCa) * Tent_inverseVcF2 * Tent_CAPACITANCE) - (Iup - Ileak) * (Tent_Vsr / Tent_Vc) + Ixfer);
+	bc = Tent_Bufc - CaBuf - dCai - Cai + Tent_Kbufc;
+	cc = Tent_Kbufc * (CaBuf + dCai + Cai);
+	Cai = (sqrt(bc * bc + 4 * cc) - bc) / 2;
+	// double dCai = ((-(IbCa + IpCa - 2 * INaCa) * Tent_inverseVcF2 * Tent_CAPACITANCE) - (Iup - Ileak) * (Tent_Vsr / Tent_Vc) + Ixfer)/(1.0 + (Tent_Bufc*Tent_Kbufc)/pow(Cai + Tent_Kbufc, 2.0));
 	
 
-	double dNai = -(INa + IbNa + 3 * INaK + 3 * INaCa + ifna) * Tent_inverseVcF * Tent_CAPACITANCE;
+	dNai = -(INa + IbNa + 3 * INaK + 3 * INaCa + ifna) * Tent_inverseVcF * Tent_CAPACITANCE;
 
-	double dKi = -(IK1 + Ito + Isus + IKr + IKs - 2 * INaK + IpK + ifk) * Tent_inverseVcF * Tent_CAPACITANCE;
+	dKi = -(IK1 + Ito + Isus + IKr + IKs - 2 * INaK + IpK + ifk) * Tent_inverseVcF * Tent_CAPACITANCE;
 
+	state[Vm_TT] 			+= -dt*(IKr + IKs + IK1 + Ito + Isus + (INa) + IbNa + ICaL + IbCa + INaK + INaCa + IpCa + IpK + (If) + get_stimulus(this->time()));
+	state[Cai_TT] 			+= dt*dCai;
+	state[Nai_TT]			+= dt*dNai;
+	state[Ki_TT]			+= dt*dKi;
+	state[CaSRf_TT]			= CaSRf;
+	state[CaSS_TT]			= CaSS;
 
+	state[sm_TT]			= M_INF+(sm-M_INF)*exp(-dt/TAU_M);
+	state[sh_TT]			= H_INF+(sh-H_INF)*exp(-dt/TAU_H);
+	state[sj_TT]			= J_INF+(sj-J_INF)*exp(-dt/TAU_J);
+	state[sd_TT]			= D_INF+(sd-D_INF)*exp(-dt/TAU_D);
+	state[sf_TT]			= F_INF+(sf-F_INF)*exp(-dt/TAU_F);
+	state[sf2_TT]			= F2_INF+(sf2-F2_INF)*exp(-dt/TAU_F2);
+	state[sfcass_TT]		= FCaSS_INF+(sfcass-FCaSS_INF)*exp(-dt/TAU_FCaSS);
+	state[sr_TT]			= S_INF+(sr-S_INF)*exp(-dt/TAU_S);
+	state[ss_TT]			= S_INF+(ss-S_INF)*exp(-dt/TAU_S);
+	state[sxr1_TT]			= Xr1_INF+(sxr1-Xr1_INF)*exp(-dt/TAU_Xr1);
+	state[sxr2_TT]			= Xr2_INF+(sxr2-Xr2_INF)*exp(-dt/TAU_Xr2);
+	state[sxs_TT]			= Xs_INF+(sxs-Xs_INF)*exp(-dt/TAU_Xs);
+	state[y_TT]				= y_inf+(y-y_inf)*exp(-dt/tau_y);
+	state[sRR_TT]			+= dt*dRR;
 
-	//Set the values of the variable derivatives
-	Variable_Derivatives[Cai_TT] 		= dCai;
-	Variable_Derivatives[Nai_TT]		= dNai;
-	Variable_Derivatives[Ki_TT]			= dKi;
-	Variable_Derivatives[CaSRf_TT]		= dCaSR;		//((sqrt(bjsr * bjsr + 4 * cjsr) - bjsr) / 2 - CaSRf)/dt;
-	Variable_Derivatives[CaSS_TT]		= dCaSS;		//((sqrt(bcss * bcss + 4 * ccss) - bcss) / 2 - CaSS)/dt;
-	Variable_Derivatives[sm_TT]			= (-sm+M_INF+(sm-M_INF)*exp(-dt_rushlarsen/TAU_M))/dt_rushlarsen;//(1.0 / TAU_M)*(M_INF - sm); 
-	Variable_Derivatives[sh_TT]			= (-sh+H_INF+(sh-H_INF)*exp(-dt_rushlarsen/TAU_H))/dt_rushlarsen;//(1.0 / TAU_H)*(H_INF - sh); 
-	Variable_Derivatives[sj_TT]			= (-sj+J_INF+(sj-J_INF)*exp(-dt_rushlarsen/TAU_J))/dt_rushlarsen;//(1.0 / TAU_J)*(J_INF - sj); 
-	Variable_Derivatives[sd_TT]			= (-sd+D_INF+(sd-D_INF)*exp(-dt_rushlarsen/TAU_D))/dt_rushlarsen;//(1.0 / TAU_D)*(D_INF - sd); 
-	Variable_Derivatives[sf_TT]			= (-sf+F_INF+(sf-F_INF)*exp(-dt_rushlarsen/TAU_F))/dt_rushlarsen;//(1.0 / TAU_F)*(F_INF - sf); 
-	Variable_Derivatives[sf2_TT]		= (-sf2+F2_INF+(sf2-F2_INF)*exp(-dt_rushlarsen/TAU_F2))/dt_rushlarsen;//(1.0 / TAU_F2)*(F2_INF - sf2); 
-	Variable_Derivatives[sfcass_TT]		= (-sfcass+FCaSS_INF+(sfcass-FCaSS_INF)*exp(-dt_rushlarsen/TAU_FCaSS))/dt_rushlarsen;//(1.0 / TAU_FCaSS)*(FCaSS_INF - sfcass); 
-	Variable_Derivatives[sr_TT]			= (-sr+S_INF+(sr-S_INF)*exp(-dt_rushlarsen/TAU_S))/dt_rushlarsen;//(1.0 / TAU_S)*(S_INF - sr); 
-	Variable_Derivatives[ss_TT]			= (-ss+S_INF+(ss-S_INF)*exp(-dt_rushlarsen/TAU_S))/dt_rushlarsen;//(1.0 / TAU_S)*(S_INF - ss); 
-	Variable_Derivatives[sxr1_TT]		= (-sxr1+Xr1_INF+(sxr1-Xr1_INF)*exp(-dt_rushlarsen/TAU_Xr1))/dt_rushlarsen;//(1.0 / TAU_Xr1)*(Xr1_INF - sxr1); 
-	Variable_Derivatives[sxr2_TT]		= (-sxr2+Xr2_INF+(sxr2-Xr2_INF)*exp(-dt_rushlarsen/TAU_Xr2))/dt_rushlarsen;//(1.0 / TAU_Xr2)*(Xr2_INF - sxr2); 
-	Variable_Derivatives[sxs_TT]		= (-sxs+Xs_INF+(sxs-Xs_INF)*exp(-dt_rushlarsen/TAU_Xs))/dt_rushlarsen;//(1.0 / TAU_Xs)*(Xs_INF - sxs); 
-	Variable_Derivatives[y_TT]			= (-y+y_inf+(y-y_inf)*exp(-dt_rushlarsen/tau_y))/dt_rushlarsen;//(1.0 / tau_y)*(y_inf - y); 
-	Variable_Derivatives[sRR_TT]		= dRR;
-
-	//Set the value of the total ionic current
-	Iion = -(IKr + IKs + IK1 + Ito + Isus + (INa) + IbNa + ICaL + IbCa + INaK + INaCa + IpCa + IpK + (If) + Istim);
-
-
-	//If a derivative is non-finite then set it to some random value
-	// for(unsigned i=0; i<Num_Cell_Vars; i++){
-	// 	oomph_info << Variable_Derivatives[i] << std::endl;
-	// 	Variable_Derivatives[i] = (std::isfinite(Variable_Derivatives[i]))*Variable_Derivatives[i]
-	// 							+ (!std::isfinite(Variable_Derivatives[i]))*((double)std::rand()/(RAND_MAX));
-	// 	oomph_info << Variable_Derivatives[i] << std::endl << std::endl;
-	// }
-	// //Do the same for the ionic current
-	// oomph_info << Iion << std::endl;
-	// Iion = (std::isfinite(Iion))*Iion
-	// 	 + (!std::isfinite(Iion))*((double)std::rand()/(RAND_MAX));
-	// oomph_info << Iion << std::endl << std::endl;
-
-	// //If a derivative is non-finite then set it to some random value
-	// for(unsigned i=0; i<Num_Cell_Vars; i++){
-	// 	if(!std::isfinite(Variable_Derivatives[i]))
-	// 	{
-	// 		Variable_Derivatives[i] = ((double)std::rand()/(RAND_MAX));	
-	// 	}
-	// }
-	// //Do the same for the ionic current
-	// if(!std::isfinite(Iion))
-	// {
-	// 	Iion = ((double)std::rand()/(RAND_MAX));
-	// }
-	
 }
 
-// void TNNP06RushLarsen::get_optional_output(const double &Vm,
-// 							const Vector<double> &CellVariables,
-// 							const double &t,
-// 							const unsigned &cell_type,
-// 							const double &Istim,
-// 							const Vector<double> &Other_Parameters,
-// 							const Vector<double> &Other_Variables,
-// 							Vector<double> &Out)
-void TNNP06RushLarsen::get_optional_output(const Boost_State_Type &Variables,
-								const double &t,
-								const unsigned &cell_type,
-								const double &Istim,
-								const Vector<double> &Other_Parameters,
-								const Vector<double> &Other_Variables,
-								Vector<double> &Out)
+
+void TNNP06RushLarsen::get_output(double *state, double *out)
 {
 	//Intentionally empty
 }
