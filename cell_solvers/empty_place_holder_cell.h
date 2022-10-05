@@ -10,10 +10,10 @@
 
 namespace oomph
 {
-	class Empty_Cell : public CellModelBaseFullySegregated
+	class Empty_Cell : public CellModelBaseFullyPartitioned
 	{
 	public:
-		Empty_Cell(const unsigned& number_of_backup_values) : CellModelBaseFullySegregated(number_of_backup_values)
+		Empty_Cell(const unsigned& number_of_backup_values) : CellModelBaseFullyPartitioned(number_of_backup_values)
 		{
 			//This cell is empty
 			Names_Of_Cell_Variables = { "Vm" };

@@ -12,7 +12,7 @@
 
 namespace oomph{
 
-class TNNP06_Force_Without_ISAC : public CellModelBaseFullySegregated
+class TNNP06_Force_Without_ISAC : public CellModelBaseFullyPartitioned
 {
 public:
 	TNNP06_Force_Without_ISAC();

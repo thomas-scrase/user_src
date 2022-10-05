@@ -19,10 +19,10 @@ namespace oomph
 	static double K_Default_ExponentialTestCellModel = 1.0;
 
 
-	class ExponentialTestCellModel : public CellModelBaseFullySegregated
+	class ExponentialTestCellModel : public CellModelBaseFullyPartitioned
 	{
 	public:
-		ExponentialTestCellModel(const unsigned& number_of_backup_values) : CellModelBaseFullySegregated(number_of_backup_values), K(K_Default_ExponentialTestCellModel)
+		ExponentialTestCellModel(const unsigned& number_of_backup_values) : CellModelBaseFullyPartitioned(number_of_backup_values), K(K_Default_ExponentialTestCellModel)
 		{
 			Names_Of_Cell_Variables = { "Vm", "y" };
 

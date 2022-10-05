@@ -11,7 +11,7 @@
 
 namespace oomph{
 
-class TNNP06RushLarsen : public CellModelBaseFullySegregated
+class TNNP06RushLarsen : public CellModelBaseFullyPartitioned
 {
 public:
 	TNNP06RushLarsen(const unsigned& number_of_backup_values);

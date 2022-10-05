@@ -11,7 +11,7 @@
 
 namespace oomph{
 
-class TNNP06 : public CellModelBaseFullySegregated
+class TNNP06 : public CellModelBaseFullyPartitioned
 {
 public:
 	TNNP06();

@@ -365,7 +365,7 @@ class CellProbe : public virtual APDMeasurer
 {
 public:
 
-	CellProbe(CellModelBaseFullySegregated* cell_pt, std::string OutFileName, const unsigned& l = 0)
+	CellProbe(CellModelBaseFullyPartitioned* cell_pt, std::string OutFileName, const unsigned& l = 0)
 	{
 		Cell_pt = cell_pt;
 
@@ -401,7 +401,7 @@ public:
 private:
 
 	//The cell element
-	CellModelBaseFullySegregated* Cell_pt;
+	CellModelBaseFullyPartitioned* Cell_pt;
 };
 
 

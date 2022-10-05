@@ -62,7 +62,7 @@
 
 namespace oomph{
 
-class OHaraRudy : public CellModelBaseFullySegregated
+class OHaraRudy : public CellModelBaseFullyPartitioned
 {
 public:
 	OHaraRudy();

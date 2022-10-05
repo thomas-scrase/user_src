@@ -23,6 +23,8 @@
 #include "../generic/error_estimator.h"
 #include "../generic/oomph_utilities.h"
 
+#include "../toms_utilities/toms_integral.h"
+
 namespace oomph
 {
 
@@ -163,7 +165,7 @@ public:
 	/// \short Function pointer to source function fct(x,f(x)) -- 
 	/// x is a Vector! 
 	typedef void (*BaseCellMembranePotentialSourceFctPt)
-		(const Vector<double>& x, double& f);
+		(const Vector<double>& x, const double& t, double& f);
 
 	///short function pointer to vm predicted at node l.
 	typedef double (*BaseCellMembranePotentialPredictedVmFctPt)
@@ -532,9 +534,44 @@ public:
 	virtual void output_fct(std::ostream &outfile, const unsigned &nplot, const double& time, 
 	FiniteElement::UnsteadyExactSolutionFctPt exact_soln_pt)
 	{
-		throw OomphLibError("There is no time-dependent output_fct() for Advection Diffusion elements",
-												OOMPH_CURRENT_FUNCTION,
-												OOMPH_EXCEPTION_LOCATION);
+		//Vector of local coordinates
+	 Vector<double> s(DIM);
+	 
+	 // Vector for coordintes
+	 Vector<double> x(DIM);
+	 
+	 
+	 // Tecplot header info
+	 outfile << tecplot_zone_string(nplot);
+	 
+	 // Exact solution Vector (here a scalar)
+	 Vector<double> exact_soln(1);
+	 
+	 // Loop over plot points
+	 unsigned num_plot_points=nplot_points(nplot);
+	 for (unsigned iplot=0;iplot<num_plot_points;iplot++)
+	  {
+	   
+	   // Get local coordinates of plot point
+	   get_s_plot(iplot,nplot,s);
+	   
+	   // Get x position as Vector
+	   interpolated_x(s,x);
+	   
+	   // Get exact solution at this point
+	   (*exact_soln_pt)(time,x,exact_soln);
+	   
+	   //Output x,y,...,u_exact
+	   for(unsigned i=0;i<DIM;i++)
+	    {
+	     outfile << x[i] << " ";
+	    }
+	   outfile << exact_soln[0] << std::endl;  
+	   
+	  }
+	 
+	 // Write tecplot footer (e.g. FE connectivity lists)
+	 write_tecplot_zone_footer(outfile,nplot);
 	}
 
 
@@ -608,15 +645,76 @@ public:
 	}
 
 
-	/// Dummy, time dependent error checker
 	void compute_error(std::ostream &outfile, 
 										FiniteElement::UnsteadyExactSolutionFctPt 
 										exact_soln_pt,
 										const double& time, double& error, double& norm)
 	{
-	throw OomphLibError("No time-dependent compute_error() for Advection Diffusion elements",
-											OOMPH_CURRENT_FUNCTION,
-											OOMPH_EXCEPTION_LOCATION);
+
+	 // Initialise
+	 error=0.0;
+	 norm=0.0;
+
+	 //Vector of local coordinates
+	 Vector<double> s(DIM);
+
+	 // Vector for coordintes
+	 Vector<double> x(DIM);
+
+
+	 //Find out how many nodes there are in the element
+	 unsigned n_node = nnode();
+
+	 Shape psi(n_node);
+
+	 //Set the value of n_intpt
+	 unsigned n_intpt = integral_pt()->nweight();
+	        
+	 // Tecplot 
+	 outfile << "ZONE" << std::endl;
+	   
+	 // Exact solution Vector (here a scalar)
+	 Vector<double> exact_soln(1);
+
+	 //Loop over the integration points
+	 for(unsigned ipt=0;ipt<n_intpt;ipt++)
+	  {
+
+	   //Assign values of s
+	   for(unsigned i=0;i<DIM;i++)
+	    {
+	     s[i] = integral_pt()->knot(ipt,i);
+	    }
+
+	   //Get the integral weight
+	   double w = integral_pt()->weight(ipt);
+
+	   // Get jacobian of mapping
+	   double J=J_eulerian(s);
+
+	   //Premultiply the weights and the Jacobian
+	   double W = w*J;
+
+	   // Get x position as Vector
+	   interpolated_x(s,x);
+
+	   // Get FE function value
+	   double u_fe = get_interpolated_membrane_potential_BaseCellMembranePotential(s);
+
+	   // Get exact solution at this point
+	   (*exact_soln_pt)(time,x,exact_soln);
+
+	   //Output x,y,...,error
+	   for(unsigned i=0;i<DIM;i++)
+	    {
+	     outfile << x[i] << " ";
+	    }
+	   outfile << exact_soln[0] << " " << exact_soln[0]-u_fe << std::endl;  
+
+	   // Add to error and norm
+	   norm+=exact_soln[0]*exact_soln[0]*W;
+	   error+=(exact_soln[0]-u_fe)*(exact_soln[0]-u_fe)*W;
+	 	}
 	}
 
 	/// \short Integrate the concentration over the element
@@ -749,6 +847,7 @@ public:
  inline virtual void get_source_BaseCellMembranePotential(const unsigned& ipt,
                                                           const Vector<double>& s,
                                                           const Vector<double>& x,
+                                                          const double& t,
                                                           double& source) const
   {
    //If no source function has been set, return zero
@@ -756,12 +855,12 @@ public:
    else
     {
      // Get source strength
-     (*Source_fct_pt)(x,source);
+     (*Source_fct_pt)(x,t,source);
     }
   }
 
   //Get the cell vm at node l - used by strang splitting elements to get the value of vm
-  // achieved through a segregated, decoupled cell solve step
+  // achieved through a partitioned, decoupled cell solve step
   inline virtual double get_nodal_cell_vm_BaseCellMembranePotential(const unsigned &l) const
   {
   	// throw OomphLibError(
@@ -776,6 +875,19 @@ public:
      return (*Predicted_vm_fct_pt)(l);
     }
   }
+
+  //Assign the vm at the nodes to the vm given by the cell model.
+  inline void set_nodal_vm_to_cell_vm_BaseCellMembranePotential()
+  {
+  	//Loop over the nodes in the element
+		const unsigned n_node = this->nnode();
+		for(unsigned l=0; l<n_node; l++)
+		{
+			//Set the value of the vm dof in the node to the projected predicted dof of the node
+			this->node_pt(l)->set_value(this->vm_index_BaseCellMembranePotential(), this->get_nodal_cell_vm_BaseCellMembranePotential(l));
+		}
+  }
+
 
 
   //Get the interpolated value of membrane potential as predicted by the cell model
@@ -811,7 +923,7 @@ public:
 
 
   // //Get the predicted vm at node l - used by strang splitting elements to get the value of vm
-  // // achieved through a segregated, decoupled cell solve step
+  // // achieved through a partitioned, decoupled cell solve step
   // inline virtual double get_nodal_integral_iion_BaseCellMembranePotential(const unsigned &l) const
   // {
   //  //If no source function has been set, return zero

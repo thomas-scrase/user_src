@@ -19,7 +19,7 @@ namespace oomph{
 // 	}
 // };
 
-class IsmailTNNP06 : public CellModelBaseFullySegregated
+class IsmailTNNP06 : public CellModelBaseFullyPartitioned
 {
 public:
 	IsmailTNNP06();

@@ -3,7 +3,7 @@
 
 namespace oomph{
 
-IsmailTNNP06RushLarsen::IsmailTNNP06RushLarsen(const unsigned& number_of_backup_values) : CellModelBaseFullySegregated(number_of_backup_values)
+IsmailTNNP06RushLarsen::IsmailTNNP06RushLarsen(const unsigned& number_of_backup_values) : CellModelBaseFullyPartitioned(number_of_backup_values)
 {
 	//Default cell type
 	cell_type = 100;

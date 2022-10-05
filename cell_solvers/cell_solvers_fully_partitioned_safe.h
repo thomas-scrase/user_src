@@ -4,8 +4,8 @@
 
 
 //Header file for CellInterface elements
-#ifndef OOMPH_FULLY_SEGREGATED_CELL_SOLVER_ELEMENTS_HEADER
-#define OOMPH_FULLY_SEGREGATED_CELL_SOLVER_ELEMENTS_HEADER
+#ifndef OOMPH_FULLY_PARTITIONED_CELL_SOLVER_ELEMENTS_HEADER
+#define OOMPH_FULLY_PARTITIONED_CELL_SOLVER_ELEMENTS_HEADER
 
 // #define OOMPH_FORCE_SERIAL_SINGLE_CELL_SOLVE
 // #define CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
@@ -45,7 +45,7 @@ namespace oomph
 //A wrapper class for the membrane potential equations defined in CONDUCTANCE_MODEL. Essentially provides suitably overriden version of the
 // functions which get data from the cell model as well as lookup schemes for the cells associated with the nodes of the element.
 template <class CONDUCTANCE_MODEL>
-class FullySegregatedCellEquations : public virtual FiniteElement,
+class FullyPartitionedCellEquations : public virtual FiniteElement,
 									public virtual CONDUCTANCE_MODEL,
 									public virtual ConductingCellFunctionsBase
 {
@@ -54,7 +54,7 @@ public:
 	////General class functions
 
 	//Constructor
-	FullySegregatedCellEquations() : CONDUCTANCE_MODEL()
+	FullyPartitionedCellEquations() : CONDUCTANCE_MODEL()
 	{
 		//Provide storage for the pointer to each cell associated with each node in the element,
 		// By default they are nullptrs because there is no cell associated by default
@@ -62,7 +62,7 @@ public:
 	}
 
 	//Destructor
-	~FullySegregatedCellEquations()
+	~FullyPartitionedCellEquations()
 	{
 
 	}
@@ -77,8 +77,7 @@ public:
 		bool jacobian_passed_test;
 		this->check_J_eulerian_at_knots(jacobian_passed_test);
 		//If it is, swap the first two node pointers
-		if(!jacobian_passed_test)
-		{
+		if(!jacobian_passed_test){
 			//Save a pointer to the first node
 			Node* nod_pt = this->node_pt(0);
 
@@ -94,7 +93,7 @@ public:
 			// the cell
 
 			//Swap the cells associated with the nodes since we have swapped the nodes
-			CellModelBaseFullySegregated* cell_pt = Cell_associated_with_each_node_pt[0];
+			CellModelBaseFullyPartitioned* cell_pt = Cell_associated_with_each_node_pt[0];
 			Cell_associated_with_each_node_pt[0] = Cell_associated_with_each_node_pt[1];
 			Cell_associated_with_each_node_pt[1] = cell_pt;
 
@@ -112,9 +111,14 @@ public:
 			Vector<double> x(this->dim());
 			this->get_x(s, x);
 			//add the element and local and global coordinates to the cell
-			Cell_associated_with_each_node_pt[0]->set_my_element_and_coordinate(dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(this),
+			Cell_associated_with_each_node_pt[0]->set_my_element_and_coordinate(dynamic_cast<ConductingCellFunctionsBase*>(this),
 																this->node_pt(0),
+																Cell_associated_with_each_node_pt[0],
+																// this->vm_index_BaseCellMembranePotential(),
 																ipt, s, x, 0);
+			//Call the cell to assign initial conditions
+			Cell_associated_with_each_node_pt[0]->assign_initial_conditions(true);
+
 
 			//Then the second cell
 
@@ -126,19 +130,14 @@ public:
 			//Global coordinate
 			this->get_x(s, x);
 			//add the element and local and global coordinates to the cell
-			Cell_associated_with_each_node_pt[1]->set_my_element_and_coordinate(dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(this),
+			Cell_associated_with_each_node_pt[1]->set_my_element_and_coordinate(dynamic_cast<ConductingCellFunctionsBase*>(this),
 																this->node_pt(1),
+																Cell_associated_with_each_node_pt[1],
+																// this->vm_index_BaseCellMembranePotential(),
 																ipt, s, x, 1);
+			//Call the cell to assign initial conditions
+			Cell_associated_with_each_node_pt[1]->assign_initial_conditions(true);
 		}
-		this->check_J_eulerian_at_knots(jacobian_passed_test);
-		if(!jacobian_passed_test)
-		{
-			throw OomphLibError(
-		        "Element is stil inverted after fix has been applied",
-		        OOMPH_CURRENT_FUNCTION,
-		        OOMPH_EXCEPTION_LOCATION);
-		}
-
 	}
 
 
@@ -155,13 +154,13 @@ public:
 	}
 
 	//Add a cell to the l-th node, this just sets the corresponding pointer
-	inline void add_cell_to_node(const unsigned &l, CellModelBaseFullySegregated* cell_pt)
+	inline void add_cell_to_node(const unsigned &l, CellModelBaseFullyPartitioned* cell_pt)
 	{
 		Cell_associated_with_each_node_pt[l] = cell_pt;
 	}
 
 	//Get a pointer to the cell associated with the node
-	CellModelBaseFullySegregated* get_cell_at_node_pt(const unsigned& l) const
+	CellModelBaseFullyPartitioned* get_cell_at_node_pt(const unsigned& l) const
 	{
 		return Cell_associated_with_each_node_pt[l];
 	}
@@ -170,18 +169,19 @@ public:
 
 	/////Get variables from cell model
 
-	//Override the underling CONDUCTANCE_ELEMENT get_nodal_cell_vm_BaseCellMembranePotential
+	//Override the underling CONDUCTANCE_ELEMENT get_nodal_predicted_vm_BaseCellMembranePotential
 	// to get the predicted membrane potential from the cell associated with the l-th node
-	double get_nodal_cell_vm_BaseCellMembranePotential(const unsigned &l) const override
+	double get_nodal_predicted_vm_BaseCellMembranePotential(const unsigned &l) const override
 	{
 		//If the node has an associated cell then use that given by the cell model,
 		//else just return the value at the node
 		if(get_cell_at_node_pt(l)!=nullptr)
 		{
-			return get_cell_at_node_pt(l)->get_membrane_potential();
+			return get_cell_at_node_pt(l)->get_predicted_vm();
 		}
 		else
 		{
+			// return this->get_nodal_membrane_potential_BaseCellMembranePotential(l);
 			throw OomphLibError(
 		        "No cell assigned to node",
 		        OOMPH_CURRENT_FUNCTION,
@@ -191,7 +191,7 @@ public:
 
 	//Get the local predicted vm and dprecicted vm dx from the cells at the nodes of this element
 	// Called by external elements when they want our predicted vm
-	inline void get_interpolated_cell_vm_and_dcell_vm_dx(double &interpolated_pred_vm, Vector<double> &interpolated_dpred_vm_dx, const Vector<double>& s) const
+	inline void get_interpolated_predicted_vm_and_dpredicted_vm_dx(double &interpolated_pred_vm, Vector<double> &interpolated_dpred_vm_dx, const Vector<double>& s) const
 	{
 		//Zero the data
 		interpolated_pred_vm = 0;
@@ -209,23 +209,31 @@ public:
 		//Compute the shape functions
 		this->dshape_eulerian(s,psi,dpsidx);
 
+		// oomph_info << "interp pred vm" << std::endl;
+
 		//Loop over the nodes
 		for(unsigned l=0; l<n_node; l++)
 		{
-			const double val = this->get_nodal_cell_vm_BaseCellMembranePotential(l);
+			// oomph_info << "node " << l << std::endl;
+			const double val = this->get_nodal_predicted_vm_BaseCellMembranePotential(l);
+
+			// oomph_info << "pred vm at node: " << val << std::endl;
+			// oomph_info << "psi: " << psi[l] << std::endl;
+
 			//Add to interpolation
 			interpolated_pred_vm += psi[l]*val;
 
 			//Calculate interpolated spatial derivatives
 			for(unsigned j=0;j<this->dim();j++)
 			{
+				// oomph_info << "dpsidxj: " << dpsidx(l,j) << std::endl;
 				interpolated_dpred_vm_dx[j] += val*dpsidx(l,j);
 			}
 		}
 	}
 
 	//Get the local interpolated Vm predicted from cell model (same as above but returns a value instead and does not compute derivatives)
-	double get_interpolated_cell_vm_from_cell_model(const Vector<double>& s) const
+	double get_interpolated_predicted_vm_from_cell_model(const Vector<double>& s) const
 	{
 		//The thing we are outputting
 		double out = 0.0;
@@ -236,7 +244,7 @@ public:
 		//Loop over the nodes
 		for(unsigned l=0; l<n_node; l++)
 		{
-			out += psi[l]*this->get_nodal_cell_vm_BaseCellMembranePotential(l);
+			out += psi[l]*this->get_nodal_predicted_vm_BaseCellMembranePotential(l);
 		}
 		return out;
 	}
@@ -318,6 +326,25 @@ public:
 	}
 
 
+
+
+	// //Get Integral of Iion from cell model
+	// inline double get_nodal_integral_iion(const unsigned &l) const
+	// {
+	// 	//If the node has an associated cell then use that given by the cell model,
+	// 	//else just return the value zero
+	// 	if(get_cell_at_node_pt(l)!=nullptr)
+	// 	{
+	// 		return get_cell_at_node_pt(l)->get_Integral_Iion();
+	// 	}
+	// 	else
+	// 	{
+	// 		return 0.0;
+	// 	}
+	// }
+
+
+
 	//Get active strain from cell model
 	inline double get_nodal_active_strain(const unsigned &l, const double& time) const
 	{
@@ -326,12 +353,11 @@ public:
 		if(get_cell_at_node_pt(l)!=nullptr)
 		{
 			//Calculate optional output of the cell
-			// get_cell_at_node_pt(l)->calculate_optional_output(time);
+			get_cell_at_node_pt(l)->calculate_optional_output(time);
 			return get_cell_at_node_pt(l)->get_active_strain();
 		}
 		else
 		{
-			//If there is no cell just return no active strain
 			return 0.0;
 		}
 	}
@@ -356,6 +382,82 @@ public:
 
 		return out;
 	}
+
+	
+
+
+	/////Send variables to cell model
+
+	//Set cell type of cell at node
+	void set_cell_type(const unsigned &l, const unsigned &cell_type)
+	{
+		if(get_cell_at_node_pt(l)!=nullptr)
+		{
+			get_cell_at_node_pt(l)->set_cell_type(cell_type);
+		}
+	}
+
+	//Send general data to cell at node
+	inline void set_other_data_at_node(const unsigned &l, const unsigned &var, const double &value)
+	{
+		if(get_cell_at_node_pt(l)!=nullptr)
+		{
+			get_cell_at_node_pt(l)->set_other_data(var, value);
+		}
+	}
+
+	// //Assign initial conditions - the cell model generally does this itself but we can override it by forcing it to use the variables this function sends instead
+	// inline void assign_initial_conditions(const unsigned&l, const Vector<double>& vals, const double& vm)
+	// {
+	// 	if(get_cell_at_node_pt(l)!=nullptr)
+	// 	{
+	// 		get_cell_at_node_pt(l)->assign_initial_conditions(vals, vm);
+	// 	}
+	// }
+
+	// //Overload this function of the conduction element in case it needs to do toms splitting method
+	// double get_nodal_integral_iion_BaseCellMembranePotential(const unsigned &l) const
+	// {
+	// 	return get_nodal_integral_iion(l);
+	// }
+
+	// Get interpolated general data from cell model - this is dangerous, make sure that you are definitely interpolating the same data from all nodes in the element
+	//													the issue arrises from that each node could be associated with different cell models, the general output data
+	//													of which might not line up if you are not careful. I provide no safety checks for this, you are on your own.
+	// void get_interpolated_general_output_from_cell_model(const Vector<double>& s, Vector<double> &Out) const {
+	// 	Out.resize(Cell_associated_with_each_node_pt[0]->Num_Output_Data, 0.0);
+	// 	#ifdef PARANOID
+	// 	for(unsigned l=1; l<n_node; l++){
+	// 		if(get_cell_at_node_pt(l)->Num_Output_Data != Cell_associated_with_each_node_pt[0]->Num_Output_Data)
+	// 		{
+	// 			throw OomphLibError(
+	// 				"Number of output variables of nodes does not match",
+	// 				OOMPH_CURRENT_FUNCTION,
+	// 				OOMPH_EXCEPTION_LOCATION);
+	// 		}
+	// 	}
+	// 	#endif
+
+	// 	const unsigned n_node = this->nnode();
+	// 	Shape psi(n_node);
+	// 	shape(s,psi);
+
+	// 	for(unsigned l=0; l<n_node; l++){
+	// 		Vector<double> node_out(get_cell_at_node_pt(l)->Num_Output_Data, 0.0);
+	// 		get_cell_at_node_pt(l)->get_optional_cell_output(l, node_out);
+	// 		for(unsigned i=0; i<CELL_MODEL::Num_Output_Data; i++){
+	// 			Out[i] += psi[l]*node_out[i];
+	// 		}
+	// 	}
+	// }
+	
+
+
+	/////Set general node-wise data
+
+	//Set general nodal parameters
+
+
 
 	//Fill in residuals and jacobian functions, just call those of the underlying CONDUCTANCE_MODEL class
 	// since that is the only one which does oomph-lib stuff
@@ -387,7 +489,7 @@ public:
 	// informs the function which cell model type to choose. It checks which nodes are of that
 	// type and interpolates only from them...This could be a bit dodgy...but it sets interpolation
 	// weights from the wrong cell model to zero and then normalizes the remaining ones.
-	double get_interpolated_paraview_output_from_cell_model(const unsigned& i, const Vector<double>& s) const
+	double interpolated_cell_variable_for_paraview_output(const unsigned& i, const Vector<double> s) const
 	{
 		//The thing we are outputting
 		double out = 0.0;
@@ -414,7 +516,7 @@ public:
 				interp_weights_magnitude += psi[l]*psi[l];
 			}
 		}
-		//If all are zero then return nan, none of the cells contain the data we want
+		//If all are incorrect then return nan
 		if(all_are_zero){return std::nanf("");}
 
 		//Normalise the vector
@@ -427,8 +529,7 @@ public:
 		//Finally, interpolate the cell variable
 		for(const unsigned l : interpolated_nodes)
 		{
-			// out += get_cell_at_node_pt(l)->get_cell_variable(i)*interp_weights[l];
-			out += get_cell_at_node_pt(l)->get_paraview_output(i)*interp_weights[l];
+			out += get_cell_at_node_pt(l)->get_cell_variable(i)*interp_weights[l];
 		}
 
 		return out;
@@ -454,25 +555,41 @@ public:
 
 		// Loop over plot points
 		unsigned num_plot_points=this->nplot_points_paraview(nplot);
-		for(unsigned iplot=0;iplot<num_plot_points;iplot++){
+		for (unsigned iplot=0;iplot<num_plot_points;iplot++){
 			// Get local coordinates of plot point
 			this->get_s_plot(iplot,nplot,s);
 
-			file_out << this->get_interpolated_paraview_output_from_cell_model(i, s) << std::endl;
+			if(i==0)
+			{
+				file_out << this->get_interpolated_predicted_vm_from_cell_model(s) << std::endl;
+				// file_out << this->get_interpolated_membrane_potential_BaseCellMembranePotential(s) << std::endl;
+			}
+			else
+			{
+				file_out << this->interpolated_cell_variable_for_paraview_output(i-1, s) << std::endl; //we want the i-1th cell variable because i=1 corresponds to the first cell variable
+			}
 		}
 	}
 
 	void scalar_value_fct_paraview(std::ofstream& file_out,
 									const unsigned& i,
 									const unsigned& nplot,
-									FiniteElement::SteadyExactSolutionFctPt exact_soln_pt) const
+									FiniteElement::SteadyExactSolutionFctPt
+									exact_soln_pt) const
 	{
 		scalar_value_paraview(file_out, i, nplot);
 	}
 
 	std::string scalar_name_paraview(const unsigned& i) const
 	{
-		return this->Variable_Names_BroadCast_From_Cell_Mesh[i];
+		if(i==0) //0 is always transmembrane potential
+		{
+			return "Transmembrane potential";
+		}
+		else//Otherwise grab it from the vector stored in the cell mesh, we do it this way because elements which do not contain a certain cell model type will not know what name to provide and will cause an error.
+		{
+			return this->Variable_Names_BroadCast_From_Cell_Mesh[i-1];
+		}
 	}
 
 
@@ -483,7 +600,14 @@ protected:
 
 private:
 	//Pointer to the cell corresponding to each node in the element
-	Vector<CellModelBaseFullySegregated*> Cell_associated_with_each_node_pt;
+	Vector<CellModelBaseFullyPartitioned*> Cell_associated_with_each_node_pt;
+
+	// //Cell alignment data
+	// Vector<Vector<Vector<double>>> CellAlignment;
+
+	// Vector<double> Conductance;
+
+	// Vector<DenseMatrix<double>> DiffusionMatrices;
 };
 
 
@@ -500,8 +624,8 @@ private:
 
 //Q Element
 template<unsigned DIM, unsigned NNODE_1D, template<unsigned> class CONDUCTANCE_MODEL>
-class QFullySegregatedCellElement : public virtual QElement<DIM, NNODE_1D>,
-									public virtual FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>
+class QFullyPartitionedCellElement : public virtual QElement<DIM, NNODE_1D>,
+									public virtual FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>
 {
 private:
 
@@ -509,8 +633,8 @@ private:
 
 public:
 
-	QFullySegregatedCellElement() : QElement<DIM, NNODE_1D>(),
-									FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>()
+	QFullyPartitionedCellElement() : QElement<DIM, NNODE_1D>(),
+									FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>()
 	{
 		//set the integration scheme to one with integral points aligned with the nodes
 		// GaussWithNodes<DIM, NNODE_1D>* new_integral_pt = new GaussWithNodes<DIM, NNODE_1D>;
@@ -520,9 +644,9 @@ public:
 		this->ipt_not_at_nodes = this->integral_pt()->nweight() - this->nnode();
 	}
 
-	QFullySegregatedCellElement(const QFullySegregatedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL>& dummy){BrokenCopy::broken_copy("QFullySegregatedCellElement");}
+	QFullyPartitionedCellElement(const QFullyPartitionedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL>& dummy){BrokenCopy::broken_copy("QFullyPartitionedCellElement");}
 
-	void operator=(const QFullySegregatedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL>&){BrokenCopy::broken_assign("QFullySegregatedCellElement");}
+	void operator=(const QFullyPartitionedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL>&){BrokenCopy::broken_assign("QFullyPartitionedCellElement");}
 
 
 	//====================================================================
@@ -530,21 +654,21 @@ public:
 	//====================================================================
 	/// Output with default number of plot points
 	void output(std::ostream &outfile){
-		FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(outfile);
+		FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(outfile);
 	}
 	/// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 	/// nplot^DIM plot points
 	void output(std::ostream &outfile, const unsigned &nplot){
-		FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(outfile, nplot);
+		FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(outfile, nplot);
 	}
 	/// C_style output with default number of plot points
 	void output(FILE* file_pt){
-		FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(file_pt);
+		FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(file_pt);
 	}
 	 /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 	 /// n_plot^DIM plot points
 	 void output(FILE* file_pt, const unsigned &n_plot){
-	 	FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(file_pt, n_plot);
+	 	FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(file_pt, n_plot);
 	}
 
 	//======================================================================
@@ -616,7 +740,7 @@ public:
 
 
 template<unsigned NNODE_1D, unsigned DIM, template<unsigned> class CONDUCTANCE_MODEL>
-class FaceGeometry<QFullySegregatedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL> >:
+class FaceGeometry<QFullyPartitionedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL> >:
 	public virtual QElement<DIM-1, NNODE_1D>
 {
 public:
@@ -624,7 +748,7 @@ public:
 };	
 
 template<unsigned NNODE_1D, template<unsigned> class CONDUCTANCE_MODEL>
-class FaceGeometry<QFullySegregatedCellElement<1, NNODE_1D, CONDUCTANCE_MODEL> >:
+class FaceGeometry<QFullyPartitionedCellElement<1, NNODE_1D, CONDUCTANCE_MODEL> >:
 	public virtual PointElement
 {
 public:
@@ -638,15 +762,15 @@ public:
 
 //T Element
 template<unsigned DIM, unsigned NNODE_1D, template<unsigned> class CONDUCTANCE_MODEL>
-class TFullySegregatedCellElement : public virtual TElement<DIM, NNODE_1D>,
-									public virtual FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>
+class TFullyPartitionedCellElement : public virtual TElement<DIM, NNODE_1D>,
+									public virtual FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>
 {
 private:
 	inline static TGaussWithNodes<DIM, NNODE_1D> NewIntegralScheme;
 	
 public:
-	TFullySegregatedCellElement() : TElement<DIM, NNODE_1D>(),
-									FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>()
+	TFullyPartitionedCellElement() : TElement<DIM, NNODE_1D>(),
+									FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>()
 	{
 		//set the integration scheme to one with integral points aligned with the nodes
 		// TGaussWithNodes<DIM, NNODE_1D>* new_integral_pt = new TGaussWithNodes<DIM, NNODE_1D>;
@@ -656,9 +780,9 @@ public:
 		this->ipt_not_at_nodes = this->integral_pt()->nweight() - this->nnode();
 	}
 
-	TFullySegregatedCellElement(const TFullySegregatedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL>& dummy){BrokenCopy::broken_copy("TFullySegregatedCellElement");}
+	TFullyPartitionedCellElement(const TFullyPartitionedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL>& dummy){BrokenCopy::broken_copy("TFullyPartitionedCellElement");}
 
-	void operator=(const TFullySegregatedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL>&){BrokenCopy::broken_assign("TFullySegregatedCellElement");}
+	void operator=(const TFullyPartitionedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL>&){BrokenCopy::broken_assign("TFullyPartitionedCellElement");}
 
 
 	//====================================================================
@@ -666,21 +790,21 @@ public:
 	//====================================================================
 	/// Output with default number of plot points
 	void output(std::ostream &outfile){
-		FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(outfile);
+		FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(outfile);
 	}
 	/// \short Output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 	/// nplot^DIM plot points
 	void output(std::ostream &outfile, const unsigned &nplot){
-		FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(outfile, nplot);
+		FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(outfile, nplot);
 	}
 	/// C_style output with default number of plot points
 	void output(FILE* file_pt){
-		FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(file_pt);
+		FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(file_pt);
 	}
 	 /// \short C-style output FE representation of soln: x,y,V_fct,[vars] or x,y,z,V_fct,[vars] at 
 	 /// n_plot^DIM plot points
 	 void output(FILE* file_pt, const unsigned &n_plot){
-	 	FullySegregatedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(file_pt, n_plot);
+	 	FullyPartitionedCellEquations<CONDUCTANCE_MODEL<DIM>>::output(file_pt, n_plot);
 	}
 
 	//======================================================================
@@ -752,7 +876,7 @@ public:
 
 
 template<unsigned NNODE_1D, unsigned DIM, template<unsigned> class CONDUCTANCE_MODEL>
-class FaceGeometry<TFullySegregatedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL> >:
+class FaceGeometry<TFullyPartitionedCellElement<DIM, NNODE_1D, CONDUCTANCE_MODEL> >:
 	public virtual TElement<DIM-1, NNODE_1D>
 {
 public:
@@ -760,7 +884,7 @@ public:
 };	
 
 template<unsigned NNODE_1D, template<unsigned> class CONDUCTANCE_MODEL>
-class FaceGeometry<TFullySegregatedCellElement<1, NNODE_1D, CONDUCTANCE_MODEL> >:
+class FaceGeometry<TFullyPartitionedCellElement<1, NNODE_1D, CONDUCTANCE_MODEL> >:
 	public virtual PointElement
 {
 public:
@@ -797,16 +921,7 @@ public:
 	//The constructor
 	CellMeshBase() : NumCells(0)
 	{
-		CONDUCTANCE_MODEL* test_elem = new CONDUCTANCE_MODEL;
 
-		DimensionlessMembranePotentialEquationsBase* test_elem_pt = dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(test_elem);
-
-		if(test_elem_pt==nullptr)
-		{
-			throw OomphLibError("CONDUCTANCE_MODEL must inherit from DimensionlessMembranePotentialEquationsBase",
-								OOMPH_CURRENT_FUNCTION,
-								OOMPH_EXCEPTION_LOCATION);
-		}
 	}
 
 	//Destructor, delete the cells
@@ -821,7 +936,7 @@ public:
 	}
 
 	//Access to the ith cell in the mesh
-	CellModelBaseFullySegregated* cell_pt(const unsigned& i)
+	CellModelBaseFullyPartitioned* cell_pt(const unsigned& i)
 	{
 		#ifdef PARANOID
 		if(Cells_pt[i]!=nullptr)
@@ -840,7 +955,7 @@ public:
 	}
 
 	//Access the cell associated with the l-th node in the mesh
-	CellModelBaseFullySegregated* cell_at_node_pt(const unsigned& l)
+	CellModelBaseFullyPartitioned* cell_at_node_pt(const unsigned& l)
 	{
 		#ifdef PARANOID
 		if(Node_Number_To_Cell_Number[l]>=0)
@@ -980,7 +1095,7 @@ protected:
 			//If no cell has been assigned to it, give it an empty place-holder cell
 			if(Node_Number_To_Cell_Number[l]<0)
 			{
-				build_cell_at_node<Empty_Cell>(l, 1);
+				build_cell_at_node<Empty_Cell>(l);
 			}
 		}
 	}
@@ -989,10 +1104,10 @@ protected:
 	// the l-th node in the mesh and also pass one of these elements and the local coordinate of the node within that element
 	// to the cell.
 	template<class CELL_MODEL>
-	CELL_MODEL* build_cell_at_node(const unsigned long& l, const unsigned& r)
+	CELL_MODEL* build_cell_at_node(const unsigned long& l)
 	{
 		//Build the cell
-		Cells_pt.push_back(new CELL_MODEL(r));
+		Cells_pt.push_back(new CELL_MODEL);
 
 		//Add the cell to the node, setup all lookup schemes required by element, node, and cell.
 		add_cell_to_node(l, NumCells);
@@ -1024,7 +1139,7 @@ protected:
 			{
 				if(dynamic_cast<CONDUCTANCE_MODEL*>(elem_pt)!=nullptr)
 				{
-					if(dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(elem_pt)!=nullptr)
+					if(dynamic_cast<ConductingCellFunctionsBase*>(elem_pt)!=nullptr)
 					{
 			#endif
 						const unsigned node_ind = Elements_containing_node[l][i].second;
@@ -1046,9 +1161,9 @@ protected:
 							elem_pt->get_x(s, x);
 
 							//add the element and local and global coordinates to the cell
-							Cells_pt[cell_ind]->set_my_element_and_coordinate(dynamic_cast<DimensionlessMembranePotentialEquationsBase*>(elem_pt),
+							Cells_pt[cell_ind]->set_my_element_and_coordinate(dynamic_cast<ConductingCellFunctionsBase*>(elem_pt),
 																				elem_pt->node_pt(node_ind),
-																				// Cells_pt[cell_ind],
+																				Cells_pt[cell_ind],
 																				// elem_pt->vm_index_BaseCellMembranePotential(),
 																				ipt, s, x, node_ind);
 
@@ -1072,10 +1187,8 @@ protected:
 							{
 								std::string model_name = Cells_pt[cell_ind]->get_cell_model_name();
 								std::vector<std::string> vars_names = Cells_pt[cell_ind]->names_of_cell_variables();
-								std::vector<std::string> vars_names_1 = Cells_pt[cell_ind]->names_of_output_data();
-								vars_names.insert(vars_names.end(), vars_names_1.begin(), vars_names_1.end());
+								unsigned num_vars = (vars_names.size()+1); //+1 to account for membrane potential
 
-								unsigned num_vars = vars_names.size(); //+1 to account for membrane potential
 								Identified_Cell_Model_Types_And_Data.push_back(std::make_tuple(model_name, vars_names, num_vars));
 							}
 
@@ -1123,13 +1236,16 @@ protected:
 		Starting_Index_For_Data_Of_Cell.resize(NumCells, 0);
 
 		//iterate through the cells other than the first, that one starts at 0
-		for(unsigned c=1; c<NumCells; c++)
-		{
-			Starting_Index_For_Data_Of_Cell[c] = (Starting_Index_For_Data_Of_Cell[c-1]) + (Cells_pt[c-1]->get_Num_Cell_Vars() + Cells_pt[c-1]->get_Num_Output_Data()) + 1;
+		for(unsigned c=1; c<NumCells; c++){
+			//The index at which this cells data is stored
+			// Starting_Index_For_Data_Of_Cell[c] = ( Starting_Index_For_Data_Of_Cell[c-1] + (Cells_pt[c-1]->get_Num_Cell_Vars() + 1 + 1 + 1 + 1) );
+			//num vars, vm, dvmdt
+			Starting_Index_For_Data_Of_Cell[c] = ( Starting_Index_For_Data_Of_Cell[c-1] + (Cells_pt[c-1]->get_Num_Cell_Vars() + 1 + 1 ) );
 		}
 
 		//The total number of data associated with the cells
-		Total_cell_data = (Starting_Index_For_Data_Of_Cell[NumCells-1]) + (Cells_pt[NumCells-1]->get_Num_Cell_Vars() + Cells_pt[NumCells-1]->get_Num_Output_Data()) + 1;
+		// Total_cell_data = ( Starting_Index_For_Data_Of_Cell[NumCells-1] + (Cells_pt[NumCells-1]->get_Num_Cell_Vars() + 1 + 1 + 1 + 1) );
+		Total_cell_data = ( Starting_Index_For_Data_Of_Cell[NumCells-1] + (Cells_pt[NumCells-1]->get_Num_Cell_Vars() + 1 + 1 ) );
 	}
 	#endif
 
@@ -1147,8 +1263,11 @@ protected:
 		//Build the cells in the mesh, this is a user overloaded function
 		BuildCells();
 
+
 		//Complete the cell build by adding place-holder empty cells to nodes without a cell
-		// FillInPlaceHolderCells();
+		FillInPlaceHolderCells();
+
+		// oomph_info << this->nnode() << " " << Cells_pt.size() << " " << NumCells << std::endl;
 
 		#ifdef OOMPH_HAS_MPI
 		SetupDataIndices();
@@ -1157,7 +1276,7 @@ protected:
 
 
 	//Vector of pointers to cells in the mesh
-	Vector<CellModelBaseFullySegregated*> Cells_pt;
+	Vector<CellModelBaseFullyPartitioned*> Cells_pt;
 	
 private:
 
@@ -1191,7 +1310,7 @@ public:
 	// {
 	// 	oomph_info << "Deleting cells after distribute " << this->nnode() << " " << this->nelement() << " " << NumCells << std::endl;
 
-	// 	Vector<CellModelBaseFullySegregated*> new_cell_pt;
+	// 	Vector<CellModelBaseFullyPartitioned*> new_cell_pt;
 	// 	std::vector<bool> cell_saved(NumCells, false);
 	// 	//Loop over the cells
 	// 	for(unsigned i=0; i<NumCells; i++)
@@ -1230,7 +1349,7 @@ public:
 	// 		if(!cell_saved[i]){continue;}
 
 	// 		//Get a pointer to the cell
-	// 		CellModelBaseFullySegregated* cell_pt = new_cell_pt[i];
+	// 		CellModelBaseFullyPartitioned* cell_pt = new_cell_pt[i];
 
 	// 		//Add it back to the vector of cells
 	// 		Cells_pt.push_back(cell_pt);
@@ -1310,7 +1429,7 @@ public:
 
 
 
-	//Save the cell data to file, blank line means no cell is associated with that node
+	//Save the cell data to file, blank line means no node is associated with that node
 	void save_cells_to_file(std::ofstream& out_file)
 	{
 		//Loop over the cells in the mesh
@@ -1319,110 +1438,120 @@ public:
 
 		for(unsigned c=0; c<NumCells; c++)
 		{
-			CellModelBaseFullySegregated* cell_pt = Cells_pt[c];
+			CellModelBaseFullyPartitioned* cell_pt = Cells_pt[c];
 
 			if(cell_pt != nullptr)
 			{
-				cell_pt->output_cell_variables(out_file);
+				Vector<double> vect;
+				cell_pt->save_state_to_vector(vect, true);
+
+				for(unsigned i=0; i<vect.size(); i++)
+				{
+					out_file << vect[i] << " ";
+				}
+
+				//Also output the cell type
+				cell_pt->output_cell_type(out_file);
 			}
+
 			out_file << std::endl;
 		}
 	}
 
 
-	// //Load the cell data from file and restore the cells from it
-	// void load_cells_from_file(std::ifstream& in_file)
-	// {
-	// 	oomph_info << "Loading cell data from file" << std::endl;
-	// 	//Read in the file line by line
-	// 	unsigned c=0;
-	// 	std::string line;
-	// 	while(std::getline(in_file, line))
-	// 	{
-	// 		//If the line is zero, skip it
-	// 		if(line.size()==0)
-	// 		{
-	// 			oomph_info << "line " << c << " is zero, skipping." << std::endl;
-	// 		}
-	// 		else
-	// 		{
-	// 			// oomph_info << "Line is non-zero" << std::endl;
-	// 			//read in the line to a big vector
-	// 			Vector<double> BigVector;
+	//Load the cell data from file and restore the cells from it
+	void load_cells_from_file(std::ifstream& in_file)
+	{
+		oomph_info << "Loading cell data from file" << std::endl;
+		//Read in the file line by line
+		unsigned c=0;
+		std::string line;
+		while(std::getline(in_file, line))
+		{
+			//If the line is zero, skip it
+			if(line.size()==0)
+			{
+				oomph_info << "line " << c << " is zero, skipping." << std::endl;
+			}
+			else
+			{
+				// oomph_info << "Line is non-zero" << std::endl;
+				//read in the line to a big vector
+				Vector<double> BigVector;
 
-	// 			std::istringstream iss(line);
-	// 			std::string str;
-	// 			while(iss >> str)
-	// 			{
-	// 				BigVector.push_back(std::atof(str.c_str()));
-	// 			}
-	// 			// oomph_info << BigVector.size() << " tokens in line" << std::endl;
+				std::istringstream iss(line);
+				std::string str;
+				while(iss >> str)
+				{
+					BigVector.push_back(std::atof(str.c_str()));
+				}
+				// oomph_info << BigVector.size() << " tokens in line" << std::endl;
 
-	// 			//Get up to the last one and put into a vector of variables
-	// 			Vector<double> vars_vect(BigVector.size()-1, 0.0);
-	// 			for(unsigned i=0; i<vars_vect.size(); i++)
-	// 			{
-	// 				vars_vect[i] = BigVector[i];
-	// 			}
+				//Get up to the last one and put into a vector of variables
+				Vector<double> vars_vect(BigVector.size()-1, 0.0);
+				for(unsigned i=0; i<vars_vect.size(); i++)
+				{
+					vars_vect[i] = BigVector[i];
+				}
 
-	// 			//The last one is the cell type
-	// 			const unsigned cell_type = (unsigned)BigVector[vars_vect.size()];
+				//The last one is the cell type
+				const unsigned cell_type = (unsigned)BigVector[vars_vect.size()];
 
-	// 			Cells_pt[c]->restore_state_from_vector(vars_vect, true);
-	// 			Cells_pt[c]->set_cell_type(cell_type);
+				Cells_pt[c]->restore_state_from_vector(vars_vect, true);
+				Cells_pt[c]->set_cell_type(cell_type);
 
-	// 			Cells_pt[c]->accept_copy_variables_as_IC_values();
-	// 		}
+				Cells_pt[c]->accept_copy_variables_as_IC_values();
+			}
 
-	// 		c++;
-	// 	}
-	// }
+			c++;
+		}
+	}
 
 
-	// //Store all the cell data from the mesh in a vector,
-	// // boolean determines whether or not the membrane potential comes from the cells or the underlying nodes
-	// void store_all_cell_data_from_mesh_in_vector(Vector<double> &Cell_Data, const bool &use_node_vm)
-	// {
-	// 	// oomph_info << "getting cell data"<< std::endl;
-	// 	//Resize the storage vector
-	// 	Cell_Data.resize(Total_cell_data, 0.0);
+	//Store all the cell data from the mesh in a vector,
+	// boolean determines whether or not the membrane potential comes from the cells or the underlying nodes
+	void store_all_cell_data_from_mesh_in_vector(Vector<double> &Cell_Data, const bool &use_node_vm)
+	{
+		// oomph_info << "getting cell data"<< std::endl;
+		//Resize the storage vector
+		Cell_Data.resize(Total_cell_data, 0.0);
 
-	// 	//Loop over the cells
-	// 	for(unsigned c=0; c<NumCells; c++)
-	// 	{
-	// 		//Save the single cell data to a vector
-	// 		Vector<double> single_cell_data;
-	// 		Cells_pt[c]->save_state_to_vector(single_cell_data, use_node_vm);
+		//Loop over the cells
+		for(unsigned c=0; c<NumCells; c++)
+		{
+			//Save the single cell data to a vector
+			Vector<double> single_cell_data;
+			Cells_pt[c]->save_state_to_vector(single_cell_data, use_node_vm);
 
-	// 		//Loop over the data from the cell and put it into the big vector
-	// 		for(unsigned i=Starting_Index_For_Data_Of_Cell[c]; i<((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data); i++)
-	// 		{
-	// 			Cell_Data[i] = single_cell_data[i-Starting_Index_For_Data_Of_Cell[c]];
-	// 			// oomph_info << Cell_Data[i] << std::endl;
-	// 		}
-	// 	}
-	// }
+			//Loop over the data from the cell and put it into the big vector
+			for(unsigned i=Starting_Index_For_Data_Of_Cell[c]; i<((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data); i++)
+			{
+				Cell_Data[i] = single_cell_data[i-Starting_Index_For_Data_Of_Cell[c]];
+				// oomph_info << Cell_Data[i] << std::endl;
+			}
+		}
+	}
 
-	// //Restore all the cell data inthe mesh from a big vector
-	// void restore_all_cell_data_from_mesh_from_vector(Vector<double> &Cell_Data)
-	// {
-	// 	// oomph_info << "set cell data" << std::endl;
-	// 	//Loop over the cells
-	// 	for(unsigned c=0; c<NumCells; c++)
-	// 	{
-	// 		// std::cout << c << std::endl;
-	// 		//Update the cell from the combined data vector
-	// 		std::vector<double>::const_iterator first = Cell_Data.begin() + Starting_Index_For_Data_Of_Cell[c];
-	// 		std::vector<double>::const_iterator last = Cell_Data.begin() + ((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data);
-	// 		std::vector<double> projected_cell_data(first, last);
-	// 		Cells_pt[c]->restore_state_from_vector(projected_cell_data, true);
+	//Restore all the cell data inthe mesh from a big vector
+	void restore_all_cell_data_from_mesh_from_vector(Vector<double> &Cell_Data)
+	{
+		// oomph_info << "set cell data" << std::endl;
+		//Loop over the cells
+		for(unsigned c=0; c<NumCells; c++)
+		{
+			// std::cout << c << std::endl;
+			//Update the cell from the combined data vector
+			std::vector<double>::const_iterator first = Cell_Data.begin() + Starting_Index_For_Data_Of_Cell[c];
+			std::vector<double>::const_iterator last = Cell_Data.begin() + ((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data);
+			std::vector<double> projected_cell_data(first, last);
+			Cells_pt[c]->restore_state_from_vector(projected_cell_data, true);
 
-	// 		// for(unsigned i=0; i<projected_cell_data.size(); i++)
-	// 		// {
-	// 		// 	oomph_info << projected_cell_data[i] << std::endl;
-	// 		// }
-	// 	}
-	// }
+			// for(unsigned i=0; i<projected_cell_data.size(); i++)
+			// {
+			// 	oomph_info << projected_cell_data[i] << std::endl;
+			// }
+		}
+	}
 
 
 
@@ -1434,6 +1563,7 @@ public:
 			// Cells_pt[c]->calculate_optional_output(t);
 
 			Cells_pt[c]->output_global_coord(outfile);
+			Cells_pt[c]->output_cell_type(outfile);
 			Cells_pt[c]->output_cell_variables(outfile);
 			Cells_pt[c]->output_additional_data(outfile);
 
@@ -1456,43 +1586,46 @@ public:
 		BuildNodeElementTables();
 	}
 
-	// //Loop over all the cells in the mesh and reset the running values to the current IC values
-	// void reset_copy_variables_to_IC_values_for_all_cells_in_mesh()
-	// {
-	// 	//Loop over all of the cells in the mesh
-	// 	for(unsigned c=0; c<NumCells; c++)
-	// 	{
-	// 		Cells_pt[c]->reset_copy_variables_to_IC_values();
-	// 	}
-	// }
+	//Loop over all the cells in the mesh and reset the running values to the current IC values
+	void reset_copy_variables_to_IC_values_for_all_cells_in_mesh()
+	{
+		//Loop over all of the cells in the mesh
+		for(unsigned c=0; c<NumCells; c++)
+		{
+			Cells_pt[c]->reset_copy_variables_to_IC_values();
+		}
+	}
 
-	// //Loop over the cells in the mesh and set the current IC values to the current running values
-	// void accept_copy_variables_as_IC_values_for_all_cells_in_mesh()
-	// {
-	// 	//Loop over all of the cells in the mesh
-	// 	for(unsigned c=0; c<NumCells; c++)
-	// 	{
-	// 		Cells_pt[c]->accept_copy_variables_as_IC_values();
-	// 	}
-	// }
+	//Loop over the cells in the mesh and set the current IC values to the current running values
+	void accept_copy_variables_as_IC_values_for_all_cells_in_mesh()
+	{
+		//Loop over all of the cells in the mesh
+		for(unsigned c=0; c<NumCells; c++)
+		{
+			Cells_pt[c]->accept_copy_variables_as_IC_values();
+		}
+	}
 
 	//Loop over the cells in the mesh and take a time-step of length dt
 	//Handles mpi/serial computation and communication of the solution back to the cells.
 	//problem_pt is used to access the mpi communicator and to access the current time.
 	// first bool determines if the underlying node vm is used as the initial condition
 	// second bool determines if the underling node vm is updated post mpi solve.
-	void Take_time_step_with_all_cells_in_mesh(const double& dt, Problem* problem_pt)
+	void Take_time_step_with_all_cells_in_mesh(const double& dt,
+												Problem* problem_pt,
+												const bool &use_node_vm_as_initial_value = false,
+												const bool &update_underlying_node_value_post_solve = false)
 	{
 		#ifndef OOMPH_FORCE_SERIAL_SINGLE_CELL_SOLVE
 		#ifdef OOMPH_HAS_MPI
-		// If we only have one processor or the problem is distributed then we always do the cell solves in serial
+		//If we only have one processor or the problem is distributed then we always do the cell solves in serial
 		if(problem_pt->communicator_pt()->nproc() == 1 || this->is_mesh_distributed())
 		{
 		#endif
 		#endif
 			//If there is only one processor or we are running in serial then do it serially
 
-			oomph_info << "Performing a serial timestep for all cells in a mesh with time-step " << dt << std::endl;
+			oomph_info << "Performing a serial timestep for all cells in a mesh" << std::endl;
 			double t_start = TimingHelpers::timer();
 
 			//Loop over all of the cells in the mesh
@@ -1500,11 +1633,11 @@ public:
 				// oomph_info << "Cell " << c << std::endl;
 				//Take a timestep
 				// oomph_info << "Solving cell " << c << std::endl;
-				Cells_pt[c]->Take_Time_Step(dt);
-				// if(update_underlying_node_value_post_solve)
-				// {
-				// 	Cells_pt[c]->update_underlying_node_membrane_potential();
-				// }
+				Cells_pt[c]->TakeTimestep(problem_pt->time_pt()->time(), dt, use_node_vm_as_initial_value);
+				if(update_underlying_node_value_post_solve)
+				{
+					Cells_pt[c]->update_underlying_node_membrane_potential();
+				}
 			}
 			double t_end = TimingHelpers::timer();
 			oomph_info << "Done. It took me " << (t_end-t_start) << " seconds to complete." << std::endl;
@@ -1513,36 +1646,43 @@ public:
 		}
 		else
 		{
-		// #ifdef PARANOID
-		// #ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
-		// 	//Solve in serial first to check against the mpi version
-		// 	Vector<double> Serial_Cell_Data(Total_cell_data, 0.0);
+		#ifdef PARANOID
+		#ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
+			//Solve in serial first to check against the mpi version
+			Vector<double> Serial_Cell_Data(Total_cell_data, 0.0);
 
-		// 	Vector<double> restore_single_cell_data;
-		// 	//Loop over all of the cells in the mesh
-		// 	for(unsigned c=0; c<NumCells; c++)
-		// 	{
-		// 		const double last_dt = Cells_pt[c]->get_last_used_dt();
-		// 		Cells_pt[c]->save_state_to_vector(restore_single_cell_data);
-		// 		//Take a timestep
-		// 		Cells_pt[c]->Take_Time_Step(dt);
+			Vector<double> restore_single_cell_data;
+			//Loop over all of the cells in the mesh
+			for(unsigned c=0; c<NumCells; c++)
+			{
+				const double last_dt = Cells_pt[c]->get_last_used_dt();
+				Cells_pt[c]->save_state_to_vector(restore_single_cell_data);
+				//Take a timestep
+				Cells_pt[c]->TakeTimestep(problem_pt->time_pt()->time(), dt, use_node_vm_as_initial_value);
 
-		// 		Vector<double> single_cell_data;
-		// 		Cells_pt[c]->save_state_to_vector(single_cell_data);
-		// 		for(unsigned i=Starting_Index_For_Data_Of_Cell[c]; i<((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data); i++)
-		// 		{
-		// 			Serial_Cell_Data[i] = single_cell_data[i-Starting_Index_For_Data_Of_Cell[c]];
-		// 		}
+				// oomph_info << Starting_Index_For_Data_Of_Cell[c] << " " << Starting_Index_For_Data_Of_Cell[c]+Cells_pt[c]->get_Num_Cell_Vars()+1+1 << std::endl;
+				// if(update_underlying_node_value_post_solve)
+				// {
+				// 	Cells_pt[c]->update_underlying_node_membrane_potential();
+				// }
 
-		// 		Cells_pt[c]->restore_state_from_vector(restore_single_cell_data);
-		// 		Cells_pt[c]->set_last_used_dt(last_dt);
-		// 	}
-		// #endif
-		// #endif
+				Vector<double> single_cell_data;
+				Cells_pt[c]->save_state_to_vector(single_cell_data);
+				for(unsigned i=Starting_Index_For_Data_Of_Cell[c]; i<((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data); i++)
+				{
+					// oomph_info << "writing to position " << i << std::endl;
+					Serial_Cell_Data[i] = single_cell_data[i-Starting_Index_For_Data_Of_Cell[c]];
+				}
+
+				Cells_pt[c]->restore_state_from_vector(restore_single_cell_data);
+				Cells_pt[c]->set_last_used_dt(last_dt);
+			}
+		#endif
+		#endif
 
 
 			//If we are compiled with parallel and we have more than one processor then run in parallel
-			oomph_info << "Performing a parallel timestep for all cells in a mesh with time-step " << dt << std::endl;
+			oomph_info << "Performing a parallel timestep for all cells in a mesh" << std::endl;
 			const double t_start = TimingHelpers::timer();
 
 			//Set up the local vector of new cell variables
@@ -1550,47 +1690,42 @@ public:
 			//Set up the vector of combined data across all processors
 			Vector<double> Combined_Cell_Data(Total_cell_data, 0.0);
 
-		// #ifdef PARANOID
-		// #ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
-		// 	Vector<unsigned> Local_cell_is_computed(NumCells, 0);
-		// 	Vector<unsigned> Combined_cell_is_computed(NumCells, 0);
+		#ifdef PARANOID
+		#ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
+			Vector<unsigned> Local_cell_is_computed(NumCells, 0);
+			Vector<unsigned> Combined_cell_is_computed(NumCells, 0);
 
-		// 	Vector<unsigned> Local_dof_is_computed(Total_cell_data, 0);
-		// 	Vector<unsigned> Combined_dof_is_computed(Total_cell_data, 0);
+			Vector<unsigned> Local_dof_is_computed(Total_cell_data, 0);
+			Vector<unsigned> Combined_dof_is_computed(Total_cell_data, 0);
 
-		// #endif
-		// #endif
+		#endif
+		#endif
 
 			//Loop over the cells
 			for(unsigned c=0; c<NumCells; c++)
 			{
 				//If it is one we are to compute then compute it
 				if(c%problem_pt->communicator_pt()->nproc() != problem_pt->communicator_pt()->my_rank()) continue;
-			// #ifdef PARANOID
-			// #ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
-			// 	Local_cell_is_computed[c]++;
-			// #endif
-			// #endif
-				Cells_pt[c]->Take_Time_Step(dt);
+				// oomph_info << "Cell " << c << std::endl;
+			#ifdef PARANOID
+			#ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
+				Local_cell_is_computed[c]++;
+			#endif
+			#endif
+				Cells_pt[c]->TakeTimestep(problem_pt->time_pt()->time(), dt, use_node_vm_as_initial_value);
 				//Save the solution to the local vector
-				// Vector<double> single_cell_data;
-				// Cells_pt[c]->save_state_to_vector(single_cell_data);
-				// for(unsigned i=Starting_Index_For_Data_Of_Cell[c]; i<((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data); i++)
-				// {
-				// 	Local_Cell_Data[i] = single_cell_data[i-Starting_Index_For_Data_Of_Cell[c]];
-				// // #ifdef PARANOID
-				// // #ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
-				// // 	Local_dof_is_computed[i]++;
-				// // #endif
-				// // #endif
-				// }
-
-				// for(unsigned i=Starting_Index_For_Data_Of_Cell[c]; i<((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data); i++)
-				// {
-				// 	Local_Cell_Data[i] = single_cell_data[i-Starting_Index_For_Data_Of_Cell[c]];
-				// }
-
-				Cells_pt[c]->record_data_pre_mpi_reduce(Local_Cell_Data, Starting_Index_For_Data_Of_Cell[c]);
+				Vector<double> single_cell_data;
+				Cells_pt[c]->save_state_to_vector(single_cell_data);
+				for(unsigned i=Starting_Index_For_Data_Of_Cell[c]; i<((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data); i++)
+				{
+					// oomph_info << "writing to position " << i << std::endl;
+					Local_Cell_Data[i] = single_cell_data[i-Starting_Index_For_Data_Of_Cell[c]];
+				#ifdef PARANOID
+				#ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
+					Local_dof_is_computed[i]++;
+				#endif
+				#endif
+				}
 			}
 
 			const double t_end_solve = TimingHelpers::timer();
@@ -1600,41 +1735,41 @@ public:
 			MPI_Allreduce(Local_Cell_Data.data(), Combined_Cell_Data.data(), Total_cell_data, MPI_DOUBLE, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
 
 
-		// #ifdef PARANOID
-		// #ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
-		// 	MPI_Allreduce(Local_cell_is_computed.data(), Combined_cell_is_computed.data(), NumCells, MPI_UNSIGNED, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
+		#ifdef PARANOID
+		#ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
+			MPI_Allreduce(Local_cell_is_computed.data(), Combined_cell_is_computed.data(), NumCells, MPI_UNSIGNED, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
 
-		// 	MPI_Allreduce(Local_dof_is_computed.data(), Combined_dof_is_computed.data(), Total_cell_data, MPI_UNSIGNED, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
+			MPI_Allreduce(Local_dof_is_computed.data(), Combined_dof_is_computed.data(), Total_cell_data, MPI_UNSIGNED, MPI_SUM, problem_pt->communicator_pt()->mpi_comm());
 
-		// 	double diff = 0.0;
-		// 	//Compare the serial solution to the mpi solution
-		// 	for(unsigned i=0; i<Total_cell_data; i++)
-		// 	{
-		// 		diff = std::max(diff, std::fabs(Serial_Cell_Data[i] - Combined_Cell_Data[i])/std::max(Serial_Cell_Data[i], Combined_Cell_Data[i]));
-		// 	}
-		// 	oomph_info << "Difference in serial and mpi solution: " << diff << std::endl;
-		// 	if(diff>1e-12)
-		// 	{
-		// 		oomph_info << "Serial solution\tMPI solution\tDiff\tN times var computed MPI" << std::endl;
-		// 		for(unsigned i=0; i<Total_cell_data; i++)
-		// 		{
-		// 			if(std::fabs(Serial_Cell_Data[i] - Combined_Cell_Data[i])/std::max(Serial_Cell_Data[i], Combined_Cell_Data[i])>1e-9)
-		// 			{
-		// 				oomph_info << Serial_Cell_Data[i] << "\t" << Combined_Cell_Data[i] << "\t" << std::fabs(Serial_Cell_Data[i] - Combined_Cell_Data[i])/std::max(Serial_Cell_Data[i], Combined_Cell_Data[i]) << "\t" << Combined_dof_is_computed[i] << std::endl;
-		// 			}
-		// 		}
+			double diff = 0.0;
+			//Compare the serial solution to the mpi solution
+			for(unsigned i=0; i<Total_cell_data; i++)
+			{
+				diff = std::max(diff, std::fabs(Serial_Cell_Data[i] - Combined_Cell_Data[i])/std::max(Serial_Cell_Data[i], Combined_Cell_Data[i]));
+			}
+			oomph_info << "Difference in serial and mpi solution: " << diff << std::endl;
+			if(diff>1e-12)
+			{
+				oomph_info << "Serial solution\tMPI solution\tDiff\tN times var computed MPI" << std::endl;
+				for(unsigned i=0; i<Total_cell_data; i++)
+				{
+					if(std::fabs(Serial_Cell_Data[i] - Combined_Cell_Data[i])/std::max(Serial_Cell_Data[i], Combined_Cell_Data[i])>1e-9)
+					{
+						oomph_info << Serial_Cell_Data[i] << "\t" << Combined_Cell_Data[i] << "\t" << std::fabs(Serial_Cell_Data[i] - Combined_Cell_Data[i])/std::max(Serial_Cell_Data[i], Combined_Cell_Data[i]) << "\t" << Combined_dof_is_computed[i] << std::endl;
+					}
+				}
 
-		// 		for(unsigned c=0; c<NumCells; c++)
-		// 		{
-		// 			oomph_info << Combined_cell_is_computed[c] << std::endl;
-		// 		}	
+				for(unsigned c=0; c<NumCells; c++)
+				{
+					oomph_info << Combined_cell_is_computed[c] << std::endl;
+				}	
 
-		// 		throw OomphLibError("MPI and serial do not match",
-		// 						OOMPH_CURRENT_FUNCTION,
-		// 						OOMPH_EXCEPTION_LOCATION);
-		// 	}
-		// #endif
-		// #endif
+				throw OomphLibError("MPI and serial do not match",
+								OOMPH_CURRENT_FUNCTION,
+								OOMPH_EXCEPTION_LOCATION);
+			}
+		#endif
+		#endif
 
 
 			const double t_end_reduce = TimingHelpers::timer();
@@ -1643,24 +1778,23 @@ public:
 			//Loop over the cells
 			for(unsigned c=0; c<NumCells; c++)
 			{
-			// #ifdef PARANOID
-			// #ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
-			// 	if(Combined_cell_is_computed[c]!=1)
-			// 	{
-			// 		std::ostringstream error_message;
-			// 		error_message << "Cell " << std::to_string(c) << " is not computed" << std::endl;
-			// 		throw OomphLibError(error_message.str(),
-			// 							OOMPH_CURRENT_FUNCTION,
-			// 							OOMPH_EXCEPTION_LOCATION);
-			// 	}
-			// #endif
-			// #endif
+			#ifdef PARANOID
+			#ifdef CHECK_SERIAL_AND_PARALLEL_CELL_SOLVE_DIFFERENCE
+				if(Combined_cell_is_computed[c]!=1)
+				{
+					std::ostringstream error_message;
+					error_message << "Cell " << std::to_string(c) << " is not computed" << std::endl;
+					throw OomphLibError(error_message.str(),
+										OOMPH_CURRENT_FUNCTION,
+										OOMPH_EXCEPTION_LOCATION);
+				}
+			#endif
+			#endif
 				//Update the cell from the combined data vector
-				// std::vector<double>::const_iterator first = Combined_Cell_Data.begin() + Starting_Index_For_Data_Of_Cell[c];
-				// std::vector<double>::const_iterator last = Combined_Cell_Data.begin() + ((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data);
-				// std::vector<double> projected_cell_data(first, last);
-				// Cells_pt[c]->restore_state_from_vector(projected_cell_data, update_underlying_node_value_post_solve);
-				Cells_pt[c]->update_data_post_mpi_reduce(Combined_Cell_Data, Starting_Index_For_Data_Of_Cell[c]);
+				std::vector<double>::const_iterator first = Combined_Cell_Data.begin() + Starting_Index_For_Data_Of_Cell[c];
+				std::vector<double>::const_iterator last = Combined_Cell_Data.begin() + ((c<NumCells-1) ? Starting_Index_For_Data_Of_Cell[c+1] : Total_cell_data);
+				std::vector<double> projected_cell_data(first, last);
+				Cells_pt[c]->restore_state_from_vector(projected_cell_data, update_underlying_node_value_post_solve);
 			}
 
 			const double t_end_communicate = TimingHelpers::timer();
@@ -2355,7 +2489,7 @@ public:
 
 	 oomph_info << "Deleting cells after distribute " << this->nnode() << " " << this->nelement() << " " << NumCells << std::endl;
 
-	 Vector<CellModelBaseFullySegregated*> new_cell_pt;
+	 Vector<CellModelBaseFullyPartitioned*> new_cell_pt;
 	 //Loop over the cells
 	 for(unsigned i=0; i<NumCells; i++)
 	 {
@@ -2387,7 +2521,7 @@ public:
 	 {
 
 		//Get a pointer to the cell
-		CellModelBaseFullySegregated* cell_pt = new_cell_pt[i];
+		CellModelBaseFullyPartitioned* cell_pt = new_cell_pt[i];
 
 		//Add it back to the vector of cells
 		Cells_pt.push_back(cell_pt);

@@ -7,7 +7,7 @@
 	#include <oomph-lib-config.h>
 #endif
 
-#include "cell_solvers_fully_segregated.h"
+#include "cell_solvers_fully_partitioned.h"
 
 #include "../toms_utilities/diff_augmented_cell_wrapper.h"
 

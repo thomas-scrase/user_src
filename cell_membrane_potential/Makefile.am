@@ -21,7 +21,8 @@ refineable_bidomain_elements.h \
 monodomain_elements_crank_nicolson.h \
 monodomain_elements_obrechkoff_1_1.h \
 no_diffusion_elements.h \
-refineable_monodomain_crank_nicolson_elements.h
+refineable_monodomain_crank_nicolson_elements.h \
+monodomain_elements_crank_nicolson_node_history.h
 
 # Define name of library
 libname = cell_membrane_potential

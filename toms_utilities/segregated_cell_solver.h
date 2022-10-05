@@ -27,23 +27,23 @@
 //LIC// The authors may be contacted at oomph-lib@maths.man.ac.uk.
 //LIC// 
 //LIC//====================================================================
-#ifndef OOMPH_SEGREGATED_CELL_SOLVER
-#define OOMPH_SEGREGATED_CELL_SOLVER
+#ifndef OOMPH_PARTITIONED_CELL_SOLVER
+#define OOMPH_PARTITIONED_CELL_SOLVER
 
 
 #include "../generic/problem.h"
 #include "../generic/geom_objects.h"
 #include "../generic/mesh.h"
-//We use the objects defined in segregated fsi solver
+//We use the objects defined in partitioned fsi solver
 // For handling the picard convergence
-#include "../multi_physics/segregated_fsi_solver.h"
+#include "../multi_physics/partitioned_fsi_solver.h"
 
 #include "../conducting_cell/conducting_cell_elements.h"
 
 namespace oomph
 {
 
-  enum SegregatedSolverTypes{
+  enum PartitionedSolverTypes{
     StrangSplitting,
     Whiteley2006,
     Whiteley2006WithCrankNicolson,
@@ -53,7 +53,7 @@ namespace oomph
   };
 
 //===============================================================
-/// Base class for problems that can be solved by segregated 
+/// Base class for problems that can be solved by partitioned 
 /// FSI solver
 //===============================================================
   template<class ELEMENT_TYPE>
@@ -62,16 +62,16 @@ namespace oomph
     protected:
 
    /// \short This function is called once at the start of each
-   /// segregated solve.
-   virtual void actions_before_segregated_solve() {}
+   /// partitioned solve.
+   virtual void actions_before_partitioned_solve() {}
 
    /// \short This function is called once at the end of each
-   /// segregated solve.
-   virtual void actions_after_segregated_solve() {}
+   /// partitioned solve.
+   virtual void actions_after_partitioned_solve() {}
 
    /// \short This function is to be filled with actions that take place
-   /// before the check for convergence of the entire segregated solve
-   virtual void actions_before_segregated_convergence_check() {}
+   /// before the check for convergence of the entire partitioned solve
+   virtual void actions_before_partitioned_convergence_check() {}
 
     public:
 
@@ -127,7 +127,7 @@ namespace oomph
 
      //By default we use whiteley 2006 which solves for vm(tnp1) with Iion(tn)
      // Then solves for cell vars(tnp1) with vm(tnp1)
-     SegregatedSolveType = Whiteley2006;
+     PartitionedSolveType = Whiteley2006;
 
      // enable_under_relaxation();
      // enable_pointwise_aitken();
@@ -136,30 +136,30 @@ namespace oomph
    /// Empty virtual destructor
    virtual ~SegregatableCellProblem(){}
 
-   void set_segregated_solve_type(const unsigned &type){
+   void set_partitioned_solve_type(const unsigned &type){
     switch(type){
       case StrangSplitting :
-        SegregatedSolveType = type;
+        PartitionedSolveType = type;
         set_cells_interpolate_flags(Implicit,Implicit);
         break;
       case Whiteley2006 : 
-        SegregatedSolveType = type;
+        PartitionedSolveType = type;
         set_cells_interpolate_flags(Explicit, Implicit);
         break;
       case Whiteley2006WithCrankNicolson : 
-        SegregatedSolveType = type;
+        PartitionedSolveType = type;
         set_cells_interpolate_flags(CrankNicolson,CrankNicolson);
         break;
       case ExplicitCellImplicitDiff :
-        SegregatedSolveType = type;
+        PartitionedSolveType = type;
         set_cells_interpolate_flags(Implicit, Explicit);
         break;
       case IterativeStrangSplitting :
-        SegregatedSolveType = type;
+        PartitionedSolveType = type;
         set_cells_interpolate_flags(Implicit,Implicit);
         break;
       case CrankNicolsonCrankNicolson :
-        SegregatedSolveType = type;
+        PartitionedSolveType = type;
         set_cells_interpolate_flags(CrankNicolson,CrankNicolson);
         break;
 
@@ -186,16 +186,16 @@ namespace oomph
 
    void explicit_cell_model_timestep(const double &dt)
    {
-    Oomph_Cell_Interface_Helpers::Segregated_Cell_Timestep_Solve_Over_Mesh<ELEMENT_TYPE>(dt, this, Cell_mesh_pt, false);
+    Oomph_Cell_Interface_Helpers::Partitioned_Cell_Timestep_Solve_Over_Mesh<ELEMENT_TYPE>(dt, this, Cell_mesh_pt, false);
    }
 
    void explicit_cell_model_timestep(const double &dt, const bool &use_current_as_initial)
    {
-    Oomph_Cell_Interface_Helpers::Segregated_Cell_Timestep_Solve_Over_Mesh<ELEMENT_TYPE>(dt, this, Cell_mesh_pt, use_current_as_initial);
+    Oomph_Cell_Interface_Helpers::Partitioned_Cell_Timestep_Solve_Over_Mesh<ELEMENT_TYPE>(dt, this, Cell_mesh_pt, use_current_as_initial);
    }
 
 
-   /// \short Setup the segregated solver: Backup the pinned status of
+   /// \short Setup the partitioned solver: Backup the pinned status of
    /// the cell and vm dofs and allocate the internal storage
    /// based on the input provided by identify_cell_and_vm_dofs(...)
    /// In addition, reset storage associated with convergence acceleration
@@ -206,7 +206,7 @@ namespace oomph
    /// boolean flag is set to false then the storage for convergence
    /// acceleration techniques is reset, but the cell and vm dofs
    /// are not altered.
-   void setup_segregated_solver()
+   void setup_partitioned_solver()
    {      
     if (Cell_mesh_pt==0)
     {
@@ -302,16 +302,16 @@ namespace oomph
     // Initialise counter for the number of pointwise Aitken values stored
     Pointwise_aitken_counter=0;
 
-    //Set the segregated solve type to the segregated solve type
+    //Set the partitioned solve type to the partitioned solve type
     // so that element get value flags are setup correctly
-    set_segregated_solve_type(SegregatedSolveType);
+    set_partitioned_solve_type(PartitionedSolveType);
   }
    
-   /// \short Segregated solver. Peform a segregated step from
+   /// \short Partitioned solver. Peform a partitioned step from
    /// the present state of the system.
    /// Returns PicardConvergenceData object that contains the vital
    /// stats of the iteration
-   PicardConvergenceData segregated_solve()
+   PicardConvergenceData partitioned_solve()
     {
     // Initialise timer for essential bits of code
     reset_timer();
@@ -333,7 +333,7 @@ namespace oomph
     double cpu_for_global_residual=0.0;
      
     //Update anything that needs updating
-    actions_before_segregated_solve();
+    actions_before_partitioned_solve();
      
     // Set flags to values that are appropriate if Picard iteration
     // does not converge with Max_picard iterations
@@ -357,7 +357,7 @@ namespace oomph
        {
         //Problem is always non-linear?
         //Perform any actions before the convergence check
-        actions_before_segregated_convergence_check();
+        actions_before_partitioned_convergence_check();
 
         //Update the cell model data, i.e. Iion, and active strain etc.
         unpin_all_dofs();
@@ -456,7 +456,7 @@ namespace oomph
       newton_solve();
 
 
-      // if(SegregatedSolveType==Whiteley2006){goto jump_out_of_picard;}
+      // if(PartitionedSolveType==Whiteley2006){goto jump_out_of_picard;}
 
 
 
@@ -477,7 +477,7 @@ namespace oomph
       do
        {
         //Perform any actions before the convergence check
-        actions_before_segregated_convergence_check();
+        actions_before_partitioned_convergence_check();
          
         //Get the change in the vm variables
         double rms_change;
@@ -635,7 +635,7 @@ namespace oomph
     assign_eqn_numbers();
 
     // Do any updates that are required 
-    actions_after_segregated_solve();
+    actions_after_partitioned_solve();
      
     // Number of iterations (either this is still Max_iter from 
     // the initialisation or it's been overwritten on convergence)
@@ -674,11 +674,11 @@ namespace oomph
         //Throw an error indicating if we ran out of iterations
         if (iter_taken==Max_picard)
          {
-          throw SegregatedSolverError(true);
+          throw PartitionedSolverError(true);
          }
         else 
          {
-          throw SegregatedSolverError(false);
+          throw PartitionedSolverError(false);
          }
         break;
          
@@ -696,11 +696,11 @@ namespace oomph
         //Throw an error indicating if we ran out of iterations
         if (iter_taken==Max_picard)
          {
-          throw SegregatedSolverError(true);
+          throw PartitionedSolverError(true);
          }
         else 
          {
-          throw SegregatedSolverError(false);
+          throw PartitionedSolverError(false);
          }
         break;
          
@@ -718,11 +718,11 @@ namespace oomph
         //Throw an error indicating if we ran out of iterations
         if (iter_taken==Max_picard)
          {
-          throw SegregatedSolverError(true);
+          throw PartitionedSolverError(true);
          }
         else 
          {
-          throw SegregatedSolverError(false);
+          throw PartitionedSolverError(false);
          }
         break;
          
@@ -732,11 +732,11 @@ namespace oomph
     return conv_data;
    }
    
-   /// \short Steady version of segregated solver. Makes all
+   /// \short Steady version of partitioned solver. Makes all
    /// timesteppers steady before solving.
    /// Returns PicardConvergenceData object that contains the
    /// vital stats of the iteration. 
-   PicardConvergenceData steady_segregated_solve()
+   PicardConvergenceData steady_partitioned_solve()
    {
     //Find out how many timesteppers there are
     unsigned n_time_steppers = ntime_stepper();
@@ -755,18 +755,18 @@ namespace oomph
     // Create object to doc convergence stats
     PicardConvergenceData conv_data;
      
-    //Solve the non-linear problem by the segregated solver
+    //Solve the non-linear problem by the partitioned solver
     try
      {
-      conv_data = segregated_solve();
+      conv_data = partitioned_solve();
      }
-    //Catch any exceptions thrown in the segregated solver
-    catch(SegregatedSolverError &error)
+    //Catch any exceptions thrown in the partitioned solver
+    catch(PartitionedSolverError &error)
      {
       if (!error.Ran_out_of_iterations)
        {
         std::ostringstream error_stream;
-        error_stream << "Error occured in Segregated solver. "
+        error_stream << "Error occured in Partitioned solver. "
                      << std::endl;
         throw OomphLibError(error_stream.str(),
                             OOMPH_CURRENT_FUNCTION,
@@ -802,26 +802,26 @@ namespace oomph
    }
    
 
-   /// \short Unsteady segregated solver, advance time by dt and solve
-   /// by the segregated solver. The time values are always shifted by
+   /// \short Unsteady partitioned solver, advance time by dt and solve
+   /// by the partitioned solver. The time values are always shifted by
    /// this function.
    /// Returns PicardConvergenceData object that contains the
    /// vital stats of the iteration. 
-   PicardConvergenceData unsteady_segregated_solve(const double& dt)
+   PicardConvergenceData unsteady_partitioned_solve(const double& dt)
    {
     //We shift the values, so shift_values is true
-    return unsteady_segregated_solve(dt,true);
+    return unsteady_partitioned_solve(dt,true);
    }
 
 
-   /// \short Unsteady segregated solver. Advance time by dt and solve
-   /// the system by a segregated method. The boolean flag is used to
+   /// \short Unsteady partitioned solver. Advance time by dt and solve
+   /// the system by a partitioned method. The boolean flag is used to
    /// control whether the time values should be shifted. If it is true 
    /// the current data values will be shifted (stored as previous 
    /// timesteps) before the solution step.
    /// Returns PicardConvergenceData object that contains the
    /// vital stats of the iteration. 
-   PicardConvergenceData unsteady_segregated_solve(const double& dt,
+   PicardConvergenceData unsteady_partitioned_solve(const double& dt,
                                                    const bool &shift_values)
    {
     //Shift the time values and the dts according to the control flag
@@ -853,15 +853,15 @@ namespace oomph
     try
      {
       //Solve the non-linear problem for this timestep with Newton's method
-      conv_data = segregated_solve();
+      conv_data = partitioned_solve();
      }
-    //Catch any exceptions thrown in the segregated solver
-    catch(SegregatedSolverError &error)
+    //Catch any exceptions thrown in the partitioned solver
+    catch(PartitionedSolverError &error)
      {
       if (!error.Ran_out_of_iterations)
        {
         std::ostringstream error_stream;
-        error_stream << "Error occured in Segregated solver. "
+        error_stream << "Error occured in Partitioned solver. "
                      << std::endl;
         throw OomphLibError(error_stream.str(),
                             OOMPH_CURRENT_FUNCTION,
@@ -951,7 +951,7 @@ namespace oomph
 
     clock_t t_end = clock();
 
-    oomph_info << "Time taken to complete semi implicit segregated timestep " << double(t_end - t_start)/CLOCKS_PER_SEC << std::endl;
+    oomph_info << "Time taken to complete semi implicit partitioned timestep " << double(t_end - t_start)/CLOCKS_PER_SEC << std::endl;
 
     return conv_data;
    }
@@ -1353,7 +1353,7 @@ namespace oomph
 
    //Perform a timestep with modified whiteley 2006 - solve diffusion model with Iion of previous timestep,
    // solve for cell variables implicitely using current timestep vm (implicit boost solve is not implemented yet so we "implicit" solve, uising an adaptive methods).
-   //Original whiteley 2006 method is a single step segregated solver - instead force both diffusion and cell solver to use crank-nicolson method and iteratively
+   //Original whiteley 2006 method is a single step partitioned solver - instead force both diffusion and cell solver to use crank-nicolson method and iteratively
    // seek a solution
    
 
@@ -2005,7 +2005,7 @@ namespace oomph
    /// Convergence criterion (enumerated flag)
    int Convergence_criterion;
   
-   /// \short Reference time for segregated solve. Can be 
+   /// \short Reference time for partitioned solve. Can be 
    /// re-initialised whenever total elapsed time has been stored
    /// (before entering non-essential doc sections of the code)
    clock_t T_ref;
@@ -2018,7 +2018,7 @@ namespace oomph
    /// \short boolean flag to indicate if timer has been halted
    bool Timer_has_been_halted;
 
-   bool SegregatedSolveType;
+   bool PartitionedSolveType;
 
   };
 

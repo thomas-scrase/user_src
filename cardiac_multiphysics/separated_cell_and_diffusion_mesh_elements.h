@@ -13,7 +13,7 @@
 #include "../generic/refineable_brick_element.h"
 #include "../generic/error_estimator.h"
 
-#include "../cell_solvers/cell_solvers_fully_segregated.h"
+#include "../cell_solvers/cell_solvers_fully_partitioned.h"
 
 // //Solid elements for the external solid element for geometric data
 // #include "../anisotropic_solid/anisotropic_solid_elements.h"
@@ -437,10 +437,17 @@ namespace oomph
 		}
 
 		//The nodal predicted vm is now just the projected predicted vm
-		inline virtual double get_nodal_predicted_vm_BaseCellMembranePotential(const unsigned &l) const override
+		// inline virtual double get_nodal_predicted_vm_BaseCellMembranePotential(const unsigned &l) const override
+		// {
+		// 	return (this->node_pt(l)->value(projected_predicted_vm_index_DiffusionElementWithExternalCellElement()));
+		// }
+
+		double get_nodal_cell_vm_BaseCellMembranePotential(const unsigned &l) const override
 		{
 			return (this->node_pt(l)->value(projected_predicted_vm_index_DiffusionElementWithExternalCellElement()));
 		}
+
+
 
 		//Pin the projected vm index in all nodes
 		inline void pin_all_projected_degrees_of_freedom() const
@@ -770,7 +777,12 @@ namespace oomph
 
 
 		//The nodal predicted vm is now just the projected predicted vm
-		inline virtual double get_nodal_predicted_vm_BaseCellMembranePotential(const unsigned &l) const
+		// inline virtual double get_nodal_predicted_vm_BaseCellMembranePotential(const unsigned &l) const
+		// {
+		// 	return (this->nodal_value(l,DiffusionElementWithExternalCellElement<DIFFUSION_ELEMENT, EXT_CELL_SOLVER_ELEMENT>::projected_predicted_vm_index_DiffusionElementWithExternalCellElement()));
+		// }
+
+		double get_nodal_cell_vm_BaseCellMembranePotential(const unsigned &l) const override
 		{
 			return (this->nodal_value(l,DiffusionElementWithExternalCellElement<DIFFUSION_ELEMENT, EXT_CELL_SOLVER_ELEMENT>::projected_predicted_vm_index_DiffusionElementWithExternalCellElement()));
 		}
@@ -1036,7 +1048,8 @@ namespace oomph
 			for(unsigned l=0; l<n_node; l++)
 			{
 				//Set the value of the vm dof in the node to the projected predicted dof of the node
-				elem_pt->node_pt(l)->set_value(elem_pt->vm_index_BaseCellMembranePotential(), elem_pt->get_nodal_predicted_vm_BaseCellMembranePotential(l));
+				// elem_pt->node_pt(l)->set_value(elem_pt->vm_index_BaseCellMembranePotential(), elem_pt->get_nodal_predicted_vm_BaseCellMembranePotential(l));
+				elem_pt->node_pt(l)->set_value(elem_pt->vm_index_BaseCellMembranePotential(), elem_pt->get_nodal_cell_vm_BaseCellMembranePotential(l));
 			}
 		}
 	}

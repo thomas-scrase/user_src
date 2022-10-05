@@ -54,7 +54,7 @@
 
 namespace oomph{
 
-OHaraRudyRushLarsen::OHaraRudyRushLarsen(const unsigned& number_of_backup_values) : CellModelBaseFullySegregated(number_of_backup_values)
+OHaraRudyRushLarsen::OHaraRudyRushLarsen(const unsigned& number_of_backup_values) : CellModelBaseFullyPartitioned(number_of_backup_values)
 {
 	//Default cell type
 	cell_type = 100;

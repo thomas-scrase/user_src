@@ -29,6 +29,9 @@ namespace oomph
 		//Integers used to store the local equation number and local unknown
 		//indices for the residuals and jacobians
 		int local_eqn=0, local_unknown=0;
+		
+		//Get the time
+		const double time=this->node_pt(0)->time_stepper_pt()->time_pt()->time();
 
 		// Local storage for pointers to hang_info objects
 		HangInfo *hang_info_pt=0, *hang_info2_pt=0;
@@ -97,7 +100,7 @@ namespace oomph
 			//Get source function
 			//-------------------
 			double source;
-			this->get_source_BaseCellMembranePotential(ipt,s,interpolated_x,source);
+			this->get_source_BaseCellMembranePotential(ipt,s,interpolated_x,time, source);
 
 			//Get conductivity tensors
 			DenseMatrix<double> Gi(DIM,DIM,0.0);

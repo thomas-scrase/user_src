@@ -520,7 +520,7 @@
 // {
 // public:
 
-// 	CellProbe(CellModelBaseFullySegregated* cell_pt, const std::string OutFileName = "", const unsigned& l = 0, const double& time=0.0)
+// 	CellProbe(CellModelBaseFullyPartitioned* cell_pt, const std::string OutFileName = "", const unsigned& l = 0, const double& time=0.0)
 // 	{
 // 		Cell_pt = cell_pt;
 
@@ -558,7 +558,7 @@
 // private:
 
 // 	//The cell element
-// 	CellModelBaseFullySegregated* Cell_pt;
+// 	CellModelBaseFullyPartitioned* Cell_pt;
 // };
 
 

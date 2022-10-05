@@ -852,7 +852,7 @@ void IsmailTNNP06::Calculate_Derivatives(const Boost_State_Type &Variables,
 	
 	// Note that passive force is specified in terms of maximal active force.
 	// Passive force is computed in two ways depending on if cell is skinned or intact.
-	ppforce=sign((SL-SLrest))*PCon_t*(std::exp(PExp_t*std::abs((SL-SLrest)))-1);
+	ppforce=sign((SL-SLrest))*PCon_t*(std::exp(PExp_t*std::fabs((SL-SLrest)))-1);
     // if (singlecell == false) 
 	ppforce += std::max(0.0,(PCon_col*std::exp(PExp_col*(SL-SLcol))));
 	

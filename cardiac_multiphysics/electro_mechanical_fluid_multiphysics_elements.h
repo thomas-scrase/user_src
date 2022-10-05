@@ -6,7 +6,7 @@
   #include <oomph-lib-config.h>
 #endif
 
-#include "../cell_solvers/cell_solvers_fully_segregated.h"
+#include "../cell_solvers/cell_solvers_fully_partitioned.h"
 // #include "../anisotropic_constitutive/anisotropic_constitutive_laws.h"
 #include "../anisotropic_solid/anisotropic_solid_elements.h"
 
@@ -62,7 +62,7 @@ namespace oomph
 				{
 					len += (A[i])[j]*(A[i])[j];
 				}
-				if(std::abs(len-1.0)>1e-9)
+				if(std::fabs(len-1.0)>1e-9)
 				{
 					oomph_info << len << std::endl;
 					for(unsigned j=0; j<A[i].size(); j++)

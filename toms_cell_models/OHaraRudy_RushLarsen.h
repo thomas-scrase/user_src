@@ -66,7 +66,7 @@
 
 namespace oomph{
 
-class OHaraRudyRushLarsen : public CellModelBaseFullySegregated
+class OHaraRudyRushLarsen : public CellModelBaseFullyPartitioned
 {
 public:
 	OHaraRudyRushLarsen(const unsigned& number_of_backup_values);

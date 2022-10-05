@@ -28,7 +28,7 @@ namespace oomph{
 // 	}
 // };
 
-class IsmailTNNP06RushLarsen : public CellModelBaseFullySegregated
+class IsmailTNNP06RushLarsen : public CellModelBaseFullyPartitioned
 {
 public:
 	IsmailTNNP06RushLarsen(const unsigned& number_of_backup_values);
@@ -849,7 +849,7 @@ static int rice_myofilament_ode(realtype t, N_Vector x, N_Vector dxdt, void *use
 			
 			// Note that passive force is specified in terms of maximal active force.
 			// Passive force is computed in two ways depending on if cell is skinned or intact.
-			p->ppforce=p->sign((NV_Ith_S(x,6)-p->SLrest))*p->PCon_t*(std::exp(p->PExp_t*std::abs((NV_Ith_S(x,6)-p->SLrest)))-1);
+			p->ppforce=p->sign((NV_Ith_S(x,6)-p->SLrest))*p->PCon_t*(std::exp(p->PExp_t*std::fabs((NV_Ith_S(x,6)-p->SLrest)))-1);
 		  //   if (singlecell == false) 
 				// ppforce += std::max(0.0,(PCon_col*std::exp(PExp_col*(NV_Ith_S(x,6)-SLcol))));
 			

@@ -95,7 +95,7 @@ namespace oomph
 	#define QND_nH_inal 1.0
 
 
-	class DomHRd : public CellModelBaseFullySegregated
+	class DomHRd : public CellModelBaseFullyPartitioned
 	{
 	public:
 		//===========
@@ -121,7 +121,7 @@ namespace oomph
 		std::string get_cell_model_name(){return "DomHRd";}
 
 
-		DomHRd(const unsigned& number_of_backup_values) : CellModelBaseFullySegregated(number_of_backup_values)
+		DomHRd(const unsigned& number_of_backup_values) : CellModelBaseFullyPartitioned(number_of_backup_values)
 		{	
 			//========================
       // Electrophysiology Model

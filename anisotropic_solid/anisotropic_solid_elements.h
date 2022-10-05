@@ -77,7 +77,7 @@ namespace oomph
           {
             len += (A[i])[j]*(A[i])[j];
           }
-          if(std::abs(len-1.0)>1e-9)
+          if(std::fabs(len-1.0)>1e-9)
           {
             throw OomphLibError("Preferential vector in anisotropic solid is not normal",
                                 OOMPH_CURRENT_FUNCTION,

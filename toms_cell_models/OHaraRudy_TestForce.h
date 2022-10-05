@@ -62,7 +62,7 @@
 
 namespace oomph{
 
-class OHaraRudyTestForce : public CellModelBaseFullySegregated
+class OHaraRudyTestForce : public CellModelBaseFullyPartitioned
 {
 public:
 	OHaraRudyTestForce();

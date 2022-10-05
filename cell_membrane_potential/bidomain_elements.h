@@ -25,7 +25,7 @@ namespace oomph{
 		/// \short Function pointer to source function fct(x,f(x)) -- 
 		/// x is a Vector! 
 		typedef void (*BidomainEquationsSourceFctPt)
-		(const Vector<double>& x, double& f);
+		(const Vector<double>& x, const double& t, double& f);
 
         BidomainEquations()	:	Intracellular_Conductivity_Fct_Pt(0),
         						Extracellular_Conductivity_Fct_Pt(0),
@@ -67,6 +67,9 @@ namespace oomph{
 		//Integers used to store the local equation number and local unknown
 		//indices for the residuals and jacobians
 		int local_eqn=0, local_unknown=0;
+
+		//Get the time
+		const double time=this->node_pt(0)->time_stepper_pt()->time_pt()->time();
 
 		//Loop over the integration points
 		for(unsigned ipt=0;ipt<n_intpt;ipt++)
@@ -136,10 +139,10 @@ namespace oomph{
 		 //Get source functions
 		 //-------------------
 		 double intracellular_source;
-		 this->get_source_BaseCellMembranePotential(ipt,s,interpolated_x,intracellular_source);
+		 this->get_source_BaseCellMembranePotential(ipt,s,interpolated_x,time, intracellular_source);
 
 		 double extracellular_source;
-		 this->get_extracellular_source_BidomainEquations(ipt,s,interpolated_x,extracellular_source);
+		 this->get_extracellular_source_BidomainEquations(ipt,s,interpolated_x,time, extracellular_source);
 
 		 //Get conductivity tensors
 		 DenseMatrix<double> Gi(DIM,DIM,0.0);
@@ -437,6 +440,7 @@ namespace oomph{
 		inline virtual void get_extracellular_source_BidomainEquations(const unsigned& ipt,
 																		const Vector<double>& s,
 																		const Vector<double>& x,
+																		const double& t,
 																		double& source) const
 		{
 			//If no source function has been set, return zero
@@ -447,7 +451,7 @@ namespace oomph{
 			else
 			{
 				// Get source strength
-				(*Extracellular_Source_fct_pt)(x,source);
+				(*Extracellular_Source_fct_pt)(x,t,source);
 			}
 		}
 

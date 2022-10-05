@@ -15,7 +15,7 @@ toms_point_element.h \
 cell_probe_utilities.h \
 pseudo_ecg_elements.h
 # toms_explicit_timestepping_methods.h
-# segregated_cell_solver.h
+# partitioned_cell_solver.h
 
 # Define name of library
 libname = toms_utilities

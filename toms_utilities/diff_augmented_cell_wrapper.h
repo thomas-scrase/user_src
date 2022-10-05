@@ -16,7 +16,7 @@
 
 //Cell interface elements (includes cell models)
 // #include "../cell_interface/cell_interface_elements.h"
-// #include "../cell_solvers_fully_segregated/cell_solvers_fully_segregated_elements.h"
+// #include "../cell_solvers_fully_partitioned/cell_solvers_fully_partitioned_elements.h"
 
 
 namespace oomph
