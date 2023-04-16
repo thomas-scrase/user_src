@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Scrase"
+  given-names: "Thomas"
+  orcid: "https://orcid.org/0000-0003-3991-4961"
+title: "user_src"
+version: 1.0.0
+doi: 10.5281/zenodo.1234
+date-released: 2023-04-16
+url: "https://github.com/thomas-scrase/user_src"
